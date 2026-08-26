@@ -44,8 +44,16 @@ export function getAppUrl(requestOrigin?: string): string {
   return configured ?? "http://localhost:3000";
 }
 
+export function isDemoMode() {
+  const mongoConfigured = isMongoConfigured();
+  if (process.env.NODE_ENV === "production" && mongoConfigured) {
+    return false;
+  }
+  return process.env.DEMO_MODE === "true" || (process.env.DEMO_MODE !== "false" && !mongoConfigured);
+}
+
 export const env = {
-  demoMode: process.env.DEMO_MODE === "true" || (process.env.DEMO_MODE !== "false" && !isMongoConfigured()),
+  demoMode: isDemoMode(),
   get appUrl() {
     return getAppUrl();
   },

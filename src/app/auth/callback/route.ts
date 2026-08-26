@@ -32,7 +32,8 @@ export async function GET(request: NextRequest) {
     const user = await findOrCreateGoogleUser({ ...profile, locale });
     await createSession(user.id);
     return NextResponse.redirect(new URL(next, request.url));
-  } catch {
+  } catch (error) {
+    console.error("Google OAuth callback failed:", error);
     return NextResponse.redirect(new URL(`/${locale}/login?error=oauth`, request.url));
   }
 }

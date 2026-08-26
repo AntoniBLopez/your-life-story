@@ -7,11 +7,19 @@ Un espacio privado donde tu línea temporal, tu árbol de vida y tus reflexiones
 ## Puesta en marcha
 
 1. Copia `.env.example` en `.env` (o `.env.local`) y configura MongoDB y OpenAI.
-2. En desarrollo, `MONGODB_CONNECTION_DEV` apunta a tu instancia local; en producción usa `MONGODB_CONNECTION` (por ejemplo MongoDB Atlas).
-3. Opcional: configura `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` para login con Google. Añade estos redirect URIs en Google Cloud Console:
+2. En desarrollo se usa `MONGODB_CONNECTION_DEV`; en producción (Vercel) `MONGODB_CONNECTION`. Usa el mismo nombre de base de datos en ambas (por ejemplo `yourlifestorydb`). MongoDB Atlas solo muestra la base de datos tras el primer documento insertado.
+3. Pon `DEMO_MODE=false` cuando quieras datos reales. En producción, si MongoDB está configurado, la app ignora el modo demo aunque `DEMO_MODE=true`.
+4. En Vercel → Settings → Environment Variables (Production), configura al menos:
+   - `MONGODB_CONNECTION` con la URI de Atlas (`.../yourlifestorydb?...`)
+   - `DEMO_MODE=false`
+   - `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET`
+   - `SESSION_SECRET` (cadena aleatoria larga)
+   - `NEXT_PUBLIC_APP_URL=https://your-life-story-jade.vercel.app`
+5. En MongoDB Atlas → Network Access, permite acceso desde `0.0.0.0/0` (necesario para Vercel).
+6. Opcional: login con Google. Redirect URIs en Google Cloud Console:
    - `http://localhost:3000/auth/callback` (desarrollo)
-   - `https://tu-dominio.vercel.app/auth/callback` (producción)
-4. Ejecuta `pnpm install` y luego `pnpm dev`.
+   - `https://your-life-story-jade.vercel.app/auth/callback` (producción)
+7. Ejecuta `pnpm install` y luego `pnpm dev`.
 
 Los índices de MongoDB se crean automáticamente al primer arranque.
 
@@ -23,7 +31,7 @@ Los índices de MongoDB se crean automáticamente al primer arranque.
 - `SESSION_SECRET`: secreto para firmar sesiones (recomendado en producción).
 - `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET`: login con Google (opcional).
 - `OPENAI_API_KEY` y `OPENAI_MODEL`: utilizadas exclusivamente desde `app/api/ai`.
-- `DEMO_MODE`: `true` para explorar la app sin MongoDB.
+- `DEMO_MODE`: `true` para explorar sin MongoDB en local. En producción con MongoDB configurado se desactiva automáticamente.
 
 ## Arquitectura
 
