@@ -2,8 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { requireCurrentUser } from "@/shared/lib/auth";
-import { env } from "@/shared/lib/env";
-import { demoPeople } from "@/shared/lib/demo-data";
 import type { ActionResult } from "@/shared/types/action";
 import { assertNoParentCycle } from "../domain/family-graph";
 import { parseGedcom } from "../domain/gedcom";
@@ -29,14 +27,7 @@ export async function updateFamilyPersonAction(formData: FormData): Promise<Acti
   if (!parsed.success || !personId) return { ok: false, error: "Revisa los datos de esta persona." };
   try {
     const user = await requireCurrentUser();
-    if (env.demoMode) {
-      const person = demoPeople.find((item) => item.id === personId && item.userId === user.id);
-      if (!person) return { ok: false, error: "No se encontró esta persona." };
-      if (parsed.data.isSubject) demoPeople.forEach((item) => { item.isSubject = false; });
-      Object.assign(person, parsed.data);
-    } else {
-      await repository.updatePerson(user.id, personId, parsed.data);
-    }
+    await repository.updatePerson(user.id, personId, parsed.data);
     const locale = String(formData.get("locale")) === "en" ? "en" : "es";
     revalidatePath(`/${locale}/app/family`);
     return { ok: true, data: { id: personId } };
@@ -66,7 +57,7 @@ export async function importGedcomAction(formData: FormData): Promise<ActionResu
     const user = await requireCurrentUser();
     const idByGedcomId = new Map<string, string>();
     for (const person of parsed.people) {
-      const created = await repository.addPerson(user.id, { fullName: person.fullName, birthDate: person.birthDate, birthDatePrecision: person.birthDatePrecision, deathDate: person.deathDate, deathDatePrecision: person.deathDatePrecision, birthCountry: person.birthCountry, birthCity: person.birthCity, isSubject: false });
+      const created = await repository.addPerson(user.id, { fullName: person.fullName, birthDate: person.birthDate, birthDatePrecision: person.birthDatePrecision, deathDate: person.deathDate, deathDatePrecision: person.deathDatePrecision, birthCountry: person.birthCountry, birthCity: person.birthCity, gender: person.gender ?? null, isSubject: false });
       idByGedcomId.set(person.gedcomId, created.id);
     }
     let relationshipCount = 0;

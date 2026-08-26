@@ -47,7 +47,7 @@ export function parseGedcom(source: string): GedcomImport {
       const [, level, id, tag, value] = match;
       if (level === "0" && tag === "INDI") {
         current = { kind: "INDI", id };
-        people.set(id, { gedcomId: id, fullName: "", birthDate: null, birthDatePrecision: null, deathDate: null, deathDatePrecision: null, birthCountry: null, birthCity: null });
+        people.set(id, { gedcomId: id, fullName: "", birthDate: null, birthDatePrecision: null, deathDate: null, deathDatePrecision: null, birthCountry: null, birthCity: null, gender: null });
       } else if (level === "0" && tag === "FAM") {
         current = { kind: "FAM", id };
         families.push({ children: [] });

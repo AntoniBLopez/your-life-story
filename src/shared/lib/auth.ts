@@ -1,6 +1,4 @@
 import { redirect } from "next/navigation";
-import { env } from "./env";
-import { DEMO_USER_ID } from "./demo-data";
 import { getSessionUserId, destroySession } from "./auth/session";
 import { findUserById } from "@/modules/identity/infrastructure/mongo-user-repository";
 
@@ -17,15 +15,7 @@ export type AuthUser = {
   locale: "es" | "en";
 };
 
-const demoUser: AuthUser = {
-  id: DEMO_USER_ID,
-  email: "demo@example.com",
-  displayName: "Ana Demo",
-  locale: "es",
-};
-
 export async function getCurrentUser(): Promise<AuthUser | null> {
-  if (env.demoMode) return demoUser;
   const userId = await getSessionUserId();
   if (!userId) return null;
   const user = await findUserById(userId);

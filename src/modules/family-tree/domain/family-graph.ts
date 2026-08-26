@@ -1,6 +1,8 @@
 export const RELATIONSHIP_TYPES = ["parent", "partner", "sibling"] as const;
 export type RelationshipType = (typeof RELATIONSHIP_TYPES)[number];
 
+export type PersonGender = "male" | "female" | null;
+
 export type FamilyPerson = {
   id: string;
   userId: string;
@@ -11,6 +13,7 @@ export type FamilyPerson = {
   deathDatePrecision: "day" | "month" | "year" | null;
   birthCountry: string | null;
   birthCity: string | null;
+  gender: PersonGender;
   isSubject: boolean;
 };
 
@@ -21,6 +24,36 @@ export type FamilyRelationship = {
   targetPersonId: string;
   relationshipType: RelationshipType;
 };
+
+const FEMALE_FIRST_NAMES = new Set([
+  "mireya", "rosario", "maria", "ana", "clara", "laura", "elena", "sara", "julia", "carmen", "lucia",
+]);
+const MALE_FIRST_NAMES = new Set([
+  "antoni", "kevin", "manuel", "luis", "juan", "carlos", "marc", "pablo", "david", "jordi", "toni",
+]);
+
+export function inferGender(person: Pick<FamilyPerson, "fullName" | "gender">): PersonGender {
+  if (person.gender) return person.gender;
+  const first = person.fullName.trim().split(/\s+/)[0]?.toLowerCase() ?? "";
+  if (FEMALE_FIRST_NAMES.has(first)) return "female";
+  if (MALE_FIRST_NAMES.has(first)) return "male";
+  return null;
+}
+
+function parentIdsOf(personId: string, relationships: FamilyRelationship[]) {
+  return relationships
+    .filter((item) => item.relationshipType === "parent" && item.targetPersonId === personId)
+    .map((item) => item.sourcePersonId);
+}
+
+function genderedLabel(
+  gender: PersonGender,
+  labels: { male: string; female: string; neutral: string },
+) {
+  if (gender === "male") return labels.male;
+  if (gender === "female") return labels.female;
+  return labels.neutral;
+}
 
 export function assertNoParentCycle(
   relationships: FamilyRelationship[],
@@ -44,18 +77,65 @@ export function relationToSubject(
   personId: string,
   subjectId: string | undefined,
   relationships: FamilyRelationship[],
+  people: FamilyPerson[],
   locale: "es" | "en",
 ) {
   if (!subjectId) return "";
-  if (personId === subjectId) return locale === "es" ? "Tú" : "You";
-  const parentOfSubject = relationships.some((item) => item.relationshipType === "parent" && item.sourcePersonId === personId && item.targetPersonId === subjectId);
-  if (parentOfSubject) return locale === "es" ? "Progenitor" : "Parent";
-  const childOfSubject = relationships.some((item) => item.relationshipType === "parent" && item.sourcePersonId === subjectId && item.targetPersonId === personId);
-  if (childOfSubject) return locale === "es" ? "Hijo/a" : "Child";
-  const sibling = relationships.some((item) => item.relationshipType === "sibling" && ((item.sourcePersonId === personId && item.targetPersonId === subjectId) || (item.targetPersonId === personId && item.sourcePersonId === subjectId)));
-  if (sibling) return locale === "es" ? "Hermano/a" : "Sibling";
-  const parents = relationships.filter((item) => item.relationshipType === "parent" && item.targetPersonId === subjectId).map((item) => item.sourcePersonId);
-  const grandparent = relationships.some((item) => item.relationshipType === "parent" && item.sourcePersonId === personId && parents.includes(item.targetPersonId));
-  if (grandparent) return locale === "es" ? "Abuelo/a" : "Grandparent";
+  const person = people.find((item) => item.id === personId);
+  const gender = inferGender(person ?? { fullName: "", gender: null });
+
+  if (personId === subjectId) return locale === "es" ? "TÚ" : "YOU";
+
+  const isParentOfSubject = relationships.some(
+    (item) => item.relationshipType === "parent" && item.sourcePersonId === personId && item.targetPersonId === subjectId,
+  );
+  if (isParentOfSubject) {
+    return genderedLabel(gender, locale === "es"
+      ? { male: "PADRE", female: "MADRE", neutral: "PROGENITOR" }
+      : { male: "FATHER", female: "MOTHER", neutral: "PARENT" });
+  }
+
+  const isChildOfSubject = relationships.some(
+    (item) => item.relationshipType === "parent" && item.sourcePersonId === subjectId && item.targetPersonId === personId,
+  );
+  if (isChildOfSubject) {
+    return genderedLabel(gender, locale === "es"
+      ? { male: "HIJO", female: "HIJA", neutral: "HIJO/A" }
+      : { male: "SON", female: "DAUGHTER", neutral: "CHILD" });
+  }
+
+  const subjectParents = parentIdsOf(subjectId, relationships);
+  const personParents = parentIdsOf(personId, relationships);
+  const sharedParents = subjectParents.filter((id) => personParents.includes(id));
+
+  if (sharedParents.length >= 2) {
+    return genderedLabel(gender, locale === "es"
+      ? { male: "HERMANO", female: "HERMANA", neutral: "HERMANO/A" }
+      : { male: "BROTHER", female: "SISTER", neutral: "SIBLING" });
+  }
+  if (sharedParents.length === 1) {
+    return genderedLabel(gender, locale === "es"
+      ? { male: "HERMANASTRO", female: "HERMANASTRA", neutral: "HERMANASTRO/A" }
+      : { male: "HALF-BROTHER", female: "HALF-SISTER", neutral: "HALF-SIBLING" });
+  }
+
+  const explicitSibling = relationships.some(
+    (item) => item.relationshipType === "sibling"
+      && ((item.sourcePersonId === personId && item.targetPersonId === subjectId)
+        || (item.targetPersonId === personId && item.sourcePersonId === subjectId)),
+  );
+  if (explicitSibling) {
+    return genderedLabel(gender, locale === "es"
+      ? { male: "HERMANO", female: "HERMANA", neutral: "HERMANO/A" }
+      : { male: "BROTHER", female: "SISTER", neutral: "SIBLING" });
+  }
+
+  const grandparent = subjectParents.some((parentId) => parentIdsOf(parentId, relationships).includes(personId));
+  if (grandparent) {
+    return genderedLabel(gender, locale === "es"
+      ? { male: "ABUELO", female: "ABUELA", neutral: "ABUELO/A" }
+      : { male: "GRANDFATHER", female: "GRANDMOTHER", neutral: "GRANDPARENT" });
+  }
+
   return "";
 }

@@ -15,6 +15,7 @@ type FamilyPersonDbRecord = {
   deathDatePrecision: FamilyPerson["deathDatePrecision"];
   birthCountry: string | null;
   birthCity: string | null;
+  gender: FamilyPerson["gender"];
   isSubject: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -39,6 +40,7 @@ const mapPerson = (row: FamilyPersonDbRecord): FamilyPerson => ({
   deathDatePrecision: row.deathDatePrecision,
   birthCountry: row.birthCountry,
   birthCity: row.birthCity,
+  gender: row.gender ?? null,
   isSubject: row.isSubject,
 });
 
@@ -82,6 +84,7 @@ export class MongoFamilyRepository implements FamilyRepository {
       deathDatePrecision: person.deathDatePrecision,
       birthCountry: person.birthCountry,
       birthCity: person.birthCity,
+      gender: person.gender ?? null,
       isSubject: person.isSubject,
       createdAt: now,
       updatedAt: now,
@@ -106,6 +109,7 @@ export class MongoFamilyRepository implements FamilyRepository {
           deathDatePrecision: person.deathDatePrecision,
           birthCountry: person.birthCountry,
           birthCity: person.birthCity,
+          gender: person.gender ?? null,
           isSubject: person.isSubject,
           updatedAt: new Date(),
         },

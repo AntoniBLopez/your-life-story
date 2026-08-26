@@ -1,8 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { env } from "@/shared/lib/env";
 import { createSession, destroySession } from "@/shared/lib/auth/session";
+import { env } from "@/shared/lib/env";
 import { verifyPassword } from "@/shared/lib/auth/password";
 import type { ActionResult } from "@/shared/types/action";
 import { credentialsSchema, registrationSchema } from "./auth-schemas";
@@ -66,7 +66,6 @@ export async function requestPasswordResetAction(formData: FormData): Promise<Ac
 }
 
 export async function signOutAction(locale: string) {
-  if (env.demoMode) return;
   await destroySession();
   revalidatePath(`/${locale}`);
 }

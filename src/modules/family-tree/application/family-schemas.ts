@@ -12,6 +12,7 @@ export const familyPersonSchema = z.object({
   deathDatePrecision: z.enum(["day", "month", "year"]).optional().or(z.literal("")).transform((value) => value || null),
   birthCountry: optionalText,
   birthCity: optionalText,
+  gender: z.enum(["male", "female"]).optional().or(z.literal("")).transform((value) => value || null),
   isSubject: z.boolean().default(false),
 });
 
