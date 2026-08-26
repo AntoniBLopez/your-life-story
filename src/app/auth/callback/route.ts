@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { env } from "@/shared/lib/env";
+import { env, getRequestOrigin } from "@/shared/lib/env";
 import { findOrCreateGoogleUser } from "@/modules/identity/application/google-auth-service";
 import { exchangeGoogleCode, fetchGoogleProfile } from "@/modules/identity/infrastructure/google-oauth";
 import { createSession } from "@/shared/lib/auth/session";
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const appUrl = request.nextUrl.origin;
+    const appUrl = getRequestOrigin(request);
     const accessToken = await exchangeGoogleCode(code, appUrl);
     const profile = await fetchGoogleProfile(accessToken);
     const user = await findOrCreateGoogleUser({ ...profile, locale });

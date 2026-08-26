@@ -1,6 +1,6 @@
 import { randomBytes } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { env } from "@/shared/lib/env";
+import { env, getRequestOrigin } from "@/shared/lib/env";
 import { getGoogleAuthUrl } from "@/modules/identity/infrastructure/google-oauth";
 
 export async function GET(request: NextRequest) {
@@ -15,5 +15,5 @@ export async function GET(request: NextRequest) {
     nonce: randomBytes(16).toString("hex"),
   })).toString("base64url");
 
-  return NextResponse.redirect(getGoogleAuthUrl(state, request.nextUrl.origin));
+  return NextResponse.redirect(getGoogleAuthUrl(state, getRequestOrigin(request)));
 }

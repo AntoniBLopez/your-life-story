@@ -1,9 +1,13 @@
-import { env, getAppUrl } from "@/shared/lib/env";
+import { env } from "@/shared/lib/env";
 
-export function getGoogleAuthUrl(state: string, appUrl = getAppUrl()) {
+export function getGoogleRedirectUri(appUrl: string) {
+  return `${appUrl.replace(/\/$/, "")}/auth/callback`;
+}
+
+export function getGoogleAuthUrl(state: string, appUrl: string) {
   const params = new URLSearchParams({
     client_id: env.googleClientId!,
-    redirect_uri: `${appUrl}/auth/callback`,
+    redirect_uri: getGoogleRedirectUri(appUrl),
     response_type: "code",
     scope: "openid email profile",
     state,
@@ -13,7 +17,7 @@ export function getGoogleAuthUrl(state: string, appUrl = getAppUrl()) {
   return `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
 }
 
-export async function exchangeGoogleCode(code: string, appUrl = getAppUrl()) {
+export async function exchangeGoogleCode(code: string, appUrl: string) {
   const response = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -21,7 +25,7 @@ export async function exchangeGoogleCode(code: string, appUrl = getAppUrl()) {
       code,
       client_id: env.googleClientId!,
       client_secret: env.googleClientSecret!,
-      redirect_uri: `${appUrl}/auth/callback`,
+      redirect_uri: getGoogleRedirectUri(appUrl),
       grant_type: "authorization_code",
     }),
   });
