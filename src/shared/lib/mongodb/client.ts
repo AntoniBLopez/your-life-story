@@ -35,6 +35,7 @@ async function ensureIndexes(db: Db) {
     db.collection(COLLECTIONS.familyPeople).createIndex({ userId: 1, fullName: 1 }),
     db.collection(COLLECTIONS.familyRelationships).createIndex({ userId: 1 }),
     db.collection(COLLECTIONS.chatMessages).createIndex({ userId: 1, threadId: 1, createdAt: 1 }),
+    db.collection(COLLECTIONS.profiles).createIndex({ userId: 1 }, { unique: true }),
     db.collection(COLLECTIONS.passwordResetTokens).createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
   ]);
 }

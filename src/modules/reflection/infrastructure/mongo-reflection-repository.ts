@@ -24,7 +24,7 @@ export type ChatMessage = { id: string; role: "user" | "assistant"; content: str
 
 export async function getReflectionState(userId: string) {
   const db = await getDb();
-  const profile = await db.collection(COLLECTIONS.profiles).findOne({ _id: toObjectId(userId) });
+  const profile = await db.collection(COLLECTIONS.profiles).findOne({ userId });
   const thread = await db.collection<ChatThreadDbRecord>(COLLECTIONS.chatThreads)
     .find({ userId })
     .sort({ createdAt: 1 })

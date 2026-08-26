@@ -97,14 +97,13 @@ export async function storeAttachment(input: {
   const bucket = new GridFSBucket(db, { bucketName: GRIDFS_BUCKET });
   const safeName = input.fileName.replace(/[^a-zA-Z0-9._-]/g, "-").toLowerCase();
   const storagePath = `${input.userId}/${input.entryId}/${crypto.randomUUID()}-${safeName}`;
-  const gridFsId = new ObjectId();
 
-  await new Promise<void>((resolve, reject) => {
-    const stream = bucket.openUploadStreamWithId(gridFsId, storagePath, {
+  const gridFsId = await new Promise<string>((resolve, reject) => {
+    const stream = bucket.openUploadStream(storagePath, {
       metadata: { userId: input.userId, entryId: input.entryId, contentType: input.mimeType },
     });
     stream.on("error", reject);
-    stream.on("finish", () => resolve());
+    stream.on("finish", () => resolve(stream.id.toString()));
     stream.end(input.buffer);
   });
 

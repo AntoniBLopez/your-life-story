@@ -2,10 +2,10 @@ import type { ObjectId } from "mongodb";
 import type { Profile, SupportedLocale } from "@/modules/identity/domain/profile";
 import { getDb } from "@/shared/lib/mongodb/client";
 import { COLLECTIONS } from "@/shared/lib/mongodb/collections";
-import { toObjectId } from "@/shared/lib/mongodb/id";
 
 type ProfileDbRecord = {
   _id: ObjectId;
+  userId: string;
   displayName: string | null;
   locale: SupportedLocale;
   aiConsentAt: Date | null;
@@ -14,9 +14,9 @@ type ProfileDbRecord = {
   updatedAt: Date;
 };
 
-function mapProfile(userId: string, record: ProfileDbRecord): Profile {
+function mapProfile(record: ProfileDbRecord): Profile {
   return {
-    id: userId,
+    id: record.userId,
     displayName: record.displayName,
     locale: record.locale,
     aiConsentAt: record.aiConsentAt?.toISOString() ?? null,
@@ -28,7 +28,7 @@ export async function createProfile(userId: string, input: { displayName?: strin
   const db = await getDb();
   const now = new Date();
   const record = {
-    _id: toObjectId(userId),
+    userId,
     displayName: input.displayName ?? null,
     locale: input.locale,
     aiConsentAt: null,
@@ -36,24 +36,24 @@ export async function createProfile(userId: string, input: { displayName?: strin
     createdAt: now,
     updatedAt: now,
   };
-  await db.collection(COLLECTIONS.profiles).insertOne(record);
-  return mapProfile(userId, record);
+  const { insertedId } = await db.collection(COLLECTIONS.profiles).insertOne(record);
+  return mapProfile({ _id: insertedId, ...record });
 }
 
 export async function getProfile(userId: string) {
   const db = await getDb();
-  const record = await db.collection<ProfileDbRecord>(COLLECTIONS.profiles).findOne({ _id: toObjectId(userId) });
-  return record ? mapProfile(userId, record) : null;
+  const record = await db.collection<ProfileDbRecord>(COLLECTIONS.profiles).findOne({ userId });
+  return record ? mapProfile(record) : null;
 }
 
 export async function upsertProfile(userId: string, fields: Partial<Pick<ProfileDbRecord, "displayName" | "locale" | "aiConsentAt" | "onboardedAt">>) {
   const db = await getDb();
   const now = new Date();
   await db.collection(COLLECTIONS.profiles).updateOne(
-    { _id: toObjectId(userId) },
+    { userId },
     {
       $set: { ...fields, updatedAt: now },
-      $setOnInsert: { createdAt: now },
+      $setOnInsert: { userId, createdAt: now },
     },
     { upsert: true },
   );
@@ -62,5 +62,5 @@ export async function upsertProfile(userId: string, fields: Partial<Pick<Profile
 
 export async function updateProfileFields(userId: string, fields: Partial<Pick<ProfileDbRecord, "displayName" | "locale" | "aiConsentAt" | "onboardedAt">>) {
   const db = await getDb();
-  await db.collection(COLLECTIONS.profiles).updateOne({ _id: toObjectId(userId) }, { $set: { ...fields, updatedAt: new Date() } });
+  await db.collection(COLLECTIONS.profiles).updateOne({ userId }, { $set: { ...fields, updatedAt: new Date() } });
 }
