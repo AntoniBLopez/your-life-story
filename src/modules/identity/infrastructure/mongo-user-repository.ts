@@ -1,7 +1,20 @@
+import type { ObjectId } from "mongodb";
 import type { SupportedLocale } from "@/modules/identity/domain/profile";
 import { getDb } from "@/shared/lib/mongodb/client";
 import { COLLECTIONS } from "@/shared/lib/mongodb/collections";
 import { hashPassword } from "@/shared/lib/auth/password";
+import { idFromDocument, toObjectId } from "@/shared/lib/mongodb/id";
+
+type UserDbRecord = {
+  _id: ObjectId;
+  email: string;
+  passwordHash: string | null;
+  displayName: string | null;
+  locale: SupportedLocale;
+  googleId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
 export type UserRecord = {
   id: string;
@@ -14,19 +27,35 @@ export type UserRecord = {
   updatedAt: Date;
 };
 
+function mapUser(record: UserDbRecord): UserRecord {
+  return {
+    id: idFromDocument(record),
+    email: record.email,
+    passwordHash: record.passwordHash,
+    displayName: record.displayName,
+    locale: record.locale,
+    googleId: record.googleId,
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt,
+  };
+}
+
 export async function findUserByEmail(email: string) {
   const db = await getDb();
-  return db.collection<UserRecord>(COLLECTIONS.users).findOne({ email: email.toLowerCase() });
+  const record = await db.collection<UserDbRecord>(COLLECTIONS.users).findOne({ email: email.toLowerCase() });
+  return record ? mapUser(record) : null;
 }
 
 export async function findUserById(id: string) {
   const db = await getDb();
-  return db.collection<UserRecord>(COLLECTIONS.users).findOne({ id });
+  const record = await db.collection<UserDbRecord>(COLLECTIONS.users).findOne({ _id: toObjectId(id) });
+  return record ? mapUser(record) : null;
 }
 
 export async function findUserByGoogleId(googleId: string) {
   const db = await getDb();
-  return db.collection<UserRecord>(COLLECTIONS.users).findOne({ googleId });
+  const record = await db.collection<UserDbRecord>(COLLECTIONS.users).findOne({ googleId });
+  return record ? mapUser(record) : null;
 }
 
 export async function createUser(input: {
@@ -38,10 +67,8 @@ export async function createUser(input: {
 }) {
   const db = await getDb();
   const now = new Date();
-  const id = crypto.randomUUID();
   const passwordHash = input.password ? await hashPassword(input.password) : null;
-  const user: UserRecord = {
-    id,
+  const record = {
     email: input.email.toLowerCase(),
     passwordHash,
     displayName: input.displayName ?? null,
@@ -50,13 +77,13 @@ export async function createUser(input: {
     createdAt: now,
     updatedAt: now,
   };
-  await db.collection(COLLECTIONS.users).insertOne(user);
-  return user;
+  const { insertedId } = await db.collection(COLLECTIONS.users).insertOne(record);
+  return mapUser({ _id: insertedId, ...record });
 }
 
 export async function deleteUser(userId: string) {
   const db = await getDb();
-  await db.collection(COLLECTIONS.users).deleteOne({ id: userId });
+  await db.collection(COLLECTIONS.users).deleteOne({ _id: toObjectId(userId) });
 }
 
 export async function createPasswordResetToken(userId: string) {
@@ -78,5 +105,5 @@ export async function consumePasswordResetToken(token: string) {
 export async function updateUserPassword(userId: string, password: string) {
   const db = await getDb();
   const passwordHash = await hashPassword(password);
-  await db.collection(COLLECTIONS.users).updateOne({ id: userId }, { $set: { passwordHash, updatedAt: new Date() } });
+  await db.collection(COLLECTIONS.users).updateOne({ _id: toObjectId(userId) }, { $set: { passwordHash, updatedAt: new Date() } });
 }

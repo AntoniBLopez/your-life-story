@@ -1,16 +1,18 @@
+import type { ObjectId } from "mongodb";
 import { getDb } from "@/shared/lib/mongodb/client";
 import { COLLECTIONS } from "@/shared/lib/mongodb/collections";
+import { idFromDocument, toObjectId } from "@/shared/lib/mongodb/id";
 
-type ChatThreadRecord = {
-  id: string;
+type ChatThreadDbRecord = {
+  _id: ObjectId;
   userId: string;
   title: string;
   createdAt: Date;
   updatedAt: Date;
 };
 
-type ChatMessageRecord = {
-  id: string;
+type ChatMessageDbRecord = {
+  _id: ObjectId;
   userId: string;
   threadId: string;
   role: "user" | "assistant";
@@ -22,8 +24,8 @@ export type ChatMessage = { id: string; role: "user" | "assistant"; content: str
 
 export async function getReflectionState(userId: string) {
   const db = await getDb();
-  const profile = await db.collection(COLLECTIONS.profiles).findOne({ id: userId });
-  const thread = await db.collection<ChatThreadRecord>(COLLECTIONS.chatThreads)
+  const profile = await db.collection(COLLECTIONS.profiles).findOne({ _id: toObjectId(userId) });
+  const thread = await db.collection<ChatThreadDbRecord>(COLLECTIONS.chatThreads)
     .find({ userId })
     .sort({ createdAt: 1 })
     .limit(1)
@@ -33,8 +35,9 @@ export async function getReflectionState(userId: string) {
     return { consented: Boolean(profile?.aiConsentAt), messages: [] as ChatMessage[] };
   }
 
-  const messages = await db.collection<ChatMessageRecord>(COLLECTIONS.chatMessages)
-    .find({ userId, threadId: thread.id })
+  const threadId = idFromDocument(thread);
+  const messages = await db.collection<ChatMessageDbRecord>(COLLECTIONS.chatMessages)
+    .find({ userId, threadId })
     .sort({ createdAt: 1 })
     .limit(60)
     .toArray();
@@ -42,7 +45,7 @@ export async function getReflectionState(userId: string) {
   return {
     consented: Boolean(profile?.aiConsentAt),
     messages: messages.map((item) => ({
-      id: item.id,
+      id: idFromDocument(item),
       role: item.role,
       content: item.content,
       createdAt: item.createdAt.toISOString(),
@@ -52,35 +55,32 @@ export async function getReflectionState(userId: string) {
 
 export async function ensureReflectionThread(userId: string) {
   const db = await getDb();
-  const existing = await db.collection<ChatThreadRecord>(COLLECTIONS.chatThreads)
+  const existing = await db.collection<ChatThreadDbRecord>(COLLECTIONS.chatThreads)
     .find({ userId })
     .sort({ createdAt: 1 })
     .limit(1)
     .next();
-  if (existing) return existing.id;
+  if (existing) return idFromDocument(existing);
 
   const now = new Date();
-  const thread: ChatThreadRecord = {
-    id: crypto.randomUUID(),
+  const thread = {
     userId,
     title: "Life reflections",
     createdAt: now,
     updatedAt: now,
   };
-  await db.collection(COLLECTIONS.chatThreads).insertOne(thread);
-  return thread.id;
+  const { insertedId } = await db.collection(COLLECTIONS.chatThreads).insertOne(thread);
+  return insertedId.toString();
 }
 
 export async function saveReflectionMessage(userId: string, threadId: string, role: "user" | "assistant", content: string) {
   const db = await getDb();
-  const message: ChatMessageRecord = {
-    id: crypto.randomUUID(),
+  await db.collection(COLLECTIONS.chatMessages).insertOne({
     userId,
     threadId,
     role,
     content,
     createdAt: new Date(),
-  };
-  await db.collection(COLLECTIONS.chatMessages).insertOne(message);
-  await db.collection(COLLECTIONS.chatThreads).updateOne({ id: threadId, userId }, { $set: { updatedAt: new Date() } });
+  });
+  await db.collection(COLLECTIONS.chatThreads).updateOne({ _id: toObjectId(threadId), userId }, { $set: { updatedAt: new Date() } });
 }

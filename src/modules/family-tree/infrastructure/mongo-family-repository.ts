@@ -1,10 +1,12 @@
+import type { ObjectId } from "mongodb";
 import type { FamilyPerson, FamilyRelationship } from "../domain/family-graph";
 import type { FamilyRepository } from "../application/ports/family-repository";
 import { getDb } from "@/shared/lib/mongodb/client";
 import { COLLECTIONS } from "@/shared/lib/mongodb/collections";
+import { idFromDocument, toObjectId } from "@/shared/lib/mongodb/id";
 
-type FamilyPersonRecord = {
-  id: string;
+type FamilyPersonDbRecord = {
+  _id: ObjectId;
   userId: string;
   fullName: string;
   birthDate: string | null;
@@ -18,8 +20,8 @@ type FamilyPersonRecord = {
   updatedAt: Date;
 };
 
-type FamilyRelationshipRecord = {
-  id: string;
+type FamilyRelationshipDbRecord = {
+  _id: ObjectId;
   userId: string;
   sourcePersonId: string;
   targetPersonId: string;
@@ -27,8 +29,8 @@ type FamilyRelationshipRecord = {
   createdAt: Date;
 };
 
-const mapPerson = (row: FamilyPersonRecord): FamilyPerson => ({
-  id: row.id,
+const mapPerson = (row: FamilyPersonDbRecord): FamilyPerson => ({
+  id: idFromDocument(row),
   userId: row.userId,
   fullName: row.fullName,
   birthDate: row.birthDate,
@@ -40,8 +42,8 @@ const mapPerson = (row: FamilyPersonRecord): FamilyPerson => ({
   isSubject: row.isSubject,
 });
 
-const mapRelationship = (row: FamilyRelationshipRecord): FamilyRelationship => ({
-  id: row.id,
+const mapRelationship = (row: FamilyRelationshipDbRecord): FamilyRelationship => ({
+  id: idFromDocument(row),
   userId: row.userId,
   sourcePersonId: row.sourcePersonId,
   targetPersonId: row.targetPersonId,
@@ -55,13 +57,13 @@ export class MongoFamilyRepository implements FamilyRepository {
 
   async listPeople(userId: string) {
     const db = await this.db();
-    const rows = await db.collection<FamilyPersonRecord>(COLLECTIONS.familyPeople).find({ userId }).sort({ fullName: 1 }).toArray();
+    const rows = await db.collection<FamilyPersonDbRecord>(COLLECTIONS.familyPeople).find({ userId }).sort({ fullName: 1 }).toArray();
     return rows.map(mapPerson);
   }
 
   async listRelationships(userId: string) {
     const db = await this.db();
-    const rows = await db.collection<FamilyRelationshipRecord>(COLLECTIONS.familyRelationships).find({ userId }).toArray();
+    const rows = await db.collection<FamilyRelationshipDbRecord>(COLLECTIONS.familyRelationships).find({ userId }).toArray();
     return rows.map(mapRelationship);
   }
 
@@ -71,8 +73,7 @@ export class MongoFamilyRepository implements FamilyRepository {
       await db.collection(COLLECTIONS.familyPeople).updateMany({ userId }, { $set: { isSubject: false } });
     }
     const now = new Date();
-    const record: FamilyPersonRecord = {
-      id: crypto.randomUUID(),
+    const record = {
       userId,
       fullName: person.fullName,
       birthDate: person.birthDate,
@@ -85,8 +86,8 @@ export class MongoFamilyRepository implements FamilyRepository {
       createdAt: now,
       updatedAt: now,
     };
-    await db.collection(COLLECTIONS.familyPeople).insertOne(record);
-    return mapPerson(record);
+    const { insertedId } = await db.collection(COLLECTIONS.familyPeople).insertOne(record);
+    return mapPerson({ _id: insertedId, ...record });
   }
 
   async updatePerson(userId: string, personId: string, person: Omit<FamilyPerson, "id" | "userId">) {
@@ -94,8 +95,8 @@ export class MongoFamilyRepository implements FamilyRepository {
     if (person.isSubject) {
       await db.collection(COLLECTIONS.familyPeople).updateMany({ userId }, { $set: { isSubject: false } });
     }
-    const result = await db.collection<FamilyPersonRecord>(COLLECTIONS.familyPeople).findOneAndUpdate(
-      { id: personId, userId },
+    const result = await db.collection<FamilyPersonDbRecord>(COLLECTIONS.familyPeople).findOneAndUpdate(
+      { _id: toObjectId(personId), userId },
       {
         $set: {
           fullName: person.fullName,
@@ -117,14 +118,12 @@ export class MongoFamilyRepository implements FamilyRepository {
 
   async addRelationship(userId: string, relationship: Omit<FamilyRelationship, "id" | "userId">) {
     const db = await this.db();
-    const record: FamilyRelationshipRecord = {
-      id: crypto.randomUUID(),
+    await db.collection(COLLECTIONS.familyRelationships).insertOne({
       userId,
       sourcePersonId: relationship.sourcePersonId,
       targetPersonId: relationship.targetPersonId,
       relationshipType: relationship.relationshipType,
       createdAt: new Date(),
-    };
-    await db.collection(COLLECTIONS.familyRelationships).insertOne(record);
+    });
   }
 }

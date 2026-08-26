@@ -1,5 +1,6 @@
 import { getDb } from "@/shared/lib/mongodb/client";
 import { COLLECTIONS } from "@/shared/lib/mongodb/collections";
+import { toObjectId } from "@/shared/lib/mongodb/id";
 import {
   createUser,
   findUserByEmail,
@@ -31,7 +32,7 @@ export async function findOrCreateGoogleUser(input: {
   if (!existing.googleId) {
     const db = await getDb();
     await db.collection(COLLECTIONS.users).updateOne(
-      { id: existing.id },
+      { _id: toObjectId(existing.id) },
       { $set: { googleId: input.googleId, updatedAt: new Date() } },
     );
     const updated = await findUserById(existing.id);

@@ -1,12 +1,14 @@
+import type { ObjectId } from "mongodb";
 import type { LifeEntry, LifeEntryLink } from "../domain/life-entry";
 import type { LifeEntryInput } from "../application/life-entry-schema";
 import type { LifeEntryRepository } from "../application/ports/life-entry-repository";
 import { getDb } from "@/shared/lib/mongodb/client";
 import { COLLECTIONS } from "@/shared/lib/mongodb/collections";
 import { deleteAttachmentsForEntry } from "@/shared/lib/mongodb/attachments";
+import { idFromDocument, toObjectId } from "@/shared/lib/mongodb/id";
 
-type LifeEntryRecord = {
-  id: string;
+type LifeEntryDbRecord = {
+  _id: ObjectId;
   userId: string;
   startDate: string;
   endDate: string | null;
@@ -24,8 +26,8 @@ type LifeEntryRecord = {
   updatedAt: Date;
 };
 
-type LifeEntryLinkRecord = {
-  id: string;
+type LifeEntryLinkDbRecord = {
+  _id: ObjectId;
   userId: string;
   sourceEntryId: string;
   targetEntryId: string;
@@ -33,9 +35,9 @@ type LifeEntryLinkRecord = {
   createdAt: Date;
 };
 
-function mapEntry(row: LifeEntryRecord): LifeEntry {
+function mapEntry(row: LifeEntryDbRecord): LifeEntry {
   return {
-    id: row.id,
+    id: idFromDocument(row),
     userId: row.userId,
     startDate: row.startDate,
     endDate: row.endDate,
@@ -60,7 +62,7 @@ export class MongoLifeEntryRepository implements LifeEntryRepository {
 
   async listByUser(userId: string) {
     const db = await this.db();
-    const rows = await db.collection<LifeEntryRecord>(COLLECTIONS.lifeEntries)
+    const rows = await db.collection<LifeEntryDbRecord>(COLLECTIONS.lifeEntries)
       .find({ userId })
       .sort({ startDate: 1, createdAt: 1 })
       .toArray();
@@ -69,15 +71,14 @@ export class MongoLifeEntryRepository implements LifeEntryRepository {
 
   async findById(userId: string, entryId: string) {
     const db = await this.db();
-    const row = await db.collection<LifeEntryRecord>(COLLECTIONS.lifeEntries).findOne({ id: entryId, userId });
+    const row = await db.collection<LifeEntryDbRecord>(COLLECTIONS.lifeEntries).findOne({ _id: toObjectId(entryId), userId });
     return row ? mapEntry(row) : null;
   }
 
   async create(userId: string, input: LifeEntryInput) {
     const db = await this.db();
     const now = new Date();
-    const record: LifeEntryRecord = {
-      id: crypto.randomUUID(),
+    const record = {
       userId,
       startDate: input.startDate,
       endDate: input.endDate,
@@ -94,15 +95,15 @@ export class MongoLifeEntryRepository implements LifeEntryRepository {
       createdAt: now,
       updatedAt: now,
     };
-    await db.collection(COLLECTIONS.lifeEntries).insertOne(record);
-    return mapEntry(record);
+    const { insertedId } = await db.collection(COLLECTIONS.lifeEntries).insertOne(record);
+    return mapEntry({ _id: insertedId, ...record });
   }
 
   async update(userId: string, entryId: string, input: LifeEntryInput) {
     const db = await this.db();
     const now = new Date();
-    const result = await db.collection<LifeEntryRecord>(COLLECTIONS.lifeEntries).findOneAndUpdate(
-      { id: entryId, userId },
+    const result = await db.collection<LifeEntryDbRecord>(COLLECTIONS.lifeEntries).findOneAndUpdate(
+      { _id: toObjectId(entryId), userId },
       {
         $set: {
           startDate: input.startDate,
@@ -130,22 +131,20 @@ export class MongoLifeEntryRepository implements LifeEntryRepository {
     const db = await this.db();
     await deleteAttachmentsForEntry(userId, entryId);
     await db.collection(COLLECTIONS.lifeEntryLinks).deleteMany({ userId, $or: [{ sourceEntryId: entryId }, { targetEntryId: entryId }] });
-    const result = await db.collection(COLLECTIONS.lifeEntries).deleteOne({ id: entryId, userId });
+    const result = await db.collection(COLLECTIONS.lifeEntries).deleteOne({ _id: toObjectId(entryId), userId });
     if (result.deletedCount === 0) throw new Error("Life entry not found.");
   }
 
   async createLink(userId: string, sourceEntryId: string, targetEntryId: string, relation: LifeEntryLink["relation"]) {
     if (sourceEntryId === targetEntryId) throw new Error("An entry cannot link to itself.");
     const db = await this.db();
-    const record: LifeEntryLinkRecord = {
-      id: crypto.randomUUID(),
+    await db.collection(COLLECTIONS.lifeEntryLinks).insertOne({
       userId,
       sourceEntryId,
       targetEntryId,
       relation,
       createdAt: new Date(),
-    };
-    await db.collection(COLLECTIONS.lifeEntryLinks).insertOne(record);
+    });
   }
 
   async replaceLink(userId: string, sourceEntryId: string, targetEntryId: string | null, relation: LifeEntryLink["relation"]) {
@@ -156,8 +155,8 @@ export class MongoLifeEntryRepository implements LifeEntryRepository {
 
   async findLinkBySource(userId: string, sourceEntryId: string) {
     const db = await this.db();
-    const row = await db.collection<LifeEntryLinkRecord>(COLLECTIONS.lifeEntryLinks).findOne({ userId, sourceEntryId });
+    const row = await db.collection<LifeEntryLinkDbRecord>(COLLECTIONS.lifeEntryLinks).findOne({ userId, sourceEntryId });
     if (!row) return null;
-    return { id: row.id, sourceEntryId: row.sourceEntryId, targetEntryId: row.targetEntryId, relation: row.relation };
+    return { id: idFromDocument(row), sourceEntryId: row.sourceEntryId, targetEntryId: row.targetEntryId, relation: row.relation };
   }
 }
