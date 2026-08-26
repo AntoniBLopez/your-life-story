@@ -1,6 +1,7 @@
 "use client";
 
 import { Languages } from "lucide-react";
+import type { Route } from "next";
 import { useLocale } from "next-intl";
 import { usePathname, useRouter } from "next/navigation";
 
@@ -12,7 +13,7 @@ export function LanguageSwitcher({ compact = false }: { compact?: boolean }) {
 
   function switchLocale() {
     const nextPath = pathname.replace(/^\/(es|en)(?=\/|$)/, `/${nextLocale}`);
-    router.replace(nextPath || `/${nextLocale}`);
+    router.replace((nextPath || `/${nextLocale}`) as Route);
   }
 
   return (

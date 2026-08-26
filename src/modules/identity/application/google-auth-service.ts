@@ -5,6 +5,7 @@ import {
   findUserByEmail,
   findUserByGoogleId,
   findUserById,
+  type UserRecord,
 } from "../infrastructure/mongo-user-repository";
 import { createProfile } from "../infrastructure/mongo-profile-repository";
 
@@ -13,12 +14,11 @@ export async function findOrCreateGoogleUser(input: {
   email: string;
   displayName: string | null;
   locale: "es" | "en";
-}) {
-  let user = await findUserByGoogleId(input.googleId);
-  if (!user) user = await findUserByEmail(input.email);
+}): Promise<UserRecord> {
+  const existing = (await findUserByGoogleId(input.googleId)) ?? (await findUserByEmail(input.email));
 
-  if (!user) {
-    user = await createUser({
+  if (!existing) {
+    const user = await createUser({
       email: input.email,
       displayName: input.displayName,
       locale: input.locale,
@@ -28,14 +28,16 @@ export async function findOrCreateGoogleUser(input: {
     return user;
   }
 
-  if (!user.googleId) {
+  if (!existing.googleId) {
     const db = await getDb();
     await db.collection(COLLECTIONS.users).updateOne(
-      { id: user.id },
+      { id: existing.id },
       { $set: { googleId: input.googleId, updatedAt: new Date() } },
     );
-    user = await findUserById(user.id);
+    const updated = await findUserById(existing.id);
+    if (!updated) throw new Error("Could not complete Google sign-in.");
+    return updated;
   }
 
-  return user!;
+  return existing;
 }

@@ -72,8 +72,7 @@ export async function storeAttachment(input: {
 
   await new Promise<void>((resolve, reject) => {
     const stream = bucket.openUploadStreamWithId(gridFsId, storagePath, {
-      contentType: input.mimeType,
-      metadata: { userId: input.userId, entryId: input.entryId },
+      metadata: { userId: input.userId, entryId: input.entryId, contentType: input.mimeType },
     });
     stream.on("error", reject);
     stream.on("finish", () => resolve());
