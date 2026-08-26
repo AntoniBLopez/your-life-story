@@ -1,0 +1,9 @@
+export type SupportedLocale = "es" | "en";
+
+export type Profile = {
+  id: string;
+  displayName: string | null;
+  locale: SupportedLocale;
+  aiConsentAt: string | null;
+  onboardedAt: string | null;
+};

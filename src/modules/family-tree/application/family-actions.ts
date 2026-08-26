@@ -1,0 +1,84 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { requireCurrentUser } from "@/shared/lib/auth";
+import { createSupabaseServerClient } from "@/shared/lib/supabase/server";
+import { env } from "@/shared/lib/env";
+import { demoPeople } from "@/shared/lib/demo-data";
+import type { ActionResult } from "@/shared/types/action";
+import { assertNoParentCycle } from "../domain/family-graph";
+import { parseGedcom } from "../domain/gedcom";
+import { SupabaseFamilyRepository } from "../infrastructure/supabase-family-repository";
+import { familyPersonSchema, familyRelationshipSchema } from "./family-schemas";
+
+export async function createFamilyPersonAction(formData: FormData): Promise<ActionResult<{ id: string }>> {
+  const parsed = familyPersonSchema.safeParse({ ...Object.fromEntries(formData.entries()), isSubject: formData.get("isSubject") === "on" });
+  if (!parsed.success) return { ok: false, error: "Revisa los datos de esta persona." };
+  try {
+    const user = await requireCurrentUser(); const repository = new SupabaseFamilyRepository(await createSupabaseServerClient());
+    const person = await repository.addPerson(user.id, parsed.data);
+    revalidatePath(`/${String(formData.get("locale")) === "en" ? "en" : "es"}/app/family`);
+    return { ok: true, data: { id: person.id } };
+  } catch (error) { return { ok: false, error: error instanceof Error ? error.message : "No se pudo añadir a esta persona." }; }
+}
+
+export async function updateFamilyPersonAction(formData: FormData): Promise<ActionResult<{ id: string }>> {
+  const parsed = familyPersonSchema.safeParse({ ...Object.fromEntries(formData.entries()), isSubject: formData.get("isSubject") === "on" });
+  const personId = String(formData.get("personId") ?? "");
+  if (!parsed.success || !personId) return { ok: false, error: "Revisa los datos de esta persona." };
+  try {
+    const user = await requireCurrentUser();
+    if (env.demoMode) {
+      const person = demoPeople.find((item) => item.id === personId && item.userId === user.id);
+      if (!person) return { ok: false, error: "No se encontró esta persona." };
+      if (parsed.data.isSubject) demoPeople.forEach((item) => { item.isSubject = false; });
+      Object.assign(person, parsed.data);
+    } else {
+      const repository = new SupabaseFamilyRepository(await createSupabaseServerClient());
+      await repository.updatePerson(user.id, personId, parsed.data);
+    }
+    const locale = String(formData.get("locale")) === "en" ? "en" : "es";
+    revalidatePath(`/${locale}/app/family`);
+    return { ok: true, data: { id: personId } };
+  } catch (error) { return { ok: false, error: error instanceof Error ? error.message : "No se pudo actualizar a esta persona." }; }
+}
+
+export async function createFamilyRelationshipAction(formData: FormData): Promise<ActionResult> {
+  const parsed = familyRelationshipSchema.safeParse(Object.fromEntries(formData.entries()));
+  if (!parsed.success) return { ok: false, error: "Elige dos personas y un vínculo válido." };
+  try {
+    const user = await requireCurrentUser(); const repository = new SupabaseFamilyRepository(await createSupabaseServerClient());
+    const [people, relationships] = await Promise.all([repository.listPeople(user.id), repository.listRelationships(user.id)]);
+    if (!people.some((person) => person.id === parsed.data.sourcePersonId) || !people.some((person) => person.id === parsed.data.targetPersonId)) return { ok: false, error: "No tienes acceso a una de estas personas." };
+    if (parsed.data.relationshipType === "parent") assertNoParentCycle(relationships, parsed.data.sourcePersonId, parsed.data.targetPersonId);
+    await repository.addRelationship(user.id, parsed.data);
+    revalidatePath(`/${String(formData.get("locale")) === "en" ? "en" : "es"}/app/family`);
+    return { ok: true, data: undefined };
+  } catch (error) { return { ok: false, error: error instanceof Error ? error.message : "No se pudo crear el vínculo." }; }
+}
+
+export async function importGedcomAction(formData: FormData): Promise<ActionResult<{ people: number; relationships: number }>> {
+  const file = formData.get("gedcom");
+  if (!(file instanceof File) || file.size === 0) return { ok: false, error: "Selecciona un archivo GEDCOM." };
+  try {
+    const parsed = parseGedcom(await file.text());
+    if (parsed.people.length === 0) return { ok: false, error: "No se encontraron personas válidas en el archivo GEDCOM." };
+    const user = await requireCurrentUser();
+    const repository = new SupabaseFamilyRepository(await createSupabaseServerClient());
+    const idByGedcomId = new Map<string, string>();
+    for (const person of parsed.people) {
+      const created = await repository.addPerson(user.id, { fullName: person.fullName, birthDate: person.birthDate, birthDatePrecision: person.birthDatePrecision, deathDate: person.deathDate, deathDatePrecision: person.deathDatePrecision, birthCountry: person.birthCountry, birthCity: person.birthCity, isSubject: false });
+      idByGedcomId.set(person.gedcomId, created.id);
+    }
+    let relationshipCount = 0;
+    for (const relationship of parsed.relationships) {
+      const sourcePersonId = idByGedcomId.get(relationship.sourceGedcomId); const targetPersonId = idByGedcomId.get(relationship.targetGedcomId);
+      if (!sourcePersonId || !targetPersonId) continue;
+      await repository.addRelationship(user.id, { sourcePersonId, targetPersonId, relationshipType: relationship.relationshipType });
+      relationshipCount += 1;
+    }
+    const locale = String(formData.get("locale")) === "en" ? "en" : "es";
+    revalidatePath(`/${locale}/app/family`);
+    return { ok: true, data: { people: parsed.people.length, relationships: relationshipCount } };
+  } catch (error) { return { ok: false, error: error instanceof Error ? error.message : "No se pudo importar el archivo GEDCOM." }; }
+}

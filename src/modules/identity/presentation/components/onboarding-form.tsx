@@ -1,0 +1,13 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { ArrowRight, LoaderCircle } from "lucide-react";
+import { completeOnboardingAction } from "@/modules/identity/application/onboarding-actions";
+
+export function OnboardingForm({ locale, initialName }: { locale: "es" | "en"; initialName: string }) {
+  const router = useRouter(); const [pending, startTransition] = useTransition(); const [error, setError] = useState<string>();
+  const t = locale === "es" ? { eyebrow: "Bienvenida", title: "Un lugar para tu historia.", body: "Antes de empezar, cuéntanos cómo prefieres que te llamemos. No necesitas rellenar tu vida de una vez.", name: "Tu nombre", now: "Quiero añadir mi primer momento", later: "Prefiero explorar primero", continue: "Continuar" } : { eyebrow: "Welcome", title: "A place for your story.", body: "Before we start, tell us what you prefer to be called. You do not need to fill in your life all at once.", name: "Your name", now: "I want to add my first moment", later: "I would rather explore first", continue: "Continue" };
+  function submit(formData: FormData) { setError(undefined); formData.set("locale", locale); startTransition(async () => { const result = await completeOnboardingAction(formData); if (!result.ok) setError(result.error); else router.push(result.data.redirectTo); }); }
+  return <main className="page-shell flex min-h-screen items-center"><section className="container mx-auto max-w-xl"><div className="card p-7 sm:p-10"><p className="eyebrow">{t.eyebrow}</p><h1 className="display mt-3 text-4xl">{t.title}</h1><p className="mt-4 text-sm leading-6 text-[var(--muted)]">{t.body}</p><form action={submit} className="mt-7 space-y-5"><label><span className="field-label">{t.name}</span><input className="input" name="displayName" defaultValue={initialName} required minLength={2} /></label><fieldset className="space-y-3"><label className="card flex cursor-pointer items-center gap-3 p-4 text-sm"><input type="radio" name="firstMoment" value="now" defaultChecked />{t.now}</label><label className="card flex cursor-pointer items-center gap-3 p-4 text-sm"><input type="radio" name="firstMoment" value="later" />{t.later}</label></fieldset>{error && <p className="field-error">{error}</p>}<button disabled={pending} className="btn btn-primary w-full">{pending ? <LoaderCircle className="animate-spin" size={16} /> : <ArrowRight size={16} />}{t.continue}</button></form></div></section></main>;
+}
