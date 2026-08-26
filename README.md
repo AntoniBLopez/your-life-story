@@ -8,14 +8,16 @@ Un espacio privado donde tu línea temporal, tu árbol de vida y tus reflexiones
 
 1. Copia `.env.example` en `.env` (o `.env.local`) y configura MongoDB y OpenAI.
 2. En desarrollo, `MONGODB_CONNECTION_DEV` apunta a tu instancia local; en producción usa `MONGODB_CONNECTION` (por ejemplo MongoDB Atlas).
-3. Opcional: configura `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` para login con Google. El callback autorizado debe ser `http://localhost:3000/auth/callback`.
+3. Opcional: configura `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` para login con Google. Añade estos redirect URIs en Google Cloud Console:
+   - `http://localhost:3000/auth/callback` (desarrollo)
+   - `https://tu-dominio.vercel.app/auth/callback` (producción)
 4. Ejecuta `pnpm install` y luego `pnpm dev`.
 
 Los índices de MongoDB se crean automáticamente al primer arranque.
 
 ## Variables
 
-- `NEXT_PUBLIC_APP_URL`: URL pública de la aplicación.
+- `NEXT_PUBLIC_APP_URL`: URL pública de la aplicación (opcional en Vercel; si no se define o apunta a localhost, se detecta automáticamente).
 - `MONGODB_CONNECTION`: URI de MongoDB para producción.
 - `MONGODB_CONNECTION_DEV`: URI de MongoDB para desarrollo local.
 - `SESSION_SECRET`: secreto para firmar sesiones (recomendado en producción).

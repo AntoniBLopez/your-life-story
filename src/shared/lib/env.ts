@@ -9,9 +9,35 @@ export function isMongoConfigured() {
   return Boolean(getMongoUri());
 }
 
+export function getAppUrl(requestOrigin?: string): string {
+  const configured = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "");
+  const pointsToLocalhost = !configured
+    || configured.includes("localhost")
+    || configured.includes("127.0.0.1");
+
+  if (configured && !pointsToLocalhost) return configured;
+
+  if (requestOrigin) {
+    const origin = requestOrigin.replace(/\/$/, "");
+    if (!origin.includes("localhost") && !origin.includes("127.0.0.1")) return origin;
+  }
+
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+  }
+
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+
+  return configured ?? "http://localhost:3000";
+}
+
 export const env = {
   demoMode: process.env.DEMO_MODE === "true" || (process.env.DEMO_MODE !== "false" && !isMongoConfigured()),
-  appUrl: process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
+  get appUrl() {
+    return getAppUrl();
+  },
   mongoUri: getMongoUri(),
   sessionSecret: process.env.SESSION_SECRET,
   googleClientId: process.env.GOOGLE_CLIENT_ID,

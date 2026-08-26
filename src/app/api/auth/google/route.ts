@@ -15,5 +15,5 @@ export async function GET(request: NextRequest) {
     nonce: randomBytes(16).toString("hex"),
   })).toString("base64url");
 
-  return NextResponse.redirect(getGoogleAuthUrl(state));
+  return NextResponse.redirect(getGoogleAuthUrl(state, request.nextUrl.origin));
 }

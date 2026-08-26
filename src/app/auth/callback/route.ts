@@ -26,7 +26,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const accessToken = await exchangeGoogleCode(code);
+    const appUrl = request.nextUrl.origin;
+    const accessToken = await exchangeGoogleCode(code, appUrl);
     const profile = await fetchGoogleProfile(accessToken);
     const user = await findOrCreateGoogleUser({ ...profile, locale });
     await createSession(user.id);
