@@ -17,6 +17,24 @@ export function sortPeopleByBirthDate(people: FamilyPerson[]) {
   return [...people].sort((left, right) => birthSortKey(left) - birthSortKey(right) || left.fullName.localeCompare(right.fullName));
 }
 
+function parentsOf(personId: string, relationships: FamilyRelationship[]) {
+  return relationships
+    .filter((item) => item.relationshipType === "parent" && item.targetPersonId === personId)
+    .map((item) => item.sourcePersonId);
+}
+
+function childrenOf(personId: string, relationships: FamilyRelationship[]) {
+  return relationships
+    .filter((item) => item.relationshipType === "parent" && item.sourcePersonId === personId)
+    .map((item) => item.targetPersonId);
+}
+
+function partnersOf(personId: string, relationships: FamilyRelationship[]) {
+  return relationships
+    .filter((item) => item.relationshipType === "partner" && (item.sourcePersonId === personId || item.targetPersonId === personId))
+    .map((item) => (item.sourcePersonId === personId ? item.targetPersonId : item.sourcePersonId));
+}
+
 export function computeGenerations(
   people: FamilyPerson[],
   relationships: FamilyRelationship[],
@@ -43,15 +61,127 @@ export function computeGenerations(
   return groups;
 }
 
-export function assignHorizontalPositions(groups: Map<number, FamilyPerson[]>, horizontalGap = FAMILY_LAYOUT.horizontalGap) {
-  const xByPerson = new Map<string, number>();
-  for (const [, group] of groups) {
-    const sorted = sortPeopleByBirthDate(group);
-    sorted.forEach((person, index) => {
-      xByPerson.set(person.id, index * horizontalGap);
-    });
+function average(values: number[]) {
+  if (values.length === 0) return 0;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function nextFreeSlot(used: number[], preferred: number, gap: number) {
+  let candidate = preferred;
+  const isTaken = (value: number) => used.some((item) => Math.abs(item - value) < gap * 0.75);
+  if (!isTaken(candidate)) return candidate;
+  for (let step = 1; step < 40; step += 1) {
+    candidate = preferred + step * gap;
+    if (!isTaken(candidate)) return candidate;
+    candidate = preferred - step * gap;
+    if (!isTaken(candidate)) return candidate;
   }
+  return preferred + used.length * gap;
+}
+
+function getPersonLevel(personId: string, groups: Map<number, FamilyPerson[]>) {
+  for (const [level, group] of groups) {
+    if (group.some((person) => person.id === personId)) return level;
+  }
+  return 0;
+}
+
+function coParentsAtLevel(personId: string, level: number, groups: Map<number, FamilyPerson[]>, relationships: FamilyRelationship[]) {
+  const result = new Set<string>();
+  for (const childId of childrenOf(personId, relationships)) {
+    for (const parentId of parentsOf(childId, relationships)) {
+      if (parentId === personId) continue;
+      if (getPersonLevel(parentId, groups) === level) result.add(parentId);
+    }
+  }
+  for (const partnerId of partnersOf(personId, relationships)) {
+    if (getPersonLevel(partnerId, groups) === level) result.add(partnerId);
+  }
+  return [...result];
+}
+
+function placeFamilyUnit(
+  members: string[],
+  childIds: string[],
+  xByPerson: Map<string, number>,
+  usedInLevel: number[],
+  people: FamilyPerson[],
+  gap: number,
+) {
+  const unplaced = members.filter((member) => !xByPerson.has(member));
+  if (unplaced.length === 0) return;
+
+  const childXs = childIds.map((childId) => xByPerson.get(childId)).filter((value): value is number => value !== undefined);
+  const centerX = childXs.length > 0 ? average(childXs) : 0;
+  const ordered = sortPeopleByBirthDate(people.filter((person) => unplaced.includes(person.id)));
+  const unitWidth = (ordered.length - 1) * gap;
+  let cursor = centerX - unitWidth / 2;
+
+  for (const person of ordered) {
+    const slot = nextFreeSlot(usedInLevel, cursor, gap);
+    xByPerson.set(person.id, slot);
+    usedInLevel.push(slot);
+    cursor += gap;
+  }
+}
+
+/** Pyramid layout: generations stacked vertically, each row centered, parents above their children. */
+export function assignPyramidPositions(
+  groups: Map<number, FamilyPerson[]>,
+  relationships: FamilyRelationship[],
+  people: FamilyPerson[],
+  gap = FAMILY_LAYOUT.horizontalGap,
+) {
+  const xByPerson = new Map<string, number>();
+  const levels = [...groups.keys()].sort((left, right) => right - left);
+
+  for (const level of levels) {
+    const group = sortPeopleByBirthDate(groups.get(level) ?? []);
+    const usedInLevel: number[] = [];
+
+    for (const person of group) {
+      if (xByPerson.has(person.id)) continue;
+      const childIds = childrenOf(person.id, relationships).filter((childId) => xByPerson.has(childId));
+      if (childIds.length === 0) continue;
+      const unit = [person.id, ...coParentsAtLevel(person.id, level, groups, relationships)];
+      placeFamilyUnit(unit, childIds, xByPerson, usedInLevel, people, gap);
+    }
+
+    for (const person of group) {
+      if (xByPerson.has(person.id)) continue;
+      const parentIds = parentsOf(person.id, relationships).filter((parentId) => xByPerson.has(parentId));
+      if (parentIds.length > 0) {
+        const slot = nextFreeSlot(usedInLevel, average(parentIds.map((parentId) => xByPerson.get(parentId)!)), gap);
+        xByPerson.set(person.id, slot);
+        usedInLevel.push(slot);
+      }
+    }
+
+    const unplaced = group.filter((person) => !xByPerson.has(person.id));
+    if (unplaced.length > 0) {
+      const rowWidth = (unplaced.length - 1) * gap;
+      let cursor = -rowWidth / 2;
+      for (const person of unplaced) {
+        const slot = nextFreeSlot(usedInLevel, cursor, gap);
+        xByPerson.set(person.id, slot);
+        usedInLevel.push(slot);
+        cursor += gap;
+      }
+    }
+  }
+
+  const values = [...xByPerson.values()];
+  if (values.length === 0) return xByPerson;
+  const center = (Math.min(...values) + Math.max(...values)) / 2;
+  for (const [personId, x] of xByPerson) xByPerson.set(personId, x - center);
+
   return xByPerson;
+}
+
+/** @deprecated Use assignPyramidPositions */
+export function assignHorizontalPositions(groups: Map<number, FamilyPerson[]>, horizontalGap = FAMILY_LAYOUT.horizontalGap) {
+  const people = [...groups.values()].flat();
+  return assignPyramidPositions(groups, [], people, horizontalGap);
 }
 
 function pairKey(left: string, right: string) {
@@ -98,15 +228,16 @@ export function buildFamilyPositions(
   subjectId: string | undefined,
 ) {
   const groups = computeGenerations(people, relationships, subjectId);
-  const xByPerson = assignHorizontalPositions(groups);
-  const minimumX = Math.min(...xByPerson.values(), 0);
+  const xByPerson = assignPyramidPositions(groups, relationships, people);
+  const minLevel = Math.min(...groups.keys());
   const positions = new Map<string, { x: number; y: number; generation: number }>();
 
   for (const [generation, group] of groups) {
+    const rowIndex = generation - minLevel;
     for (const person of group) {
       positions.set(person.id, {
-        x: FAMILY_LAYOUT.paddingX + (xByPerson.get(person.id) ?? 0) - minimumX,
-        y: FAMILY_LAYOUT.paddingY + (generation + 2) * FAMILY_LAYOUT.verticalGap,
+        x: xByPerson.get(person.id) ?? 0,
+        y: FAMILY_LAYOUT.paddingY + rowIndex * FAMILY_LAYOUT.verticalGap,
         generation,
       });
     }

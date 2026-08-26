@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { relationToSubject, type FamilyPerson, type FamilyRelationship } from "./family-graph";
-import { assignHorizontalPositions, buildFamilyPositions, computeGenerations, sortPeopleByBirthDate } from "./family-layout";
+import { assignPyramidPositions, buildFamilyPositions, computeGenerations, FAMILY_LAYOUT } from "./family-layout";
+
+function average(values: number[]) {
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
 
 const blendedFamily: FamilyPerson[] = [
   { id: "subject", userId: "u", fullName: "Toni López", birthDate: "1995-06-10", birthDatePrecision: "day", deathDate: null, deathDatePrecision: null, birthCountry: null, birthCity: null, gender: "male", baptized: null, notes: null, isSubject: true },
@@ -21,21 +25,36 @@ const blendedGraph: FamilyRelationship[] = [
 ];
 
 describe("family layout", () => {
-  it("sorts each generation by birth date from left to right", () => {
+  it("centers parents above their children in a pyramid", () => {
     const groups = computeGenerations(blendedFamily, blendedGraph, "subject");
-    const xByPerson = assignHorizontalPositions(groups);
-
-    expect(xByPerson.get("father")).toBeLessThan(xByPerson.get("mother")!);
-    expect(xByPerson.get("mother")).toBeLessThan(xByPerson.get("stepfather")!);
-    expect(xByPerson.get("subject")).toBeLessThan(xByPerson.get("sister")!);
-    expect(xByPerson.get("sister")).toBeLessThan(xByPerson.get("half-brother")!);
+    const xByPerson = assignPyramidPositions(groups, blendedGraph, blendedFamily);
+    const fatherX = xByPerson.get("father")!;
+    const motherX = xByPerson.get("mother")!;
+    const parentsCenter = (fatherX + motherX) / 2;
+    const childrenCenter = average(["subject", "sister", "half-brother"].map((id) => xByPerson.get(id)!));
+    expect(Math.abs(parentsCenter - childrenCenter)).toBeLessThan(150);
   });
 
-  it("gives every person in a generation a unique horizontal slot", () => {
+  it("keeps siblings ordered by birth date left to right", () => {
+    const groups = computeGenerations(blendedFamily, blendedGraph, "subject");
+    const xByPerson = assignPyramidPositions(groups, blendedGraph, blendedFamily);
+    expect(xByPerson.get("subject")!).toBeLessThan(xByPerson.get("sister")!);
+    expect(xByPerson.get("sister")!).toBeLessThan(xByPerson.get("half-brother")!);
+  });
+
+  it("centers the tree horizontally instead of pinning it to the left", () => {
     const { xByPerson } = buildFamilyPositions(blendedFamily, blendedGraph, "subject");
-    const parentGeneration = sortPeopleByBirthDate(blendedFamily.filter((person) => ["father", "mother", "stepfather"].includes(person.id)));
-    const xs = parentGeneration.map((person) => xByPerson.get(person.id));
-    expect(new Set(xs).size).toBe(parentGeneration.length);
+    const xs = [...xByPerson.values()];
+    const spread = Math.max(...xs) - Math.min(...xs);
+    expect(Math.abs(average(xs))).toBeLessThan(1);
+    expect(spread).toBeGreaterThan(200);
+  });
+
+  it("stacks generations vertically from ancestors to descendants", () => {
+    const { positions } = buildFamilyPositions(blendedFamily, blendedGraph, "subject");
+    expect(positions.get("father")!.y).toBeLessThan(positions.get("subject")!.y);
+    expect(positions.get("mother")!.y).toBeLessThan(positions.get("subject")!.y);
+    expect(positions.get("subject")!.y).toBe(positions.get("sister")!.y);
   });
 });
 

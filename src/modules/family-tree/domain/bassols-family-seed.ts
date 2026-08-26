@@ -8,16 +8,18 @@ type SeedRelationship = {
   relationshipType: RelationshipType;
 };
 
+const catalunya = "Catalunya";
 const spain = "España";
+const day = "day" as const;
 
 export const BASSOLS_FAMILY_SEED: { people: SeedPerson[]; relationships: SeedRelationship[] } = {
   people: [
-    { key: "antoni", fullName: "Antoni Bassols", birthDate: null, birthDatePrecision: null, deathDate: null, deathDatePrecision: null, birthCity: "Olot", birthCountry: spain, gender: "male", baptized: true, notes: null, isSubject: true },
-    { key: "mireia", fullName: "Mireia Bassols", birthDate: null, birthDatePrecision: null, deathDate: null, deathDatePrecision: null, birthCity: "Olot", birthCountry: spain, gender: "female", baptized: true, notes: null, isSubject: false },
-    { key: "kevin", fullName: "Kevin Campos", birthDate: null, birthDatePrecision: null, deathDate: null, deathDatePrecision: null, birthCity: "Palamós", birthCountry: spain, gender: "male", baptized: false, notes: null, isSubject: false },
-    { key: "rosario", fullName: "Rosario Lopez", birthDate: null, birthDatePrecision: null, deathDate: null, deathDatePrecision: null, birthCity: "Loja", birthCountry: spain, gender: "female", baptized: null, notes: "Fuente Vaqueros, Granada", isSubject: false },
-    { key: "antoni_padre", fullName: "Antoni Bassols", birthDate: null, birthDatePrecision: null, deathDate: null, deathDatePrecision: null, birthCity: "Olot", birthCountry: spain, gender: "male", baptized: null, notes: "Rama Bassols", isSubject: false },
-    { key: "manuel", fullName: "Manuel Campos", birthDate: null, birthDatePrecision: null, deathDate: null, deathDatePrecision: null, birthCity: null, birthCountry: spain, gender: "male", baptized: null, notes: null, isSubject: false },
+    { key: "antoni", fullName: "Antoni B. López", birthDate: "1997-11-01", birthDatePrecision: day, deathDate: null, deathDatePrecision: null, birthCity: "Olot", birthCountry: catalunya, gender: "male", baptized: true, notes: null, isSubject: true },
+    { key: "mireya", fullName: "Mireya Bassols López", birthDate: "1996-02-21", birthDatePrecision: day, deathDate: null, deathDatePrecision: null, birthCity: "Olot", birthCountry: catalunya, gender: "female", baptized: true, notes: null, isSubject: false },
+    { key: "kevin", fullName: "Kevin Campos Lopez", birthDate: "2003-10-01", birthDatePrecision: day, deathDate: null, deathDatePrecision: null, birthCity: "Palamós", birthCountry: catalunya, gender: "male", baptized: false, notes: null, isSubject: false },
+    { key: "rosario", fullName: "Rosario Lopez Lechado", birthDate: null, birthDatePrecision: null, deathDate: null, deathDatePrecision: null, birthCity: "Loja", birthCountry: spain, gender: "female", baptized: null, notes: "Fuente Vaqueros, Granada", isSubject: false },
+    { key: "antoni_padre", fullName: "Antoni Bassols Corcoy", birthDate: null, birthDatePrecision: null, deathDate: null, deathDatePrecision: null, birthCity: "Olot", birthCountry: catalunya, gender: "male", baptized: null, notes: null, isSubject: false },
+    { key: "manuel", fullName: "Manuel Campos Serrano", birthDate: null, birthDatePrecision: null, deathDate: null, deathDatePrecision: null, birthCity: null, birthCountry: spain, gender: "male", baptized: null, notes: null, isSubject: false },
     { key: "francisco", fullName: "Francisco", birthDate: null, birthDatePrecision: null, deathDate: null, deathDatePrecision: null, birthCity: "Fuente Vaqueros", birthCountry: spain, gender: "male", baptized: null, notes: "Granada", isSubject: false },
     { key: "carmen", fullName: "Carmen", birthDate: null, birthDatePrecision: null, deathDate: null, deathDatePrecision: null, birthCity: "Fuente Vaqueros", birthCountry: spain, gender: "female", baptized: null, notes: "Granada", isSubject: false },
     { key: "jose", fullName: "Jose", birthDate: null, birthDatePrecision: null, deathDate: null, deathDatePrecision: null, birthCity: "Fuente Vaqueros", birthCountry: spain, gender: "male", baptized: null, notes: null, isSubject: false },
@@ -39,8 +41,8 @@ export const BASSOLS_FAMILY_SEED: { people: SeedPerson[]; relationships: SeedRel
     { sourceKey: "manuel", targetKey: "rosario", relationshipType: "partner" },
     { sourceKey: "antoni_padre", targetKey: "antoni", relationshipType: "parent" },
     { sourceKey: "rosario", targetKey: "antoni", relationshipType: "parent" },
-    { sourceKey: "antoni_padre", targetKey: "mireia", relationshipType: "parent" },
-    { sourceKey: "rosario", targetKey: "mireia", relationshipType: "parent" },
+    { sourceKey: "antoni_padre", targetKey: "mireya", relationshipType: "parent" },
+    { sourceKey: "rosario", targetKey: "mireya", relationshipType: "parent" },
     { sourceKey: "manuel", targetKey: "kevin", relationshipType: "parent" },
     { sourceKey: "rosario", targetKey: "kevin", relationshipType: "parent" },
     { sourceKey: "francisco", targetKey: "carmen", relationshipType: "partner" },
