@@ -47,7 +47,7 @@ export function parseGedcom(source: string): GedcomImport {
       const [, level, id, tag, value] = match;
       if (level === "0" && tag === "INDI") {
         current = { kind: "INDI", id };
-        people.set(id, { gedcomId: id, fullName: "", birthDate: null, birthDatePrecision: null, deathDate: null, deathDatePrecision: null, birthCountry: null, birthCity: null, gender: null });
+        people.set(id, { gedcomId: id, fullName: "", birthDate: null, birthDatePrecision: null, deathDate: null, deathDatePrecision: null, birthCountry: null, birthCity: null, gender: null, baptized: null, notes: null });
       } else if (level === "0" && tag === "FAM") {
         current = { kind: "FAM", id };
         families.push({ children: [] });
@@ -62,6 +62,8 @@ export function parseGedcom(source: string): GedcomImport {
       const person = people.get(current.id);
       if (!person) continue;
       if (level === "1" && tag === "NAME") person.fullName = (value ?? "").replace(/\//g, "").replace(/\s+/g, " ").trim();
+      if (level === "1" && tag === "NOTE") person.notes = (value ?? "").trim() || person.notes;
+      if (level === "1" && tag === "_BAPT") person.baptized = value === "Y" ? true : value === "N" ? false : null;
       if (level === "1" && tag === "BIRT") event = "birth";
       if (level === "1" && tag === "DEAT") event = "death";
       if (level === "2" && tag === "DATE") {
@@ -100,6 +102,9 @@ export function toGedcom(people: FamilyPerson[], relationships: FamilyRelationsh
     lines.push(`0 @${person.id}@ INDI`, `1 NAME ${person.fullName}`);
     if (person.birthDate) lines.push("1 BIRT", `2 DATE ${formatGedcomDate(person.birthDate, person.birthDatePrecision)}`, ...(person.birthCity ? [`2 PLAC ${person.birthCity}${person.birthCountry ? `, ${person.birthCountry}` : ""}`] : []));
     if (person.deathDate) lines.push("1 DEAT", `2 DATE ${formatGedcomDate(person.deathDate, person.deathDatePrecision)}`);
+    if (person.notes) lines.push(`1 NOTE ${person.notes}`);
+    if (person.baptized === true) lines.push("1 _BAPT Y");
+    if (person.baptized === false) lines.push("1 _BAPT N");
   }
   for (const relationship of relationships.filter((item) => item.relationshipType === "partner")) lines.push(`0 @F${relationship.id}@ FAM`, `1 HUSB @${relationship.sourcePersonId}@`, `1 WIFE @${relationship.targetPersonId}@`);
   for (const relationship of relationships.filter((item) => item.relationshipType === "parent")) lines.push(`0 @F${relationship.id}@ FAM`, `1 HUSB @${relationship.sourcePersonId}@`, `1 CHIL @${relationship.targetPersonId}@`);

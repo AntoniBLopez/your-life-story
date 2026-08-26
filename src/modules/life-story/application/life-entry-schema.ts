@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { CHANGE_DIRECTIONS, DATE_PRECISIONS, LIFE_AREAS } from "../domain/life-entry";
+import { CHANGE_DIRECTIONS, DATE_PRECISIONS, LIFE_AREAS, MOMENT_FLAGS } from "../domain/life-entry";
 
 const optionalText = z.string().trim().max(4000).optional().transform((value) => value || null);
 
@@ -12,6 +12,7 @@ export const lifeEntryInputSchema = z.object({
   lifeAreas: z.array(z.enum(LIFE_AREAS)).min(1, "Elige al menos un área."),
   lifeArea: z.enum(LIFE_AREAS).optional(),
   changeDirection: z.enum(CHANGE_DIRECTIONS),
+  momentFlags: z.array(z.enum(MOMENT_FLAGS)).default([]),
   difficulty: optionalText,
   learning: optionalText,
   transformation: optionalText,

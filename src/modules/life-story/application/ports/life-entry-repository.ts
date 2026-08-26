@@ -10,4 +10,5 @@ export interface LifeEntryRepository {
   createLink(userId: string, sourceEntryId: string, targetEntryId: string, relation: LifeEntryLink["relation"]): Promise<void>;
   replaceLink(userId: string, sourceEntryId: string, targetEntryId: string | null, relation: LifeEntryLink["relation"]): Promise<void>;
   findLinkBySource(userId: string, sourceEntryId: string): Promise<LifeEntryLink | null>;
+  listLinksByUser(userId: string): Promise<LifeEntryLink[]>;
 }

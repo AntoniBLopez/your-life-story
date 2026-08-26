@@ -1,6 +1,6 @@
 import { OnboardingForm } from "@/modules/identity/presentation/components/onboarding-form";
 import { StoryDashboard } from "@/modules/life-story/presentation/components/story-dashboard";
-import { listLifeEntriesForUser } from "@/modules/life-story/application/life-story-service";
+import { listLifeEntriesForUser, listLifeEntryLinksForUser } from "@/modules/life-story/application/life-story-service";
 import { getProfile } from "@/modules/identity/infrastructure/mongo-profile-repository";
 import { requirePageUser } from "@/shared/lib/auth";
 
@@ -12,5 +12,6 @@ export default async function StoryPage({ params }: { params: Promise<{ locale: 
     return <OnboardingForm locale={locale} initialName={profile?.displayName ?? user.displayName ?? ""} />;
   }
   const entries = await listLifeEntriesForUser(user.id);
-  return <StoryDashboard entries={entries} locale={locale} displayName={profile.displayName ?? user.displayName ?? undefined} />;
+  const links = await listLifeEntryLinksForUser(user.id);
+  return <StoryDashboard entries={entries} links={links} locale={locale} displayName={profile.displayName ?? user.displayName ?? undefined} />;
 }

@@ -12,10 +12,12 @@ export const LIFE_AREAS = [
 
 export const CHANGE_DIRECTIONS = ["improved", "difficult", "mixed", "neutral"] as const;
 export const DATE_PRECISIONS = ["day", "month", "year"] as const;
+export const MOMENT_FLAGS = ["critical", "inflection", "turning_point"] as const;
 
 export type LifeArea = (typeof LIFE_AREAS)[number];
 export type ChangeDirection = (typeof CHANGE_DIRECTIONS)[number];
 export type DatePrecision = (typeof DATE_PRECISIONS)[number];
+export type MomentFlag = (typeof MOMENT_FLAGS)[number];
 
 export type LifeEntry = {
   id: string;
@@ -28,6 +30,7 @@ export type LifeEntry = {
   lifeArea: LifeArea;
   lifeAreas: LifeArea[];
   changeDirection: ChangeDirection;
+  momentFlags: MomentFlag[];
   difficulty: string | null;
   learning: string | null;
   transformation: string | null;
@@ -56,4 +59,12 @@ export function entryTone(direction: ChangeDirection) {
     mixed: "#d9a45b",
     neutral: "#8b9c92",
   }[direction];
+}
+
+export function momentFlagLabel(flag: MomentFlag, locale: "es" | "en") {
+  const labels = {
+    es: { critical: "Momento crítico", inflection: "Punto de inflexión", turning_point: "Giro vital" },
+    en: { critical: "Critical moment", inflection: "Inflection point", turning_point: "Turning point" },
+  };
+  return labels[locale][flag];
 }

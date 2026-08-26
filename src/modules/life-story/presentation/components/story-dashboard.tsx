@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { CalendarDays, Filter, GitBranch, Plus, Sparkles } from "lucide-react";
-import { type LifeEntry, entryTone, LIFE_AREAS } from "@/modules/life-story/domain/life-entry";
+import { type LifeEntry, type LifeEntryLink, entryTone, LIFE_AREAS, momentFlagLabel } from "@/modules/life-story/domain/life-entry";
 import { formatStoryDate, titleCase } from "@/shared/lib/utils";
 import { DeleteEntryButton } from "./delete-entry-button";
+import { StoryLifeTree } from "./story-life-tree";
 
 type ExampleEntry = {
   date: string;
@@ -135,7 +136,7 @@ function StoryEmptyState({
   );
 }
 
-export function StoryDashboard({ entries, locale, displayName }: { entries: LifeEntry[]; locale: "es" | "en"; displayName?: string }) {
+export function StoryDashboard({ entries, links, locale, displayName }: { entries: LifeEntry[]; links: LifeEntryLink[]; locale: "es" | "en"; displayName?: string }) {
   const [view, setView] = useState<"timeline" | "tree">("timeline");
   const [area, setArea] = useState("all");
   const [tag, setTag] = useState("all");
@@ -153,8 +154,8 @@ export function StoryDashboard({ entries, locale, displayName }: { entries: Life
       : filtered.length === 0
         ? <div className="card mt-8 p-10 text-center"><h2 className="display text-2xl">{t.noMatches}</h2><p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[var(--muted)]">{t.noMatchesBody}</p></div>
         : view === "timeline"
-          ? <div className="timeline">{filtered.map((entry) => <article key={entry.id} className="timeline-item"><span className="timeline-dot" style={{ background: entryTone(entry.changeDirection) }} /><div className="card p-5"><div className="flex justify-between gap-4"><div><p className="eyebrow !text-[.66rem]">{formatStoryDate(entry.startDate, entry.datePrecision, locale)}</p><h2 className="display mt-2 text-2xl">{entry.title}</h2></div><div className="flex items-start"><Link href={`/${locale}/app/entries/${entry.id}/edit`} className="btn btn-quiet !p-2 text-xs">{t.edit}</Link><DeleteEntryButton entryId={entry.id} locale={locale} /></div></div>{entry.narrative && <p className="mt-3 text-sm leading-6 text-[var(--muted)]">{entry.narrative}</p>}<div className="mt-4 flex flex-wrap gap-2"><span className="pill" style={{ color: entryTone(entry.changeDirection), background: `${entryTone(entry.changeDirection)}18` }}>{titleCase(entry.changeDirection)}</span>{entry.tags.map((item) => <span className="pill" key={item}>#{item}</span>)}</div>{entry.learning && <div className="mt-4 rounded-xl bg-[#f1f6ee] p-3 text-sm"><span className="font-bold text-[var(--moss-deep)]">{locale === "es" ? "Aprendizaje: " : "Lesson: "}</span>{entry.learning}</div>}</div></article>)}</div>
-          : <div className="tree-canvas mt-8"><div className="tree-lane">{filtered.map((entry) => <Link href={`/${locale}/app/entries/${entry.id}/edit`} key={entry.id} className="tree-node" style={{ borderColor: `${entryTone(entry.changeDirection)}80` }}><span className="text-xs font-bold text-[var(--muted)]">{formatStoryDate(entry.startDate, entry.datePrecision, locale)}</span><strong className="display mt-2 block text-lg">{entry.title}</strong><span className="mt-2 block text-xs text-[var(--moss)]">{titleCase(entry.lifeArea)}</span></Link>)}</div></div>}
+          ? <div className="timeline">{filtered.map((entry) => <article key={entry.id} className="timeline-item"><span className="timeline-dot" style={{ background: entryTone(entry.changeDirection) }} /><div className="card p-5"><div className="flex justify-between gap-4"><div><p className="eyebrow !text-[.66rem]">{formatStoryDate(entry.startDate, entry.datePrecision, locale)}</p><h2 className="display mt-2 text-2xl">{entry.title}</h2>{entry.momentFlags.length > 0 && <div className="mt-2 flex flex-wrap gap-1">{entry.momentFlags.map((flag) => <span key={flag} className="rounded-full bg-[#fff0e5] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#8a5a3d]">{momentFlagLabel(flag, locale)}</span>)}</div>}</div><div className="flex items-start"><Link href={`/${locale}/app/entries/${entry.id}/edit`} className="btn btn-quiet !p-2 text-xs">{t.edit}</Link><DeleteEntryButton entryId={entry.id} locale={locale} /></div></div>{entry.narrative && <p className="mt-3 text-sm leading-6 text-[var(--muted)]">{entry.narrative}</p>}<div className="mt-4 flex flex-wrap gap-2"><span className="pill" style={{ color: entryTone(entry.changeDirection), background: `${entryTone(entry.changeDirection)}18` }}>{titleCase(entry.changeDirection)}</span>{entry.tags.map((item) => <span className="pill" key={item}>#{item}</span>)}</div>{entry.learning && <div className="mt-4 rounded-xl bg-[#f1f6ee] p-3 text-sm"><span className="font-bold text-[var(--moss-deep)]">{locale === "es" ? "Aprendizaje: " : "Lesson: "}</span>{entry.learning}</div>}</div></article>)}</div>
+          : <StoryLifeTree entries={filtered} links={links} locale={locale} />}
     {entries.length > 0 && <Link href={`/${locale}/app/reflect`} className="card mt-8 flex items-center justify-between gap-4 p-5 transition hover:border-[#b9d0b8]"><span><span className="eyebrow">{locale === "es" ? "Herramienta complementaria" : "Companion tool"}</span><strong className="display mt-1 block text-xl">{t.reflect}</strong></span><span className="btn btn-secondary !p-3"><Sparkles size={17} /></span></Link>}
   </div>;
 }

@@ -7,6 +7,7 @@ import { assertNoParentCycle } from "../domain/family-graph";
 import { parseGedcom } from "../domain/gedcom";
 import { MongoFamilyRepository } from "../infrastructure/mongo-family-repository";
 import { familyPersonSchema, familyRelationshipSchema } from "./family-schemas";
+import { importBassolsFamilySeed } from "./family-seed-service";
 
 const repository = new MongoFamilyRepository();
 
@@ -57,7 +58,7 @@ export async function importGedcomAction(formData: FormData): Promise<ActionResu
     const user = await requireCurrentUser();
     const idByGedcomId = new Map<string, string>();
     for (const person of parsed.people) {
-      const created = await repository.addPerson(user.id, { fullName: person.fullName, birthDate: person.birthDate, birthDatePrecision: person.birthDatePrecision, deathDate: person.deathDate, deathDatePrecision: person.deathDatePrecision, birthCountry: person.birthCountry, birthCity: person.birthCity, gender: person.gender ?? null, isSubject: false });
+      const created = await repository.addPerson(user.id, { fullName: person.fullName, birthDate: person.birthDate, birthDatePrecision: person.birthDatePrecision, deathDate: person.deathDate, deathDatePrecision: person.deathDatePrecision, birthCountry: person.birthCountry, birthCity: person.birthCity, gender: person.gender ?? null, baptized: person.baptized ?? null, notes: person.notes ?? null, isSubject: false });
       idByGedcomId.set(person.gedcomId, created.id);
     }
     let relationshipCount = 0;
@@ -71,4 +72,15 @@ export async function importGedcomAction(formData: FormData): Promise<ActionResu
     revalidatePath(`/${locale}/app/family`);
     return { ok: true, data: { people: parsed.people.length, relationships: relationshipCount } };
   } catch (error) { return { ok: false, error: error instanceof Error ? error.message : "No se pudo importar el archivo GEDCOM." }; }
+}
+
+export async function importBassolsFamilySeedAction(locale: string): Promise<ActionResult<{ people: number }>> {
+  try {
+    const user = await requireCurrentUser();
+    await importBassolsFamilySeed(user.id);
+    revalidatePath(`/${locale === "en" ? "en" : "es"}/app/family`);
+    return { ok: true, data: { people: 21 } };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "No se pudo cargar el árbol familiar." };
+  }
 }

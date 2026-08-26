@@ -8,6 +8,7 @@ import {
   CHANGE_DIRECTIONS,
   DATE_PRECISIONS,
   LIFE_AREAS,
+  MOMENT_FLAGS,
   type LifeEntry,
   type LifeEntryLink,
 } from "@/modules/life-story/domain/life-entry";
@@ -45,6 +46,11 @@ const AREA_LABELS = {
 const DIRECTION_LABELS = {
   es: { improved: "Mejoró", difficult: "Fue difícil", mixed: "Mixto", neutral: "Neutro" },
   en: { improved: "Improved", difficult: "Difficult", mixed: "Mixed", neutral: "Neutral" },
+} as const;
+
+const MOMENT_LABELS = {
+  es: { critical: "Momento crítico", inflection: "Punto de inflexión", turning_point: "Giro vital" },
+  en: { critical: "Critical moment", inflection: "Inflection point", turning_point: "Turning point" },
 } as const;
 
 const PRECISION_LABELS = {
@@ -97,6 +103,7 @@ export function LifeEntryForm({
         narrative: "Qué ocurrió",
         areas: "Áreas de vida",
         direction: "Cómo lo sentiste",
+        moments: "Tipo de momento",
         difficulty: "Qué fue difícil",
         learning: "Qué aprendiste",
         transformation: "Qué cambió",
@@ -126,6 +133,7 @@ export function LifeEntryForm({
         narrative: "What happened",
         areas: "Life areas",
         direction: "How it felt",
+        moments: "Moment type",
         difficulty: "What was hard",
         learning: "What you learned",
         transformation: "What changed",
@@ -248,6 +256,18 @@ export function LifeEntryForm({
             ))}
           </select>
         </label>
+
+        <fieldset>
+          <legend className="field-label">{t.moments}</legend>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {MOMENT_FLAGS.map((value) => (
+              <label key={value} className="pill cursor-pointer gap-2 !px-3 !py-2">
+                <input type="checkbox" name="momentFlags" value={value} defaultChecked={entry?.momentFlags?.includes(value)} />
+                {MOMENT_LABELS[locale][value]}
+              </label>
+            ))}
+          </div>
+        </fieldset>
 
         <label>
           <span className="field-label">{t.difficulty}</span>

@@ -18,6 +18,7 @@ type LifeEntryDbRecord = {
   lifeArea: LifeEntry["lifeArea"];
   lifeAreas: LifeEntry["lifeArea"][];
   changeDirection: LifeEntry["changeDirection"];
+  momentFlags?: LifeEntry["momentFlags"];
   difficulty: string | null;
   learning: string | null;
   transformation: string | null;
@@ -47,6 +48,7 @@ function mapEntry(row: LifeEntryDbRecord): LifeEntry {
     lifeArea: row.lifeArea,
     lifeAreas: row.lifeAreas ?? [row.lifeArea],
     changeDirection: row.changeDirection,
+    momentFlags: row.momentFlags ?? [],
     difficulty: row.difficulty,
     learning: row.learning,
     transformation: row.transformation,
@@ -88,6 +90,7 @@ export class MongoLifeEntryRepository implements LifeEntryRepository {
       lifeArea: input.lifeAreas[0],
       lifeAreas: input.lifeAreas,
       changeDirection: input.changeDirection,
+      momentFlags: input.momentFlags,
       difficulty: input.difficulty,
       learning: input.learning,
       transformation: input.transformation,
@@ -114,6 +117,7 @@ export class MongoLifeEntryRepository implements LifeEntryRepository {
           lifeArea: input.lifeAreas[0],
           lifeAreas: input.lifeAreas,
           changeDirection: input.changeDirection,
+          momentFlags: input.momentFlags,
           difficulty: input.difficulty,
           learning: input.learning,
           transformation: input.transformation,
@@ -158,5 +162,16 @@ export class MongoLifeEntryRepository implements LifeEntryRepository {
     const row = await db.collection<LifeEntryLinkDbRecord>(COLLECTIONS.lifeEntryLinks).findOne({ userId, sourceEntryId });
     if (!row) return null;
     return { id: idFromDocument(row), sourceEntryId: row.sourceEntryId, targetEntryId: row.targetEntryId, relation: row.relation };
+  }
+
+  async listLinksByUser(userId: string) {
+    const db = await this.db();
+    const rows = await db.collection<LifeEntryLinkDbRecord>(COLLECTIONS.lifeEntryLinks).find({ userId }).toArray();
+    return rows.map((row) => ({
+      id: idFromDocument(row),
+      sourceEntryId: row.sourceEntryId,
+      targetEntryId: row.targetEntryId,
+      relation: row.relation,
+    }));
   }
 }

@@ -13,6 +13,12 @@ export const familyPersonSchema = z.object({
   birthCountry: optionalText,
   birthCity: optionalText,
   gender: z.enum(["male", "female"]).optional().or(z.literal("")).transform((value) => value || null),
+  baptized: z.enum(["true", "false", "unknown"]).optional().or(z.literal("")).transform((value) => {
+    if (value === "true") return true;
+    if (value === "false") return false;
+    return null;
+  }),
+  notes: z.string().trim().max(300).optional().or(z.literal("")).transform((value) => value || null),
   isSubject: z.boolean().default(false),
 });
 

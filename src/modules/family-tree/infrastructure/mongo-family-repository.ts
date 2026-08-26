@@ -16,6 +16,8 @@ type FamilyPersonDbRecord = {
   birthCountry: string | null;
   birthCity: string | null;
   gender: FamilyPerson["gender"];
+  baptized: FamilyPerson["baptized"];
+  notes: FamilyPerson["notes"];
   isSubject: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -41,6 +43,8 @@ const mapPerson = (row: FamilyPersonDbRecord): FamilyPerson => ({
   birthCountry: row.birthCountry,
   birthCity: row.birthCity,
   gender: row.gender ?? null,
+  baptized: row.baptized ?? null,
+  notes: row.notes ?? null,
   isSubject: row.isSubject,
 });
 
@@ -85,6 +89,8 @@ export class MongoFamilyRepository implements FamilyRepository {
       birthCountry: person.birthCountry,
       birthCity: person.birthCity,
       gender: person.gender ?? null,
+      baptized: person.baptized ?? null,
+      notes: person.notes ?? null,
       isSubject: person.isSubject,
       createdAt: now,
       updatedAt: now,
@@ -110,6 +116,8 @@ export class MongoFamilyRepository implements FamilyRepository {
           birthCountry: person.birthCountry,
           birthCity: person.birthCity,
           gender: person.gender ?? null,
+          baptized: person.baptized ?? null,
+          notes: person.notes ?? null,
           isSubject: person.isSubject,
           updatedAt: new Date(),
         },
@@ -129,5 +137,11 @@ export class MongoFamilyRepository implements FamilyRepository {
       relationshipType: relationship.relationshipType,
       createdAt: new Date(),
     });
+  }
+
+  async clearAll(userId: string) {
+    const db = await this.db();
+    await db.collection(COLLECTIONS.familyRelationships).deleteMany({ userId });
+    await db.collection(COLLECTIONS.familyPeople).deleteMany({ userId });
   }
 }

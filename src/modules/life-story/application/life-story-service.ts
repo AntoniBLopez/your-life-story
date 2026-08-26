@@ -13,3 +13,7 @@ export async function getLifeEntryForUser(userId: string, entryId: string) {
 export async function getLinkForEntry(userId: string, entryId: string) {
   return repository.findLinkBySource(userId, entryId);
 }
+
+export async function listLifeEntryLinksForUser(userId: string) {
+  return repository.listLinksByUser(userId);
+}

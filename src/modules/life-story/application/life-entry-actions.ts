@@ -22,7 +22,7 @@ function toInput(formData: FormData) {
   return {
     startDate: formData.get("startDate"), endDate: formData.get("endDate"), datePrecision: formData.get("datePrecision"),
     title: formData.get("title"), narrative: formData.get("narrative"), lifeAreas: formData.getAll("lifeAreas"), lifeArea: formData.get("lifeAreas") ?? undefined,
-    changeDirection: formData.get("changeDirection"), difficulty: formData.get("difficulty"), learning: formData.get("learning"),
+    changeDirection: formData.get("changeDirection"), momentFlags: formData.getAll("momentFlags"), difficulty: formData.get("difficulty"), learning: formData.get("learning"),
     transformation: formData.get("transformation"), tags: formData.get("tags") ?? "", linkedEntryId: formData.get("linkedEntryId") ?? "",
     linkType: formData.get("linkType") ?? "related",
   };
