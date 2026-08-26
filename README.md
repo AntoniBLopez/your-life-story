@@ -1,6 +1,8 @@
 # Your Life Story
 
-Aplicación privada para registrar experiencias vitales, observar su evolución en una línea temporal y un árbol de vida, y revisarlas con una ayuda de reflexión opcional.
+Registra tus experiencias vitales y tenlo todo en un solo lugar. Haz búsquedas inteligentes entre tus recuerdos, pregúntale a la IA sobre tu vida o para recordar algo que pasó en un año concreto, y recupera tus memorias al instante.
+
+Un espacio privado donde tu línea temporal, tu árbol de vida y tus reflexiones trabajan juntos para que nada importante se pierda.
 
 ## Puesta en marcha
 
