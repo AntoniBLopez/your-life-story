@@ -1,17 +1,21 @@
-const FALLBACK_URL = "https://placeholder.supabase.co";
+export function getMongoUri() {
+  if (process.env.NODE_ENV === "development" && process.env.MONGODB_CONNECTION_DEV) {
+    return process.env.MONGODB_CONNECTION_DEV;
+  }
+  return process.env.MONGODB_CONNECTION;
+}
+
+export function isMongoConfigured() {
+  return Boolean(getMongoUri());
+}
 
 export const env = {
-  demoMode: process.env.DEMO_MODE === "true" || (process.env.DEMO_MODE !== "false" && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY === "TU_ANON_KEY"),
+  demoMode: process.env.DEMO_MODE === "true" || (process.env.DEMO_MODE !== "false" && !isMongoConfigured()),
   appUrl: process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
-  supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ?? FALLBACK_URL,
-  supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "placeholder-anon-key",
-  supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+  mongoUri: getMongoUri(),
+  sessionSecret: process.env.SESSION_SECRET,
+  googleClientId: process.env.GOOGLE_CLIENT_ID,
+  googleClientSecret: process.env.GOOGLE_CLIENT_SECRET,
   openAiApiKey: process.env.OPENAI_API_KEY,
   openAiModel: process.env.OPENAI_MODEL ?? "gpt-5.6-luna",
 };
-
-export function isSupabaseConfigured() {
-  return Boolean(
-    process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-  );
-}

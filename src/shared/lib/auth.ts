@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
-import type { User } from "@supabase/supabase-js";
-import { createSupabaseServerClient } from "@/shared/lib/supabase/server";
 import { env } from "./env";
 import { DEMO_USER_ID } from "./demo-data";
+import { getSessionUserId, destroySession } from "./auth/session";
+import { findUserById } from "@/modules/identity/infrastructure/mongo-user-repository";
 
 export class AuthenticationRequiredError extends Error {
   constructor() {
@@ -10,14 +10,32 @@ export class AuthenticationRequiredError extends Error {
   }
 }
 
-const demoUser = { id: DEMO_USER_ID, app_metadata: {}, user_metadata: { display_name: "Ana Demo" }, aud: "authenticated", created_at: "2024-01-01T00:00:00.000Z" } as User;
+export type AuthUser = {
+  id: string;
+  email: string;
+  displayName: string | null;
+  locale: "es" | "en";
+};
 
-export async function getCurrentUser() {
+const demoUser: AuthUser = {
+  id: DEMO_USER_ID,
+  email: "demo@example.com",
+  displayName: "Ana Demo",
+  locale: "es",
+};
+
+export async function getCurrentUser(): Promise<AuthUser | null> {
   if (env.demoMode) return demoUser;
-  const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.auth.getUser();
-  if (error) return null;
-  return data.user;
+  const userId = await getSessionUserId();
+  if (!userId) return null;
+  const user = await findUserById(userId);
+  if (!user) return null;
+  return {
+    id: user.id,
+    email: user.email,
+    displayName: user.displayName,
+    locale: user.locale,
+  };
 }
 
 export async function requireCurrentUser() {
@@ -30,4 +48,8 @@ export async function requirePageUser(locale: string) {
   const user = await getCurrentUser();
   if (!user) redirect(`/${locale}/login`);
   return user;
+}
+
+export async function signOutCurrentUser() {
+  await destroySession();
 }

@@ -31,7 +31,7 @@ export function AuthForm({ mode, locale }: { mode: Mode; locale: "es" | "en" }) 
       if (isRegister) {
         const result = await signUpAction(formData);
         if (!result.ok) { setError(result.error); return; }
-        setMessage(copy.sent);
+        window.location.assign(result.data.redirectTo);
       } else {
         const result = await signInAction(formData);
         if (!result.ok) { setError(result.error); return; }

@@ -15,8 +15,8 @@
   },
   "dependencies": {
     "@hookform/resolvers": "latest",
-    "@supabase/ssr": "latest",
-    "@supabase/supabase-js": "latest",
+    "bcryptjs": "latest",
+    "mongodb": "latest",
     "@xyflow/react": "latest",
     "clsx": "latest",
     "lucide-react": "latest",

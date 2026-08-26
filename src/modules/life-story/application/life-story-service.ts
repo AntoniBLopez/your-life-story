@@ -1,16 +1,20 @@
-import { createSupabaseServerClient } from "@/shared/lib/supabase/server";
 import { env } from "@/shared/lib/env";
 import { demoEntries } from "@/shared/lib/demo-data";
-import { SupabaseLifeEntryRepository } from "../infrastructure/supabase-life-entry-repository";
+import { MongoLifeEntryRepository } from "../infrastructure/mongo-life-entry-repository";
+
+const repository = new MongoLifeEntryRepository();
 
 export async function listLifeEntriesForUser(userId: string) {
   if (env.demoMode) return demoEntries.filter((entry) => entry.userId === userId);
-  const supabase = await createSupabaseServerClient();
-  return new SupabaseLifeEntryRepository(supabase).listByUser(userId);
+  return repository.listByUser(userId);
 }
 
 export async function getLifeEntryForUser(userId: string, entryId: string) {
   if (env.demoMode) return demoEntries.find((entry) => entry.userId === userId && entry.id === entryId) ?? null;
-  const supabase = await createSupabaseServerClient();
-  return new SupabaseLifeEntryRepository(supabase).findById(userId, entryId);
+  return repository.findById(userId, entryId);
+}
+
+export async function getLinkForEntry(userId: string, entryId: string) {
+  if (env.demoMode) return null;
+  return repository.findLinkBySource(userId, entryId);
 }
