@@ -18,7 +18,7 @@ export function AppHeader({ locale }: { locale: "es" | "en" }) {
     !is(`/${locale}/app/family`) &&
     !is(`/${locale}/app/settings`) &&
     !is(`/${locale}/app/search`);
-  const t = locale === "es" ? { story: "Mi historia", reflect: "Reflexiona", family: "Familia", settings: "Ajustes", out: "Cerrar sesión" } : { story: "My story", reflect: "Reflect", family: "Family", settings: "Settings", out: "Sign out" };
+  const t = locale === "es" ? { story: "Mi historia", reflect: "Reflexiona", tree: "Árbol", settings: "Ajustes", out: "Cerrar sesión" } : { story: "My story", reflect: "Reflect", tree: "Tree", settings: "Settings", out: "Sign out" };
 
   function handleBrandClick(event: React.MouseEvent<HTMLAnchorElement>) {
     if (window.scrollY > 0) {
@@ -56,9 +56,9 @@ export function AppHeader({ locale }: { locale: "es" | "en" }) {
           <Bot size={17} />
           <span className="hidden md:inline text-xs">{t.reflect}</span>
         </Link>
-        <Link title={t.family} className={`btn btn-quiet !p-2 ${is(`/${locale}/app/family`) ? "!bg-[#edf3eb]" : ""}`} href={`/${locale}/app/family`}>
+        <Link title={t.tree} className={`btn btn-quiet !p-2 ${is(`/${locale}/app/family`) ? "!bg-[#edf3eb]" : ""}`} href={`/${locale}/app/family`}>
           <UsersRound size={17} />
-          <span className="hidden md:inline text-xs">{t.family}</span>
+          <span className="hidden md:inline text-xs">{t.tree}</span>
         </Link>
         <Link title={t.settings} className="btn btn-quiet !p-2 hidden sm:inline-flex" href={`/${locale}/app/settings`}>
           <Settings size={16} />
