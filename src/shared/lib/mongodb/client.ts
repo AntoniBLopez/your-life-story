@@ -33,6 +33,7 @@ async function ensureIndexes(db: Db) {
     db.collection(COLLECTIONS.lifeEntryLinks).createIndex({ userId: 1, sourceEntryId: 1 }),
     db.collection(COLLECTIONS.entryAttachments).createIndex({ userId: 1, entryId: 1 }),
     db.collection(COLLECTIONS.familyPeople).createIndex({ userId: 1, fullName: 1 }),
+    db.collection(COLLECTIONS.familyPeople).createIndex({ email: 1, canReadTimeline: 1 }),
     db.collection(COLLECTIONS.familyRelationships).createIndex({ userId: 1 }),
     db.collection(COLLECTIONS.chatMessages).createIndex({ userId: 1, threadId: 1, createdAt: 1 }),
     db.collection(COLLECTIONS.profiles).createIndex({ userId: 1 }, { unique: true }),

@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { releaseDueInactivityArchives } from "@/modules/archive/infrastructure/mongo-archive-repository";
+import { runInactivitySweep } from "@/modules/archive/infrastructure/mongo-archive-repository";
 import { isMongoConfigured } from "@/shared/lib/env";
 
 export const runtime = "nodejs";
@@ -14,9 +14,9 @@ function isAuthorized(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   if (!isAuthorized(request)) return Response.json({ error: "Unauthorized" }, { status: 401 });
-  if (!isMongoConfigured()) return Response.json({ released: 0 });
-  const released = await releaseDueInactivityArchives();
-  return Response.json({ released: released.length });
+  if (!isMongoConfigured()) return Response.json({ notices: 0, released: 0 });
+  const result = await runInactivitySweep();
+  return Response.json({ notices: result.notices.length, released: result.released.length });
 }
 
 export async function POST(request: NextRequest) {

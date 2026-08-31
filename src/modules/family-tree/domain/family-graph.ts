@@ -16,6 +16,8 @@ export type FamilyPerson = {
   gender: PersonGender;
   baptized: boolean | null;
   notes: string | null;
+  email?: string | null;
+  canReadTimeline?: boolean;
   isSubject: boolean;
   layoutX?: number | null;
   layoutY?: number | null;
@@ -368,4 +370,14 @@ export function relationToSubject(
   }
 
   return "";
+}
+
+export function normalizePersonEmail(value: string | null | undefined) {
+  const email = value?.trim().toLowerCase() ?? "";
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return null;
+  return email;
+}
+
+export function grantsTimelineAccess(person: Pick<FamilyPerson, "email" | "canReadTimeline" | "isSubject">) {
+  return Boolean(!person.isSubject && person.canReadTimeline && normalizePersonEmail(person.email));
 }

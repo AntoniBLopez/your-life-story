@@ -46,7 +46,7 @@ export function AccountSettings({ locale, aiConsented, publicArchiveConsent, arc
         archiveView: "Ver mi perfil público",
         deceasedNote: "Esta cuenta está marcada como fallecida. Un administrador gestiona su publicación.",
         death: "Declarar un fallecimiento",
-        deathBody: "Si un familiar o alguien cercano ha muerto y tenía cuenta aquí, puedes pedirnos que revisemos publicar su vida y marcarla como fallecida.",
+        deathBody: "Si un familiar o alguien cercano ha muerto y tenía cuenta aquí, puedes pedirnos que revisemos el caso. Solo publicaremos su vida y la marcaremos como fallecida si, en vida, había dado permiso en sus ajustes para que su historia se hiciera pública, y nosotros confirmamos el fallecimiento.",
         deathName: "Tu nombre",
         deathEmail: "Tu email",
         deathTarget: "Email de la persona fallecida",
@@ -69,14 +69,15 @@ export function AccountSettings({ locale, aiConsented, publicArchiveConsent, arc
         published: "Tu vida se ha publicado en el archivo.",
         unpublished: "Tu vida ya no es pública.",
         inactivity: "Publicación automática por silencio",
-        inactivityBody: "Si dejas de entrar en la app durante el plazo que elijas, tu historia se publicará sola en el archivo y se marcará como fallecida. No hace falta que lo haga un familiar ni un administrador. El mínimo es 1 año y el máximo 10.",
+        inactivityBody: "Si dejas de entrar en la app durante el plazo que elijas, tu historia se publicará sola en el archivo y se marcará como fallecida. Te avisaremos por email 3 meses, 2 meses, 1 mes y 2 semanas antes. Si no quieres que se publique, entra a tu cuenta: eso demuestra actividad y reinicia el contador. También puedes desactivar esta opción aquí abajo. El mínimo es 1 año y el máximo 10.",
         inactivityOn: "Activar publicación automática",
         inactivityOff: "No publicar por silencio",
         inactivityYears: "Años sin acceder",
         inactivitySave: "Guardar plazo",
-        inactivitySaved: "Si no entras durante ese tiempo, tu vida se publicará sola.",
+        inactivitySaved: "Si no entras durante ese tiempo, te avisaremos cuatro veces por email y después tu vida se publicará sola.",
         inactivityDisabled: "La publicación automática por silencio está desactivada.",
         inactivityDue: "Se publicaría a partir del",
+        inactivityMail: "Te avisaremos por email 3 meses, 2 meses, 1 mes y 2 semanas antes. Entra a tu cuenta para reiniciar el contador, o desactiva esta opción aquí abajo.",
         voice: "Grabaciones de voz",
         voiceBody: "Por defecto guardamos cada audio que dictas junto a su transcripción. Desmarca la opción si solo quieres transcribir sin guardar el archivo.",
         voiceCheckbox: "Guardar grabaciones de voz",
@@ -96,7 +97,7 @@ export function AccountSettings({ locale, aiConsented, publicArchiveConsent, arc
         archiveView: "View my public profile",
         deceasedNote: "This account is marked as deceased. An administrator manages its publication.",
         death: "Declare a death",
-        deathBody: "If a relative or someone close has died and had an account here, you can ask us to review publishing their life and marking them as deceased.",
+        deathBody: "If a relative or someone close has died and had an account here, you can ask us to review the case. We will only publish their life and mark them as deceased if they gave permission in their settings, while they were alive, for their story to be made public, and we confirm the death.",
         deathName: "Your name",
         deathEmail: "Your email",
         deathTarget: "Email of the deceased person",
@@ -119,14 +120,15 @@ export function AccountSettings({ locale, aiConsented, publicArchiveConsent, arc
         published: "Your life has been published in the archive.",
         unpublished: "Your life is no longer public.",
         inactivity: "Automatic publication after silence",
-        inactivityBody: "If you stop opening the app for the period you choose, your story will be published in the archive on its own and marked as deceased. No family member or administrator is required. The minimum is 1 year and the maximum is 10.",
+        inactivityBody: "If you stop opening the app for the period you choose, your story will be published in the archive on its own and marked as deceased. We will email you 3 months, 2 months, 1 month and 2 weeks before. If you do not want it published, sign in: that counts as activity and resets the timer. You can also turn this option off here. The minimum is 1 year and the maximum is 10.",
         inactivityOn: "Turn on automatic publication",
         inactivityOff: "Do not publish after silence",
         inactivityYears: "Years without access",
         inactivitySave: "Save period",
-        inactivitySaved: "If you do not sign in during that time, your life will be published on its own.",
+        inactivitySaved: "If you do not sign in during that time, we will warn you four times by email and then your life will be published on its own.",
         inactivityDisabled: "Automatic publication after silence is off.",
         inactivityDue: "It would be published from",
+        inactivityMail: "We will email you 3 months, 2 months, 1 month and 2 weeks before. Sign in to reset the timer, or turn this option off here.",
         voice: "Voice recordings",
         voiceBody: "By default we save each dictated audio with its transcript. Uncheck this if you only want transcription without storing the file.",
         voiceCheckbox: "Save voice recordings",
@@ -274,6 +276,7 @@ export function AccountSettings({ locale, aiConsented, publicArchiveConsent, arc
                   <strong>{new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "UTC" }).format(inactivityReleaseDueAt(new Date(seenAt), inactivityYears))}</strong>
                 </p>
               )}
+              {inactivityEnabled && <p className="text-sm leading-6 text-[var(--muted)]">{t.inactivityMail}</p>}
             </div>
           )}
         </section>

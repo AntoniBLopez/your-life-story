@@ -1,5 +1,5 @@
 import type { ObjectId } from "mongodb";
-import type { FamilyPerson, FamilyRelationship } from "../domain/family-graph";
+import { normalizePersonEmail, type FamilyPerson, type FamilyRelationship } from "../domain/family-graph";
 import type { FamilyRepository } from "../application/ports/family-repository";
 import { getDb } from "@/shared/lib/mongodb/client";
 import { COLLECTIONS } from "@/shared/lib/mongodb/collections";
@@ -18,6 +18,8 @@ type FamilyPersonDbRecord = {
   gender: FamilyPerson["gender"];
   baptized: FamilyPerson["baptized"];
   notes: FamilyPerson["notes"];
+  email?: string | null;
+  canReadTimeline?: boolean;
   isSubject: boolean;
   layoutX?: number | null;
   layoutY?: number | null;
@@ -47,6 +49,8 @@ const mapPerson = (row: FamilyPersonDbRecord): FamilyPerson => ({
   gender: row.gender ?? null,
   baptized: row.baptized ?? null,
   notes: row.notes ?? null,
+  email: row.email ?? null,
+  canReadTimeline: Boolean(row.canReadTimeline),
   isSubject: row.isSubject,
   layoutX: row.layoutX ?? null,
   layoutY: row.layoutY ?? null,
@@ -68,6 +72,16 @@ export class MongoFamilyRepository implements FamilyRepository {
   async listPeople(userId: string) {
     const db = await this.db();
     const rows = await db.collection<FamilyPersonDbRecord>(COLLECTIONS.familyPeople).find({ userId }).sort({ fullName: 1 }).toArray();
+    return rows.map(mapPerson);
+  }
+
+  async listPeopleByInviteEmail(email: string) {
+    const normalized = normalizePersonEmail(email);
+    if (!normalized) return [];
+    const db = await this.db();
+    const rows = await db.collection<FamilyPersonDbRecord>(COLLECTIONS.familyPeople)
+      .find({ email: normalized, canReadTimeline: true })
+      .toArray();
     return rows.map(mapPerson);
   }
 
@@ -95,6 +109,8 @@ export class MongoFamilyRepository implements FamilyRepository {
       gender: person.gender ?? null,
       baptized: person.baptized ?? null,
       notes: person.notes ?? null,
+      email: normalizePersonEmail(person.email),
+      canReadTimeline: Boolean(person.canReadTimeline && normalizePersonEmail(person.email) && !person.isSubject),
       isSubject: person.isSubject,
       layoutX: person.layoutX ?? null,
       layoutY: person.layoutY ?? null,
@@ -124,6 +140,8 @@ export class MongoFamilyRepository implements FamilyRepository {
           gender: person.gender ?? null,
           baptized: person.baptized ?? null,
           notes: person.notes ?? null,
+          email: normalizePersonEmail(person.email),
+          canReadTimeline: Boolean(person.canReadTimeline && normalizePersonEmail(person.email) && !person.isSubject),
           isSubject: person.isSubject,
           updatedAt: new Date(),
         },

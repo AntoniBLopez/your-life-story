@@ -3,6 +3,7 @@ import { env, getRequestOrigin } from "@/shared/lib/env";
 import { findOrCreateGoogleUser } from "@/modules/identity/application/google-auth-service";
 import { exchangeGoogleCode, fetchGoogleProfile } from "@/modules/identity/infrastructure/google-oauth";
 import { createSession } from "@/shared/lib/auth/session";
+import { touchLastSeen } from "@/modules/identity/infrastructure/mongo-profile-repository";
 
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
@@ -31,6 +32,7 @@ export async function GET(request: NextRequest) {
     const profile = await fetchGoogleProfile(accessToken);
     const user = await findOrCreateGoogleUser({ ...profile, locale });
     await createSession(user.id);
+    await touchLastSeen(user.id, { force: true });
     return NextResponse.redirect(new URL(next, request.url));
   } catch (error) {
     console.error("Google OAuth callback failed:", error);

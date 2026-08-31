@@ -12,6 +12,7 @@ type Props = {
   nodes: Node[];
   edges: Edge[];
   subjectId?: string;
+  readOnly?: boolean;
   onNodesChange: OnNodesChange<Node>;
   onNodeDragStop?: (nodeId: string) => void;
   onNodeClick: (node: Node) => void;
@@ -42,6 +43,7 @@ function FamilyTreeCanvasInner({
   nodes,
   edges,
   subjectId,
+  readOnly,
   onNodesChange,
   onNodeDragStop,
   onNodeClick,
@@ -66,6 +68,7 @@ function FamilyTreeCanvasInner({
   }, []);
 
   function scheduleLayoutSave(personId: string, position: { x: number; y: number }) {
+    if (readOnly) return;
     pendingLayouts.current.set(personId, position);
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(flushLayouts, LAYOUT_SAVE_DELAY_MS);
@@ -83,10 +86,10 @@ function FamilyTreeCanvasInner({
       nodeTypes={familyTreeNodeTypes}
       edgeTypes={familyTreeEdgeTypes}
       onNodesChange={onNodesChange}
-      onNodeDragStop={handleNodeDragStop}
+      onNodeDragStop={readOnly ? undefined : handleNodeDragStop}
       onPaneClick={onPaneClick}
       onNodeClick={(_, node) => onNodeClick(node)}
-      nodesDraggable
+      nodesDraggable={!readOnly}
       nodesConnectable={false}
       elevateNodesOnSelect
       minZoom={0.2}

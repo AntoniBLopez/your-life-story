@@ -32,8 +32,8 @@ export function AdminPanel({
   const [query, setQuery] = useState("");
   const users = initialUsers;
   const t = locale === "es"
-    ? { eyebrow: "Administración", title: "Archivo público y fallecimientos", intro: "Revisa peticiones, marca personas como fallecidas y publica sus vidas en el archivo histórico.", pending: "Pendientes", none: "No hay peticiones pendientes.", approve: "Publicar y marcar fallecida", reject: "Rechazar", search: "Buscar cuenta por nombre o email", consent: "Quiso publicar", published: "En archivo", deceased: "Fallecida", moments: "momentos", publish: "Publicar", publishDead: "Publicar como fallecida", unpublish: "Retirar", inactivity: "Silencio automático" }
-    : { eyebrow: "Administration", title: "Public archive and deaths", intro: "Review requests, mark people as deceased and publish their lives in the historical archive.", pending: "Pending", none: "There are no pending requests.", approve: "Publish and mark deceased", reject: "Reject", search: "Search an account by name or email", consent: "Wanted to publish", published: "In archive", deceased: "Deceased", moments: "moments", publish: "Publish", publishDead: "Publish as deceased", unpublish: "Remove", inactivity: "Automatic silence" };
+    ? { eyebrow: "Administración", title: "Archivo público y fallecimientos", intro: "Revisa peticiones de fallecimiento. Solo se publica una vida si esa persona dio permiso en vida para hacerlo.", pending: "Pendientes", none: "No hay peticiones pendientes.", approve: "Confirmar y publicar", reject: "Rechazar", search: "Buscar cuenta por nombre o email", consent: "Dio permiso en vida", published: "En archivo", deceased: "Fallecida", moments: "momentos", publish: "Publicar", publishDead: "Publicar como fallecida", unpublish: "Retirar", inactivity: "Silencio automático", noConsent: "Sin permiso de publicación en vida" }
+    : { eyebrow: "Administration", title: "Public archive and deaths", intro: "Review death requests. A life is only published if that person gave permission while they were alive.", pending: "Pending", none: "There are no pending requests.", approve: "Confirm and publish", reject: "Reject", search: "Search an account by name or email", consent: "Gave permission in life", published: "In archive", deceased: "Deceased", moments: "moments", publish: "Publish", publishDead: "Publish as deceased", unpublish: "Remove", inactivity: "Automatic silence", noConsent: "No publication permission in life" };
 
   function review(id: string, decision: "approved" | "rejected") {
     setError(undefined);
@@ -80,7 +80,10 @@ export function AdminPanel({
           <div className="card mt-4 p-6 text-sm text-[var(--muted)]">{t.none}</div>
         ) : (
           <div className="mt-4 space-y-4">
-            {requests.map((request) => (
+            {requests.map((request) => {
+              const target = users.find((user) => user.id === request.targetUserId);
+              const hadPermission = Boolean(target?.publicArchiveConsent || target?.inactivityReleaseYears);
+              return (
               <article key={request.id} className="card p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
@@ -88,16 +91,17 @@ export function AdminPanel({
                     <h3 className="display mt-1 text-2xl">{request.targetDisplayName || request.targetEmail}</h3>
                     <p className="mt-1 text-sm text-[var(--muted)]">{request.targetEmail}</p>
                   </div>
-                  <span className="pill">{request.relationship}</span>
+                  <span className={`pill ${hadPermission ? "" : "!bg-[#fff0e5] !text-[#8a5a3d]"}`}>{hadPermission ? t.consent : t.noConsent}</span>
                 </div>
                 <p className="mt-3 text-sm leading-6">{request.message}</p>
-                <p className="mt-3 text-xs text-[var(--muted)]">{request.requesterName} · {request.requesterEmail}{request.deathDate ? ` · ${request.deathDate}` : ""}</p>
+                <p className="mt-3 text-xs text-[var(--muted)]">{request.requesterName} · {request.requesterEmail}{request.deathDate ? ` · ${request.deathDate}` : ""}{request.relationship ? ` · ${request.relationship}` : ""}</p>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  <button disabled={pending || !request.targetUserId} className="btn btn-primary" onClick={() => review(request.id, "approved")}>{pending && <LoaderCircle className="animate-spin" size={15} />}<Check size={15} />{t.approve}</button>
+                  <button disabled={pending || !request.targetUserId || !hadPermission} className="btn btn-primary" onClick={() => review(request.id, "approved")}>{pending && <LoaderCircle className="animate-spin" size={15} />}<Check size={15} />{t.approve}</button>
                   <button disabled={pending} className="btn btn-secondary" onClick={() => review(request.id, "rejected")}><X size={15} />{t.reject}</button>
                 </div>
               </article>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>

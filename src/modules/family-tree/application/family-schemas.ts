@@ -28,9 +28,15 @@ export const familyPersonSchema = z.object({
     return null;
   }),
   notes: z.string().trim().max(300).optional().or(z.literal("")).transform((value) => value || null),
+  email: z.string().trim().max(180).optional().or(z.literal("")).transform((value) => {
+    const email = (value || "").trim().toLowerCase();
+    return email || null;
+  }),
   isSubject: z.boolean().default(false),
   motherId: optionalPersonId,
   fatherId: optionalPersonId,
+}).refine((data) => !data.email || z.string().email().safeParse(data.email).success, {
+  message: "Introduce un email válido.",
 }).refine((data) => !data.motherId || !data.fatherId || data.motherId !== data.fatherId, {
   message: "La madre y el padre deben ser personas distintas.",
 });

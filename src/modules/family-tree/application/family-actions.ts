@@ -3,18 +3,25 @@
 import { revalidatePath } from "next/cache";
 import { requireCurrentUser } from "@/shared/lib/auth";
 import type { ActionResult } from "@/shared/types/action";
-import { assertNoParentCycle } from "../domain/family-graph";
+import { assertNoParentCycle, normalizePersonEmail } from "../domain/family-graph";
 import { parseGedcom } from "../domain/gedcom";
 import { MongoFamilyRepository } from "../infrastructure/mongo-family-repository";
 import { syncPersonParents } from "./family-parent-sync";
 import { familyNodeLayoutSchema, familyPersonSchema, familyRelationshipSchema } from "./family-schemas";
 import { importBassolsFamilySeed } from "./family-seed-service";
+import { getSharedTimelineForViewer } from "./timeline-share-service";
+import { duplicateLifeStoryForUser } from "@/modules/life-story/application/life-story-service";
 
 const repository = new MongoFamilyRepository();
 
-function personPayload(parsed: ReturnType<typeof familyPersonSchema.parse>) {
+function personPayload(parsed: ReturnType<typeof familyPersonSchema.parse>, formData: FormData) {
   const { motherId: _motherId, fatherId: _fatherId, ...person } = parsed;
-  return person;
+  const email = normalizePersonEmail(person.email);
+  return {
+    ...person,
+    email,
+    canReadTimeline: formData.get("canReadTimeline") === "on" && !person.isSubject && Boolean(email),
+  };
 }
 
 export async function createFamilyPersonAction(formData: FormData): Promise<ActionResult<{ id: string }>> {
@@ -23,7 +30,7 @@ export async function createFamilyPersonAction(formData: FormData): Promise<Acti
   try {
     const user = await requireCurrentUser();
     const { motherId, fatherId } = parsed.data;
-    const person = await repository.addPerson(user.id, personPayload(parsed.data));
+    const person = await repository.addPerson(user.id, personPayload(parsed.data, formData));
     if (motherId || fatherId) {
       await syncPersonParents(repository, user.id, person.id, motherId, fatherId);
     }
@@ -39,7 +46,7 @@ export async function updateFamilyPersonAction(formData: FormData): Promise<Acti
   try {
     const user = await requireCurrentUser();
     const { motherId, fatherId } = parsed.data;
-    await repository.updatePerson(user.id, personId, personPayload(parsed.data));
+    await repository.updatePerson(user.id, personId, personPayload(parsed.data, formData));
     await syncPersonParents(repository, user.id, personId, motherId, fatherId);
     const locale = String(formData.get("locale")) === "en" ? "en" : "es";
     revalidatePath(`/${locale}/app/family`);
@@ -70,7 +77,7 @@ export async function importGedcomAction(formData: FormData): Promise<ActionResu
     const user = await requireCurrentUser();
     const idByGedcomId = new Map<string, string>();
     for (const person of parsed.people) {
-      const created = await repository.addPerson(user.id, { fullName: person.fullName, birthDate: person.birthDate, birthDatePrecision: person.birthDatePrecision, deathDate: person.deathDate, deathDatePrecision: person.deathDatePrecision, birthCountry: person.birthCountry, birthCity: person.birthCity, gender: person.gender ?? null, baptized: person.baptized ?? null, notes: person.notes ?? null, isSubject: false });
+      const created = await repository.addPerson(user.id, { fullName: person.fullName, birthDate: person.birthDate, birthDatePrecision: person.birthDatePrecision, deathDate: person.deathDate, deathDatePrecision: person.deathDatePrecision, birthCountry: person.birthCountry, birthCity: person.birthCity, gender: person.gender ?? null, baptized: person.baptized ?? null, notes: person.notes ?? null, email: person.email ?? null, canReadTimeline: false, isSubject: false });
       idByGedcomId.set(person.gedcomId, created.id);
     }
     let relationshipCount = 0;
@@ -118,5 +125,20 @@ export async function saveFamilyNodeLayoutsAction(input: {
     return { ok: true, data: undefined };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "No se pudieron guardar las posiciones." };
+  }
+}
+
+export async function duplicateSharedTimelineAction(ownerUserId: string, locale: "es" | "en"): Promise<ActionResult<{ entries: number }>> {
+  try {
+    const user = await requireCurrentUser();
+    const shared = await getSharedTimelineForViewer(ownerUserId, user, locale);
+    if (!shared) {
+      return { ok: false, error: locale === "es" ? "No tienes acceso a este cronograma." : "You do not have access to this timeline." };
+    }
+    const result = await duplicateLifeStoryForUser(ownerUserId, user.id);
+    revalidatePath(`/${locale}/app`);
+    return { ok: true, data: result };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : locale === "es" ? "No se pudo copiar el cronograma." : "The timeline could not be copied." };
   }
 }

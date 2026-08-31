@@ -16,6 +16,8 @@ type ProfileDbRecord = {
   deceasedAt?: Date | null;
   lastSeenAt?: Date | null;
   inactivityReleaseYears?: number | null;
+  inactivityNoticesSent?: string[];
+  inactivityFirstNoticeAt?: Date | null;
   saveVoiceRecordings?: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -34,6 +36,8 @@ export type ProfileWritableFields = Partial<
     | "deceasedAt"
     | "lastSeenAt"
     | "inactivityReleaseYears"
+    | "inactivityNoticesSent"
+    | "inactivityFirstNoticeAt"
     | "saveVoiceRecordings"
   >
 >;
@@ -105,9 +109,15 @@ export async function updateProfileFields(userId: string, fields: ProfileWritabl
 
 const LAST_SEEN_TOUCH_MS = 12 * 60 * 60 * 1000;
 
-export async function touchLastSeen(userId: string) {
-  const profile = await getProfile(userId);
-  const lastSeen = profile?.lastSeenAt ? new Date(profile.lastSeenAt).getTime() : 0;
-  if (Date.now() - lastSeen < LAST_SEEN_TOUCH_MS) return;
-  await updateProfileFields(userId, { lastSeenAt: new Date() });
+export async function touchLastSeen(userId: string, options?: { force?: boolean }) {
+  if (!options?.force) {
+    const profile = await getProfile(userId);
+    const lastSeen = profile?.lastSeenAt ? new Date(profile.lastSeenAt).getTime() : 0;
+    if (Date.now() - lastSeen < LAST_SEEN_TOUCH_MS) return;
+  }
+  await updateProfileFields(userId, {
+    lastSeenAt: new Date(),
+    inactivityNoticesSent: [],
+    inactivityFirstNoticeAt: null,
+  });
 }

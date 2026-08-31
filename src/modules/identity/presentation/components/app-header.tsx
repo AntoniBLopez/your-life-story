@@ -20,7 +20,8 @@ export function AppHeader({ locale, email }: { locale: "es" | "en"; email?: stri
     !is(`/${locale}/app/family`) &&
     !is(`/${locale}/app/settings`) &&
     !is(`/${locale}/app/search`) &&
-    !is(`/${locale}/app/admin`);
+    !is(`/${locale}/app/admin`) &&
+    !is(`/${locale}/app/shared`);
   const admin = isArchiveAdmin(email);
   const t = locale === "es" ? { story: "Mi historia", reflect: "Reflexiona", tree: "Árbol", settings: "Ajustes", out: "Cerrar sesión", archive: "Archivo", admin: "Admin" } : { story: "My story", reflect: "Reflect", tree: "Tree", settings: "Settings", out: "Sign out", archive: "Archive", admin: "Admin" };
 

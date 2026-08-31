@@ -13,7 +13,7 @@ import {
   unpublishLife,
   updatePublicationRequestStatus,
 } from "@/modules/archive/infrastructure/mongo-archive-repository";
-import { parseInactivityReleaseYears } from "@/modules/archive/domain/archive";
+import { parseInactivityReleaseYears, gavePublicPublicationPermission } from "@/modules/archive/domain/archive";
 import { findUserById } from "@/modules/identity/infrastructure/mongo-user-repository";
 
 function errorMessage(error: unknown, fallback: string) {
@@ -70,7 +70,11 @@ export async function setInactivityReleaseAction(enabled: boolean, years: number
       return { ok: false, error: locale === "es" ? "Esta cuenta ya está marcada como fallecida." : "This account is already marked as deceased." };
     }
     if (!enabled) {
-      await upsertProfile(user.id, { inactivityReleaseYears: null });
+      await upsertProfile(user.id, {
+        inactivityReleaseYears: null,
+        inactivityNoticesSent: [],
+        inactivityFirstNoticeAt: null,
+      });
       revalidatePath(`/${locale}/app/settings`);
       return { ok: true, data: { years: null } };
     }
@@ -81,6 +85,8 @@ export async function setInactivityReleaseAction(enabled: boolean, years: number
     await upsertProfile(user.id, {
       inactivityReleaseYears: parsedYears,
       lastSeenAt: profile.lastSeenAt ? new Date(profile.lastSeenAt) : new Date(),
+      inactivityNoticesSent: [],
+      inactivityFirstNoticeAt: null,
     });
     revalidatePath(`/${locale}/app/settings`);
     return { ok: true, data: { years: parsedYears } };
@@ -151,6 +157,10 @@ export async function reviewPublicationRequestAction(requestId: string, decision
     if (decision === "approved") {
       if (!request.targetUserId) {
         return { ok: false, error: locale === "es" ? "No hay una cuenta con ese email. No se puede publicar." : "There is no account with that email. It cannot be published." };
+      }
+      const target = await getProfile(request.targetUserId);
+      if (!gavePublicPublicationPermission(target ?? {})) {
+        return { ok: false, error: locale === "es" ? "Esta persona no dio permiso en vida para publicar su historia. No se puede publicar." : "This person did not give permission in life to publish their story. It cannot be published." };
       }
       await publishLife(request.targetUserId, { deceased: true, deathDate: request.deathDate });
     }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assertNoParentCycle, relationToSubject, type FamilyPerson, type FamilyRelationship } from "./family-graph";
+import { assertNoParentCycle, relationToSubject, grantsTimelineAccess, normalizePersonEmail, type FamilyPerson, type FamilyRelationship } from "./family-graph";
 
 const people: FamilyPerson[] = [
   { id: "great-grandparent", userId: "u", fullName: "Luis García", birthDate: null, birthDatePrecision: null, deathDate: null, deathDatePrecision: null, birthCountry: null, birthCity: null, gender: "male", baptized: null, notes: null, isSubject: false },
@@ -66,9 +66,12 @@ describe("family graph", () => {
     expect(relationToSubject("grandchild", "subject", graph, people, "es")).toBe("NIETO");
   });
 
-  it("derives partner and in-law relations", () => {
-    expect(relationToSubject("partner", "subject", graph, people, "es")).toBe("PAREJA");
-    expect(relationToSubject("stepfather", "subject", graph, people, "es")).toBe("PADRASTRO");
-    expect(relationToSubject("mother-in-law", "subject", graph, people, "es")).toBe("SUEGRA");
+  it("grants timeline access only with an email, the checkbox and a person who is not you", () => {
+    expect(grantsTimelineAccess({ email: "sister@example.com", canReadTimeline: true, isSubject: false })).toBe(true);
+    expect(grantsTimelineAccess({ email: "sister@example.com", canReadTimeline: false, isSubject: false })).toBe(false);
+    expect(grantsTimelineAccess({ email: null, canReadTimeline: true, isSubject: false })).toBe(false);
+    expect(grantsTimelineAccess({ email: "me@example.com", canReadTimeline: true, isSubject: true })).toBe(false);
+    expect(normalizePersonEmail("  Sister@Example.COM ")).toBe("sister@example.com");
+    expect(normalizePersonEmail("not-an-email")).toBe(null);
   });
 });

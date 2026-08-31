@@ -14,21 +14,23 @@ export function ArchiveAiChat({ locale, slug, displayName }: { locale: "es" | "e
   const t = locale === "es"
     ? {
         title: `Preguntar sobre la vida de ${displayName}`,
-        intro: "La IA responde sólo con lo que esta persona dejó escrito: experiencias, aprendizajes, familia y decisiones.",
-        placeholder: "¿Qué decisiones marcaron su vida?",
+        intro: "La IA responde sólo con lo que esta persona dejó escrito: cómo pensaba, qué decidió, qué aprendió, sus momentos críticos y cómo los superó.",
+        placeholder: "¿Qué aprendió de lo más difícil?",
         send: "Preguntar",
-        empty: "Prueba con: «¿Qué patrones ves en sus decisiones?»",
+        empty: "Elige una pregunta o escribe la tuya.",
         error: "No se ha podido completar la pregunta.",
         disclaimer: "Respuestas basadas en el testimonio publicado. No inventa hechos que no estén en el archivo.",
+        prompts: ["¿Qué aprendió de lo más difícil?", "¿Cuáles fueron sus momentos críticos?", "¿Cómo los superó?", "¿Qué decisiones marcaron su camino?"],
       }
     : {
         title: `Ask about ${displayName}’s life`,
-        intro: "The AI answers only from what this person left in writing: experiences, lessons, family and decisions.",
-        placeholder: "Which decisions shaped their life?",
+        intro: "The AI answers only from what this person left in writing: how they thought, what they decided, what they learnt, their critical moments and how they overcame them.",
+        placeholder: "What did they learn from what was hardest?",
         send: "Ask",
-        empty: "Try: “What patterns do you notice in their decisions?”",
+        empty: "Pick a question or write your own.",
         error: "The question could not be completed.",
         disclaimer: "Answers are grounded in the published testimony. It does not invent facts missing from the archive.",
+        prompts: ["What did they learn from what was hardest?", "Which moments were critical?", "How did they overcome them?", "Which decisions shaped their path?"],
       };
 
   async function send(event: FormEvent<HTMLFormElement>) {
@@ -82,6 +84,18 @@ export function ArchiveAiChat({ locale, slug, displayName }: { locale: "es" | "e
             <div>
               <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-[#edf3eb] text-[var(--moss)]"><Sparkles size={20} /></span>
               <p className="mt-4 text-sm text-[var(--muted)]">{t.empty}</p>
+              <div className="mt-4 flex flex-wrap justify-center gap-2">
+                {t.prompts.map((prompt) => (
+                  <button
+                    key={prompt}
+                    type="button"
+                    className="pill hover:bg-[var(--sage)]"
+                    onClick={() => setMessage(prompt)}
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         ) : messages.map((item) => (

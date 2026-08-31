@@ -7,7 +7,7 @@ import { verifyPassword } from "@/shared/lib/auth/password";
 import type { ActionResult } from "@/shared/types/action";
 import { credentialsSchema, registrationSchema } from "./auth-schemas";
 import { createPasswordResetToken, createUser, findUserByEmail } from "../infrastructure/mongo-user-repository";
-import { createProfile } from "../infrastructure/mongo-profile-repository";
+import { createProfile, touchLastSeen } from "../infrastructure/mongo-profile-repository";
 
 const formToObject = (formData: FormData) => Object.fromEntries(formData.entries());
 
@@ -24,6 +24,7 @@ export async function signInAction(formData: FormData): Promise<ActionResult<{ r
   }
 
   await createSession(user.id);
+  await touchLastSeen(user.id, { force: true });
   revalidatePath(`/${locale}/app`);
   return { ok: true, data: { redirectTo: `/${locale}/app` } };
 }

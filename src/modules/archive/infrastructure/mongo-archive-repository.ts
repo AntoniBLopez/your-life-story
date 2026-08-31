@@ -4,7 +4,10 @@ import { getFamilyGraph } from "@/modules/family-tree/application/family-service
 import { listLifeEntriesForUser, listLifeEntryLinksForUser } from "@/modules/life-story/application/life-story-service";
 import { getProfile, updateProfileFields, upsertProfile } from "@/modules/identity/infrastructure/mongo-profile-repository";
 import { findUserByEmail, findUserById } from "@/modules/identity/infrastructure/mongo-user-repository";
-import { parseInactivityReleaseYears, shouldReleaseForInactivity, slugifyDisplayName, yearFromDate, type ArchivePublicationRequest, type ArchiveRequestSource, type PublicLifeSummary } from "@/modules/archive/domain/archive";
+import { parseInactivityReleaseYears, pickLifeHighlight, inactivityEffectiveReleaseAt, inactivityReleaseDueAt, nextInactivityNoticeStage, shouldReleaseForInactivity, slugifyDisplayName, yearFromDate, type ArchivePublicationRequest, type ArchiveRequestSource, type PublicLifeSummary } from "@/modules/archive/domain/archive";
+import { inactivityNoticeEmail } from "@/modules/archive/domain/inactivity-notice-email";
+import { getAppUrl } from "@/shared/lib/env";
+import { sendMail } from "@/shared/lib/email";
 import { getDb } from "@/shared/lib/mongodb/client";
 import { COLLECTIONS } from "@/shared/lib/mongodb/collections";
 import { idFromDocument, toObjectId } from "@/shared/lib/mongodb/id";
@@ -68,6 +71,7 @@ export async function listPublishedLives(): Promise<PublicLifeSummary[]> {
     const userId = String(profile.userId);
     const entries = await listLifeEntriesForUser(userId);
     const years = entries.map((entry) => yearFromDate(entry.startDate)).filter((year): year is string => Boolean(year));
+    const highlight = pickLifeHighlight(entries);
     return {
       userId,
       slug: String(profile.archiveSlug),
@@ -78,6 +82,8 @@ export async function listPublishedLives(): Promise<PublicLifeSummary[]> {
       entryCount: entries.length,
       firstYear: years[0] ?? null,
       lastYear: years.at(-1) ?? null,
+      highlight: highlight.highlight,
+      highlightKind: highlight.highlightKind,
     } satisfies PublicLifeSummary;
   }));
 
@@ -239,6 +245,54 @@ export async function unpublishLife(userId: string) {
   await updateProfileFields(userId, { publishedAt: null, publicArchiveConsent: false });
 }
 
+export async function sendDueInactivityNotices(now = new Date()) {
+  const db = await getDb();
+  const candidates = await db.collection(COLLECTIONS.profiles)
+    .find({
+      inactivityReleaseYears: { $gte: 1, $lte: 10 },
+      $and: [
+        { $or: [{ deceasedAt: null }, { deceasedAt: { $exists: false } }] },
+        { $or: [{ publishedAt: null }, { publishedAt: { $exists: false } }] },
+      ],
+    })
+    .toArray();
+
+  const sent: string[] = [];
+  for (const record of candidates) {
+    const userId = String(record.userId);
+    const years = parseInactivityReleaseYears(record.inactivityReleaseYears);
+    const lastSeenAt = asDate(record.lastSeenAt);
+    if (!years || !lastSeenAt) continue;
+    const plannedReleaseAt = inactivityReleaseDueAt(lastSeenAt, years);
+    const firstNoticeAt = asDate(record.inactivityFirstNoticeAt);
+    const alreadySent = Array.isArray(record.inactivityNoticesSent) ? record.inactivityNoticesSent.map(String) : [];
+    const stage = nextInactivityNoticeStage({ plannedReleaseAt, firstNoticeAt, sent: alreadySent, now });
+    if (!stage) continue;
+    const user = await findUserById(userId);
+    if (!user?.email) continue;
+    const locale = record.locale === "en" || user.locale === "en" ? "en" : "es";
+    const noticeFirstAt = stage === "months_3" ? now : firstNoticeAt;
+    const releaseAt = inactivityEffectiveReleaseAt(plannedReleaseAt, noticeFirstAt);
+    const origin = getAppUrl();
+    const email = inactivityNoticeEmail({
+      locale,
+      displayName: String(record.displayName || user.displayName || ""),
+      stage,
+      releaseAt,
+      loginUrl: `${origin}/${locale}/login`,
+      settingsUrl: `${origin}/${locale}/app/settings`,
+    });
+    const delivered = await sendMail({ to: user.email, ...email }).catch(() => false);
+    if (!delivered) continue;
+    await updateProfileFields(userId, {
+      inactivityNoticesSent: [...new Set([...alreadySent, stage])],
+      ...(stage === "months_3" ? { inactivityFirstNoticeAt: now } : {}),
+    });
+    sent.push(userId);
+  }
+  return sent;
+}
+
 export async function releaseDueInactivityArchives(now = new Date()) {
   const db = await getDb();
   const candidates = await db.collection(COLLECTIONS.profiles)
@@ -250,20 +304,31 @@ export async function releaseDueInactivityArchives(now = new Date()) {
 
   const released: string[] = [];
   for (const record of candidates) {
+    if (record.publishedAt) continue;
     const userId = String(record.userId);
     const years = parseInactivityReleaseYears(record.inactivityReleaseYears);
-    const lastSeenAt = record.lastSeenAt instanceof Date
-      ? record.lastSeenAt
-      : record.lastSeenAt
-        ? new Date(String(record.lastSeenAt))
-        : null;
-    if (!shouldReleaseForInactivity({ years, lastSeenAt, deceasedAt: record.deceasedAt instanceof Date ? record.deceasedAt : null }, now)) {
+    const lastSeenAt = asDate(record.lastSeenAt);
+    const firstNoticeAt = asDate(record.inactivityFirstNoticeAt);
+    if (!shouldReleaseForInactivity({ years, lastSeenAt, deceasedAt: asDate(record.deceasedAt), firstNoticeAt }, now)) {
       continue;
     }
     await publishLife(userId, { deceased: true });
     released.push(userId);
   }
   return released;
+}
+
+export async function runInactivitySweep(now = new Date()) {
+  const notices = await sendDueInactivityNotices(now);
+  const released = await releaseDueInactivityArchives(now);
+  return { notices, released };
+}
+
+function asDate(value: unknown) {
+  if (!value) return null;
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+  const date = new Date(String(value));
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 export type PublicArchiveLife = {

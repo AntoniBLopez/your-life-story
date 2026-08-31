@@ -52,4 +52,6 @@ export const env = {
   sessionSecret: process.env.SESSION_SECRET,
   googleClientId: process.env.GOOGLE_CLIENT_ID,
   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET,
+  emailServer: process.env.EMAIL_CLIENT_SERVER,
+  emailFrom: process.env.EMAIL_CLIENT_FROM,
 };

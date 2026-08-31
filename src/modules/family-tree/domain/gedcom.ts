@@ -47,7 +47,7 @@ export function parseGedcom(source: string): GedcomImport {
       const [, level, id, tag, value] = match;
       if (level === "0" && tag === "INDI") {
         current = { kind: "INDI", id };
-        people.set(id, { gedcomId: id, fullName: "", birthDate: null, birthDatePrecision: null, deathDate: null, deathDatePrecision: null, birthCountry: null, birthCity: null, gender: null, baptized: null, notes: null });
+        people.set(id, { gedcomId: id, fullName: "", birthDate: null, birthDatePrecision: null, deathDate: null, deathDatePrecision: null, birthCountry: null, birthCity: null, gender: null, baptized: null, notes: null, email: null, canReadTimeline: false });
       } else if (level === "0" && tag === "FAM") {
         current = { kind: "FAM", id };
         families.push({ children: [] });
@@ -64,6 +64,7 @@ export function parseGedcom(source: string): GedcomImport {
       if (level === "1" && tag === "NAME") person.fullName = (value ?? "").replace(/\//g, "").replace(/\s+/g, " ").trim();
       if (level === "1" && tag === "NOTE") person.notes = (value ?? "").trim() || person.notes;
       if (level === "1" && tag === "_BAPT") person.baptized = value === "Y" ? true : value === "N" ? false : null;
+      if (level === "1" && tag === "EMAIL") person.email = (value ?? "").trim().toLowerCase() || person.email;
       if (level === "1" && tag === "BIRT") event = "birth";
       if (level === "1" && tag === "DEAT") event = "death";
       if (level === "2" && tag === "DATE") {
@@ -103,6 +104,7 @@ export function toGedcom(people: FamilyPerson[], relationships: FamilyRelationsh
     if (person.birthDate) lines.push("1 BIRT", `2 DATE ${formatGedcomDate(person.birthDate, person.birthDatePrecision)}`, ...(person.birthCity ? [`2 PLAC ${person.birthCity}${person.birthCountry ? `, ${person.birthCountry}` : ""}`] : []));
     if (person.deathDate) lines.push("1 DEAT", `2 DATE ${formatGedcomDate(person.deathDate, person.deathDatePrecision)}`);
     if (person.notes) lines.push(`1 NOTE ${person.notes}`);
+    if (person.email) lines.push(`1 EMAIL ${person.email}`);
     if (person.baptized === true) lines.push("1 _BAPT Y");
     if (person.baptized === false) lines.push("1 _BAPT N");
   }

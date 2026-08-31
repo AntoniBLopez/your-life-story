@@ -7,4 +7,9 @@ describe("parseGedcom", () => {
     expect(result.people[0]).toMatchObject({ fullName: "Ada Lovelace", birthDate: "1815-12-10", birthCity: "London", birthCountry: "England" });
     expect(result.relationships).toEqual([{ sourceGedcomId: "@I2@", targetGedcomId: "@I1@", relationshipType: "partner" }, { sourceGedcomId: "@I2@", targetGedcomId: "@I3@", relationshipType: "parent" }, { sourceGedcomId: "@I1@", targetGedcomId: "@I3@", relationshipType: "parent" }]);
   });
+
+  it("imports EMAIL without granting timeline access", () => {
+    const result = parseGedcom("0 @I1@ INDI\n1 NAME Ada /Lovelace/\n1 EMAIL ada@example.com\n1 _SHARE Y");
+    expect(result.people[0]).toMatchObject({ fullName: "Ada Lovelace", email: "ada@example.com", canReadTimeline: false });
+  });
 });
