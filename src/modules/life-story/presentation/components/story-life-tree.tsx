@@ -1,13 +1,36 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
-import { Background, Controls, MiniMap, ReactFlow, type Edge, type Node } from "@xyflow/react";
+import type { ReactNode } from "react";
+import { useEffect, useMemo, useRef } from "react";
+import { Background, Controls, MiniMap, ReactFlow, ReactFlowProvider, useReactFlow, type Edge, type Node, type NodeProps } from "@xyflow/react";
 import { buildLifeEntryGraph } from "@/modules/life-story/domain/life-entry-graph";
 import { entryTone, momentFlagLabel, type LifeEntry, type LifeEntryLink } from "@/modules/life-story/domain/life-entry";
 import { formatStoryDate, titleCase } from "@/shared/lib/utils";
 
-export function StoryLifeTree({
+function LifeEntryNode({ data }: NodeProps) {
+  const nodeData = data as { label: ReactNode };
+  return <div className="life-entry-node">{nodeData.label}</div>;
+}
+
+const lifeEntryNodeTypes = { lifeEntry: LifeEntryNode };
+
+function LifeTreeViewport({ nodeCount }: { nodeCount: number }) {
+  const { fitView } = useReactFlow();
+  const fittedRef = useRef(false);
+
+  useEffect(() => {
+    if (fittedRef.current || nodeCount === 0) return;
+    fittedRef.current = true;
+    requestAnimationFrame(() => {
+      void fitView({ padding: 0.2, duration: 0 });
+    });
+  }, [fitView, nodeCount]);
+
+  return null;
+}
+
+function StoryLifeTreeInner({
   entries,
   links,
   locale,
@@ -20,8 +43,12 @@ export function StoryLifeTree({
 
   const nodes: Node[] = graph.nodes.map((node) => ({
     id: node.id,
+    type: "lifeEntry",
     position: { x: node.x, y: node.y },
-    style: { width: 220, borderColor: `${entryTone(node.entry.changeDirection)}80` },
+    style: {
+      width: 220,
+      borderColor: `${entryTone(node.entry.changeDirection)}80`,
+    },
     data: {
       label: (
         <Link href={`/${locale}/app/entries/${node.entry.id}/edit`} className="block p-3 text-left">
@@ -72,19 +99,35 @@ export function StoryLifeTree({
         <ReactFlow
           nodes={nodes}
           edges={edges}
+          nodeTypes={lifeEntryNodeTypes}
           nodesDraggable={false}
           nodesConnectable={false}
           elementsSelectable={false}
-          fitView
-          fitViewOptions={{ padding: 0.2 }}
           minZoom={0.25}
           maxZoom={1.4}
         >
+          <LifeTreeViewport nodeCount={nodes.length} />
           <Background gap={18} size={1} color="#dce5db" />
           <Controls />
           <MiniMap zoomable pannable />
         </ReactFlow>
       </div>
     </section>
+  );
+}
+
+export function StoryLifeTree({
+  entries,
+  links,
+  locale,
+}: {
+  entries: LifeEntry[];
+  links: LifeEntryLink[];
+  locale: "es" | "en";
+}) {
+  return (
+    <ReactFlowProvider>
+      <StoryLifeTreeInner entries={entries} links={links} locale={locale} />
+    </ReactFlowProvider>
   );
 }

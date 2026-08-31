@@ -1,12 +1,10 @@
-import { createHash } from "node:crypto";
-import OpenAI from "openai";
 import { NextRequest } from "next/server";
-import { env } from "@/shared/lib/env";
-import { getCurrentUser } from "@/shared/lib/auth";
 import { listLifeEntriesForUser } from "@/modules/life-story/application/life-story-service";
 import { buildReflectionContext } from "@/modules/reflection/application/reflection-context";
 import { ensureReflectionThread, getReflectionState, saveReflectionMessage } from "@/modules/reflection/application/reflection-service";
 import { crisisSupportMessage, reflectionInstructions, requiresImmediateSupport } from "@/modules/reflection/domain/reflection-policy";
+import { getCurrentUser } from "@/shared/lib/auth";
+import { isAiConfigured, streamChatCompletion } from "@/shared/lib/ai-providers";
 
 export const runtime = "nodejs";
 
@@ -28,32 +26,29 @@ export async function POST(request: NextRequest) {
     await saveReflectionMessage(user.id, threadId, "assistant", response);
     return new Response(response, { headers: { "Content-Type": "text/plain; charset=utf-8" } });
   }
-  if (!env.openAiApiKey) return Response.json({ error: "OPENAI_API_KEY is not configured" }, { status: 503 });
+  if (!isAiConfigured()) {
+    return Response.json({ error: "No AI API keys are configured" }, { status: 503 });
+  }
 
   const entries = await listLifeEntriesForUser(user.id);
   const context = buildReflectionContext(entries, locale);
   const conversation = reflection.messages.slice(-12).map((item) => `${item.role === "user" ? "USER" : "ASSISTANT"}: ${item.content}`).join("\n");
-  const client = new OpenAI({ apiKey: env.openAiApiKey });
-  const stream = await client.responses.create({
-    model: env.openAiModel,
-    stream: true,
-    store: false,
-    safety_identifier: createHash("sha256").update(user.id).digest("hex"),
-    instructions: `${reflectionInstructions}\n\n${context}\n\nPREVIOUS CHAT:\n${conversation || "(none)"}`,
-    input: message,
-  });
+  const instructions = `${reflectionInstructions}\n\n${context}\n\nPREVIOUS CHAT:\n${conversation || "(none)"}`;
 
-  const encoder = new TextEncoder(); let fullResponse = "";
+  const encoder = new TextEncoder();
+  let fullResponse = "";
   const responseStream = new ReadableStream<Uint8Array>({
     async start(controller) {
       try {
-        for await (const event of stream) {
-          if (event.type === "response.output_text.delta") { fullResponse += event.delta; controller.enqueue(encoder.encode(event.delta)); }
-        }
+        fullResponse = await streamChatCompletion(instructions, message, (delta) => {
+          controller.enqueue(encoder.encode(delta));
+        });
         if (fullResponse) await saveReflectionMessage(user.id, threadId, "assistant", fullResponse);
       } catch {
         controller.enqueue(encoder.encode(locale === "es" ? "\n\nNo he podido completar esta reflexión. Inténtalo de nuevo en un momento." : "\n\nI could not complete this reflection. Please try again in a moment."));
-      } finally { controller.close(); }
+      } finally {
+        controller.close();
+      }
     },
   });
   return new Response(responseStream, { headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" } });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { relationToSubject, type FamilyPerson, type FamilyRelationship } from "./family-graph";
-import { assignPyramidPositions, buildFamilyPositions, computeGenerations, FAMILY_LAYOUT } from "./family-layout";
+import { assignPyramidPositions, buildFamilyPositions, computeGenerations, FAMILY_LAYOUT, filterParentEdgesForDisplay, mergeSavedLayoutPositions } from "./family-layout";
 
 function average(values: number[]) {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
@@ -55,6 +55,23 @@ describe("family layout", () => {
     expect(positions.get("father")!.y).toBeLessThan(positions.get("subject")!.y);
     expect(positions.get("mother")!.y).toBeLessThan(positions.get("subject")!.y);
     expect(positions.get("subject")!.y).toBe(positions.get("sister")!.y);
+  });
+
+  it("keeps only mother-to-child parent edges when a mother exists", () => {
+    const visible = filterParentEdgesForDisplay(blendedGraph, blendedFamily);
+    const sources = visible.map((relationship) => relationship.sourcePersonId);
+    expect(sources).toContain("mother");
+    expect(sources).not.toContain("father");
+    expect(sources).not.toContain("stepfather");
+  });
+
+  it("restores saved node positions over auto layout", () => {
+    const { positions: autoPositions } = buildFamilyPositions(blendedFamily, blendedGraph, "subject");
+    const peopleWithSavedLayout = blendedFamily.map((person) =>
+      person.id === "subject" ? { ...person, layoutX: 420, layoutY: 880 } : person,
+    );
+    const merged = mergeSavedLayoutPositions(autoPositions, peopleWithSavedLayout);
+    expect(merged.get("subject")).toMatchObject({ x: 420, y: 880 });
   });
 });
 

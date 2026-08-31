@@ -19,6 +19,8 @@ type FamilyPersonDbRecord = {
   baptized: FamilyPerson["baptized"];
   notes: FamilyPerson["notes"];
   isSubject: boolean;
+  layoutX?: number | null;
+  layoutY?: number | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -46,6 +48,8 @@ const mapPerson = (row: FamilyPersonDbRecord): FamilyPerson => ({
   baptized: row.baptized ?? null,
   notes: row.notes ?? null,
   isSubject: row.isSubject,
+  layoutX: row.layoutX ?? null,
+  layoutY: row.layoutY ?? null,
 });
 
 const mapRelationship = (row: FamilyRelationshipDbRecord): FamilyRelationship => ({
@@ -92,6 +96,8 @@ export class MongoFamilyRepository implements FamilyRepository {
       baptized: person.baptized ?? null,
       notes: person.notes ?? null,
       isSubject: person.isSubject,
+      layoutX: person.layoutX ?? null,
+      layoutY: person.layoutY ?? null,
       createdAt: now,
       updatedAt: now,
     };
@@ -137,6 +143,28 @@ export class MongoFamilyRepository implements FamilyRepository {
       relationshipType: relationship.relationshipType,
       createdAt: new Date(),
     });
+  }
+
+  async deleteRelationship(userId: string, relationshipId: string) {
+    const db = await this.db();
+    await db.collection(COLLECTIONS.familyRelationships).deleteOne({ _id: toObjectId(relationshipId), userId });
+  }
+
+  async updatePeopleLayout(
+    userId: string,
+    layouts: { personId: string; layoutX: number; layoutY: number }[],
+  ) {
+    if (layouts.length === 0) return;
+    const db = await this.db();
+    const now = new Date();
+    await Promise.all(
+      layouts.map(({ personId, layoutX, layoutY }) =>
+        db.collection(COLLECTIONS.familyPeople).updateOne(
+          { _id: toObjectId(personId), userId },
+          { $set: { layoutX, layoutY, updatedAt: now } },
+        ),
+      ),
+    );
   }
 
   async clearAll(userId: string) {

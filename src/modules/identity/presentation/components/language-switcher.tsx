@@ -10,6 +10,8 @@ export function LanguageSwitcher({ compact = false }: { compact?: boolean }) {
   const router = useRouter();
   const pathname = usePathname();
   const nextLocale = locale === "es" ? "en" : "es";
+  const label = locale === "es" ? "ES" : "EN";
+  const title = locale === "es" ? "Cambiar a inglés" : "Switch to Spanish";
 
   function switchLocale() {
     const nextPath = pathname.replace(/^\/(es|en)(?=\/|$)/, `/${nextLocale}`);
@@ -17,9 +19,9 @@ export function LanguageSwitcher({ compact = false }: { compact?: boolean }) {
   }
 
   return (
-    <button type="button" onClick={switchLocale} className={compact ? "btn btn-quiet" : "btn btn-secondary"}>
+    <button type="button" onClick={switchLocale} title={title} aria-label={title} className={compact ? "btn btn-quiet" : "btn btn-secondary"}>
       <Languages size={16} aria-hidden />
-      {locale === "es" ? "EN" : "ES"}
+      {label}
     </button>
   );
 }

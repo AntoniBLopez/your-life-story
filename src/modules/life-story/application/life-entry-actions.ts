@@ -8,14 +8,20 @@ import { assertValidStoryDates } from "../domain/life-entry";
 import { MongoLifeEntryRepository } from "../infrastructure/mongo-life-entry-repository";
 import { lifeEntryInputSchema } from "./life-entry-schema";
 import { storeAttachment } from "@/shared/lib/mongodb/attachments";
+import { AUDIO_CONTENT_TYPES, VOICE_FIELD_KEYS, type AudioContentType } from "../domain/voice-note";
 
 const repository = new MongoLifeEntryRepository();
+
+const imageContentTypes = ["image/jpeg", "image/png", "image/webp", "application/pdf"] as const;
+const attachmentContentTypes = [...imageContentTypes, ...AUDIO_CONTENT_TYPES] as const;
 
 const attachmentSchema = z.object({
   entryId: z.string().uuid(),
   fileName: z.string().min(1).max(160),
-  contentType: z.enum(["image/jpeg", "image/png", "image/webp", "application/pdf"]),
-  size: z.number().int().positive().max(10 * 1024 * 1024),
+  contentType: z.enum(attachmentContentTypes),
+  size: z.number().int().positive().max(15 * 1024 * 1024),
+  fieldKey: z.enum(VOICE_FIELD_KEYS).optional(),
+  transcript: z.string().max(8000).optional(),
 });
 
 function toInput(formData: FormData) {
@@ -76,7 +82,10 @@ export async function deleteLifeEntryAction(entryId: string, locale: string): Pr
 
 export async function uploadAttachmentAction(request: z.input<typeof attachmentSchema> & { fileBase64: string }): Promise<ActionResult<{ id: string }>> {
   const parsed = attachmentSchema.extend({ fileBase64: z.string().min(1) }).safeParse(request);
-  if (!parsed.success) return { ok: false, error: "El archivo no cumple los requisitos: JPG, PNG, WEBP o PDF, hasta 10 MB." };
+  const isAudio = parsed.success && AUDIO_CONTENT_TYPES.includes(parsed.data.contentType as AudioContentType);
+  if (!parsed.success) {
+    return { ok: false, error: "El archivo no cumple los requisitos: imágenes, PDF o audio, hasta 15 MB." };
+  }
   try {
     const user = await requireCurrentUser();
     const entry = await repository.findById(user.id, parsed.data.entryId);
@@ -90,6 +99,8 @@ export async function uploadAttachmentAction(request: z.input<typeof attachmentS
       mimeType: parsed.data.contentType,
       sizeBytes: parsed.data.size,
       buffer,
+      fieldKey: parsed.data.fieldKey ?? null,
+      transcript: isAudio ? parsed.data.transcript ?? null : null,
     });
     return { ok: true, data: { id: attachment.id } };
   } catch (error) {

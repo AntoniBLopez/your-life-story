@@ -1,4 +1,4 @@
-import type { FamilyPerson, FamilyRelationship } from "./family-graph";
+import { inferGender, type FamilyPerson, type FamilyRelationship } from "./family-graph";
 
 export const FAMILY_LAYOUT = {
   horizontalGap: 290,
@@ -6,6 +6,8 @@ export const FAMILY_LAYOUT = {
   nodeWidth: 224,
   paddingX: 80,
   paddingY: 110,
+  initialZoom: 0.95,
+  nodeFocusHeight: 120,
 } as const;
 
 export function birthSortKey(person: FamilyPerson) {
@@ -222,6 +224,75 @@ export function listImpliedCoParentEdges(relationships: FamilyRelationship[]) {
     });
 }
 
+export type PartnerLinkKind = "partner" | "co-parent";
+
+export type PartnerLink = {
+  id: string;
+  source: string;
+  target: string;
+  kind: PartnerLinkKind;
+};
+
+/** Partner links for display: explicit couples plus implied co-parents of shared children. */
+export function listPartnerLinks(relationships: FamilyRelationship[]): PartnerLink[] {
+  const explicitPartners = relationships
+    .filter((relationship) => relationship.relationshipType === "partner")
+    .map((relationship) => ({
+      id: relationship.id,
+      source: relationship.sourcePersonId,
+      target: relationship.targetPersonId,
+      kind: "partner" as const,
+    }));
+
+  const explicitKeys = new Set(explicitPartners.map((link) => pairKey(link.source, link.target)));
+  const implied = listImpliedCoParentEdges(relationships).map((pair, index) => ({
+    id: `co-parent-${index}`,
+    source: pair.source,
+    target: pair.target,
+    kind: "co-parent" as const,
+  }));
+
+  return [...explicitPartners, ...implied.filter((link) => !explicitKeys.has(pairKey(link.source, link.target)))];
+}
+
+/** Only mothers connect to children when a mother exists; otherwise keep all parent links. */
+export function filterParentEdgesForDisplay(
+  relationships: FamilyRelationship[],
+  people: FamilyPerson[],
+): FamilyRelationship[] {
+  const peopleById = new Map(people.map((person) => [person.id, person]));
+  const parentRelationships = relationships.filter((relationship) => relationship.relationshipType === "parent");
+  const byChild = new Map<string, FamilyRelationship[]>();
+
+  for (const relationship of parentRelationships) {
+    byChild.set(relationship.targetPersonId, [...(byChild.get(relationship.targetPersonId) ?? []), relationship]);
+  }
+
+  const visible: FamilyRelationship[] = [];
+  for (const childRelationships of byChild.values()) {
+    const mothers = childRelationships.filter((relationship) => {
+      const parent = peopleById.get(relationship.sourcePersonId);
+      return inferGender(parent ?? { fullName: "", gender: null }) === "female";
+    });
+    visible.push(...(mothers.length > 0 ? mothers : childRelationships));
+  }
+
+  return visible;
+}
+
+export function orientPartnerEdge(
+  sourceId: string,
+  targetId: string,
+  positions: Map<string, { x: number; y: number }>,
+) {
+  const sourceX = positions.get(sourceId)?.x ?? 0;
+  const targetX = positions.get(targetId)?.x ?? 0;
+  if (sourceX <= targetX) {
+    return { source: sourceId, target: targetId, sourceHandle: "right", targetHandle: "left" };
+  }
+  return { source: targetId, target: sourceId, sourceHandle: "right", targetHandle: "left" };
+}
+
 export function buildFamilyPositions(
   people: FamilyPerson[],
   relationships: FamilyRelationship[],
@@ -244,4 +315,21 @@ export function buildFamilyPositions(
   }
 
   return { groups, positions, xByPerson };
+}
+
+export function mergeSavedLayoutPositions(
+  autoPositions: Map<string, { x: number; y: number; generation: number }>,
+  people: FamilyPerson[],
+) {
+  const merged = new Map(autoPositions);
+  for (const person of people) {
+    if (person.layoutX == null || person.layoutY == null) continue;
+    const current = merged.get(person.id);
+    merged.set(person.id, {
+      x: person.layoutX,
+      y: person.layoutY,
+      generation: current?.generation ?? 0,
+    });
+  }
+  return merged;
 }

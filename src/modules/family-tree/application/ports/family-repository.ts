@@ -6,5 +6,7 @@ export interface FamilyRepository {
   addPerson(userId: string, person: Omit<FamilyPerson, "id" | "userId">): Promise<FamilyPerson>;
   updatePerson(userId: string, personId: string, person: Omit<FamilyPerson, "id" | "userId">): Promise<FamilyPerson>;
   addRelationship(userId: string, relationship: Omit<FamilyRelationship, "id" | "userId">): Promise<void>;
+  deleteRelationship(userId: string, relationshipId: string): Promise<void>;
+  updatePeopleLayout(userId: string, layouts: { personId: string; layoutX: number; layoutY: number }[]): Promise<void>;
   clearAll(userId: string): Promise<void>;
 }

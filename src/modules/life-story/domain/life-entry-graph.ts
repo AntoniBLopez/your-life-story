@@ -1,12 +1,11 @@
 import type { LifeEntry, LifeEntryLink } from "./life-entry";
 
-const DAY_MS = 86_400_000;
 const NODE_WIDTH = 220;
 const NODE_HEIGHT = 96;
 const H_GAP = 48;
 const V_GAP = 72;
 
-function dateToY(date: string) {
+function dateToSortKey(date: string) {
   return new Date(`${date}T00:00:00`).getTime();
 }
 
@@ -32,14 +31,13 @@ export function buildLifeEntryGraph(entries: LifeEntry[], links: LifeEntryLink[]
     (link) => entryIds.has(link.sourceEntryId) && entryIds.has(link.targetEntryId),
   );
 
-  const sorted = [...entries].sort((a, b) => dateToY(a.startDate) - dateToY(b.startDate) || a.title.localeCompare(b.title));
-  const minDate = dateToY(sorted[0].startDate);
+  const sorted = [...entries].sort((a, b) => dateToSortKey(a.startDate) - dateToSortKey(b.startDate) || a.title.localeCompare(b.title));
   const yByEntry = new Map<string, number>();
   const columnByEntry = new Map<string, number>();
 
-  for (const entry of sorted) {
-    yByEntry.set(entry.id, Math.round((dateToY(entry.startDate) - minDate) / DAY_MS) * (NODE_HEIGHT + V_GAP));
-  }
+  sorted.forEach((entry, index) => {
+    yByEntry.set(entry.id, index * (NODE_HEIGHT + V_GAP));
+  });
 
   const consequenceChildren = new Map<string, string[]>();
   const consequenceParents = new Map<string, string>();

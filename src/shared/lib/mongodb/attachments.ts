@@ -12,6 +12,8 @@ type AttachmentDbRecord = {
   fileName: string;
   mimeType: string;
   sizeBytes: number;
+  fieldKey?: string | null;
+  transcript?: string | null;
   createdAt: Date;
 };
 
@@ -24,6 +26,8 @@ export type AttachmentRecord = {
   fileName: string;
   mimeType: string;
   sizeBytes: number;
+  fieldKey: string | null;
+  transcript: string | null;
   createdAt: Date;
 };
 
@@ -37,6 +41,8 @@ function mapAttachment(record: AttachmentDbRecord): AttachmentRecord {
     fileName: record.fileName,
     mimeType: record.mimeType,
     sizeBytes: record.sizeBytes,
+    fieldKey: record.fieldKey ?? null,
+    transcript: record.transcript ?? null,
     createdAt: record.createdAt,
   };
 }
@@ -92,6 +98,8 @@ export async function storeAttachment(input: {
   mimeType: string;
   sizeBytes: number;
   buffer: Buffer;
+  fieldKey?: string | null;
+  transcript?: string | null;
 }) {
   const db = await getDb();
   const bucket = new GridFSBucket(db, { bucketName: GRIDFS_BUCKET });
@@ -115,6 +123,8 @@ export async function storeAttachment(input: {
     fileName: input.fileName,
     mimeType: input.mimeType,
     sizeBytes: input.sizeBytes,
+    fieldKey: input.fieldKey ?? null,
+    transcript: input.transcript ?? null,
     createdAt: new Date(),
   };
   const { insertedId } = await db.collection(COLLECTIONS.entryAttachments).insertOne(record);

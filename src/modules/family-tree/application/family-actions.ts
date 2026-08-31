@@ -6,17 +6,27 @@ import type { ActionResult } from "@/shared/types/action";
 import { assertNoParentCycle } from "../domain/family-graph";
 import { parseGedcom } from "../domain/gedcom";
 import { MongoFamilyRepository } from "../infrastructure/mongo-family-repository";
-import { familyPersonSchema, familyRelationshipSchema } from "./family-schemas";
+import { syncPersonParents } from "./family-parent-sync";
+import { familyNodeLayoutSchema, familyPersonSchema, familyRelationshipSchema } from "./family-schemas";
 import { importBassolsFamilySeed } from "./family-seed-service";
 
 const repository = new MongoFamilyRepository();
+
+function personPayload(parsed: ReturnType<typeof familyPersonSchema.parse>) {
+  const { motherId: _motherId, fatherId: _fatherId, ...person } = parsed;
+  return person;
+}
 
 export async function createFamilyPersonAction(formData: FormData): Promise<ActionResult<{ id: string }>> {
   const parsed = familyPersonSchema.safeParse({ ...Object.fromEntries(formData.entries()), isSubject: formData.get("isSubject") === "on" });
   if (!parsed.success) return { ok: false, error: "Revisa los datos de esta persona." };
   try {
     const user = await requireCurrentUser();
-    const person = await repository.addPerson(user.id, parsed.data);
+    const { motherId, fatherId } = parsed.data;
+    const person = await repository.addPerson(user.id, personPayload(parsed.data));
+    if (motherId || fatherId) {
+      await syncPersonParents(repository, user.id, person.id, motherId, fatherId);
+    }
     revalidatePath(`/${String(formData.get("locale")) === "en" ? "en" : "es"}/app/family`);
     return { ok: true, data: { id: person.id } };
   } catch (error) { return { ok: false, error: error instanceof Error ? error.message : "No se pudo añadir a esta persona." }; }
@@ -28,7 +38,9 @@ export async function updateFamilyPersonAction(formData: FormData): Promise<Acti
   if (!parsed.success || !personId) return { ok: false, error: "Revisa los datos de esta persona." };
   try {
     const user = await requireCurrentUser();
-    await repository.updatePerson(user.id, personId, parsed.data);
+    const { motherId, fatherId } = parsed.data;
+    await repository.updatePerson(user.id, personId, personPayload(parsed.data));
+    await syncPersonParents(repository, user.id, personId, motherId, fatherId);
     const locale = String(formData.get("locale")) === "en" ? "en" : "es";
     revalidatePath(`/${locale}/app/family`);
     return { ok: true, data: { id: personId } };
@@ -82,5 +94,29 @@ export async function importBassolsFamilySeedAction(locale: string): Promise<Act
     return { ok: true, data: { people: 21 } };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "No se pudo cargar el árbol familiar." };
+  }
+}
+
+export async function saveFamilyNodeLayoutsAction(input: {
+  positions: { personId: string; x: number; y: number }[];
+}): Promise<ActionResult> {
+  const parsed = familyNodeLayoutSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "No se pudieron guardar las posiciones." };
+  try {
+    const user = await requireCurrentUser();
+    const people = await repository.listPeople(user.id);
+    const allowedIds = new Set(people.map((person) => person.id));
+    const layouts = parsed.data.positions
+      .filter((position) => allowedIds.has(position.personId))
+      .map((position) => ({
+        personId: position.personId,
+        layoutX: position.x,
+        layoutY: position.y,
+      }));
+    if (layouts.length === 0) return { ok: false, error: "No se pudieron guardar las posiciones." };
+    await repository.updatePeopleLayout(user.id, layouts);
+    return { ok: true, data: undefined };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "No se pudieron guardar las posiciones." };
   }
 }

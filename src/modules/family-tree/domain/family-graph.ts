@@ -17,6 +17,8 @@ export type FamilyPerson = {
   baptized: boolean | null;
   notes: string | null;
   isSubject: boolean;
+  layoutX?: number | null;
+  layoutY?: number | null;
 };
 
 export type FamilyRelationship = {
@@ -42,10 +44,35 @@ export function inferGender(person: Pick<FamilyPerson, "fullName" | "gender">): 
   return null;
 }
 
-function parentsOf(personId: string, relationships: FamilyRelationship[]) {
+export function parentsOf(personId: string, relationships: FamilyRelationship[]) {
   return relationships
     .filter((item) => item.relationshipType === "parent" && item.targetPersonId === personId)
     .map((item) => item.sourcePersonId);
+}
+
+export function resolveParentSlots(
+  childId: string,
+  relationships: FamilyRelationship[],
+  people: FamilyPerson[],
+) {
+  const peopleById = new Map(people.map((person) => [person.id, person]));
+  let motherId: string | null = null;
+  let fatherId: string | null = null;
+  const unassigned: string[] = [];
+
+  for (const parentId of parentsOf(childId, relationships)) {
+    const gender = inferGender(peopleById.get(parentId) ?? { fullName: "", gender: null });
+    if (gender === "female" && !motherId) motherId = parentId;
+    else if (gender === "male" && !fatherId) fatherId = parentId;
+    else unassigned.push(parentId);
+  }
+
+  for (const parentId of unassigned) {
+    if (!motherId) motherId = parentId;
+    else if (!fatherId) fatherId = parentId;
+  }
+
+  return { motherId, fatherId };
 }
 
 function childrenOf(personId: string, relationships: FamilyRelationship[]) {
