@@ -4,7 +4,7 @@ import { getFamilyGraph } from "@/modules/family-tree/application/family-service
 import { listLifeEntriesForUser, listLifeEntryLinksForUser } from "@/modules/life-story/application/life-story-service";
 import { getProfile, updateProfileFields, upsertProfile } from "@/modules/identity/infrastructure/mongo-profile-repository";
 import { findUserByEmail, findUserById } from "@/modules/identity/infrastructure/mongo-user-repository";
-import { slugifyDisplayName, yearFromDate, type ArchivePublicationRequest, type ArchiveRequestSource, type PublicLifeSummary } from "@/modules/archive/domain/archive";
+import { parseInactivityReleaseYears, shouldReleaseForInactivity, slugifyDisplayName, yearFromDate, type ArchivePublicationRequest, type ArchiveRequestSource, type PublicLifeSummary } from "@/modules/archive/domain/archive";
 import { getDb } from "@/shared/lib/mongodb/client";
 import { COLLECTIONS } from "@/shared/lib/mongodb/collections";
 import { idFromDocument, toObjectId } from "@/shared/lib/mongodb/id";
@@ -208,6 +208,8 @@ export async function searchUsersForAdmin(query: string) {
       publishedAt: profile?.publishedAt ?? null,
       deceasedAt: profile?.deceasedAt ?? null,
       archiveSlug: profile?.archiveSlug ?? null,
+      inactivityReleaseYears: profile?.inactivityReleaseYears ?? null,
+      lastSeenAt: profile?.lastSeenAt ?? null,
       entryCount: entries.length,
     };
   }));
@@ -228,13 +230,40 @@ export async function publishLife(userId: string, options: { deceased?: boolean;
     displayName,
     archiveSlug: slug,
     publishedAt: profile?.publishedAt ? new Date(profile.publishedAt) : now,
-    ...(options.deceased ? { deceasedAt } : {}),
+    ...(options.deceased ? { deceasedAt, publicArchiveConsent: true } : {}),
   });
   return getProfile(userId);
 }
 
 export async function unpublishLife(userId: string) {
   await updateProfileFields(userId, { publishedAt: null, publicArchiveConsent: false });
+}
+
+export async function releaseDueInactivityArchives(now = new Date()) {
+  const db = await getDb();
+  const candidates = await db.collection(COLLECTIONS.profiles)
+    .find({
+      inactivityReleaseYears: { $gte: 1, $lte: 10 },
+      $or: [{ deceasedAt: null }, { deceasedAt: { $exists: false } }],
+    })
+    .toArray();
+
+  const released: string[] = [];
+  for (const record of candidates) {
+    const userId = String(record.userId);
+    const years = parseInactivityReleaseYears(record.inactivityReleaseYears);
+    const lastSeenAt = record.lastSeenAt instanceof Date
+      ? record.lastSeenAt
+      : record.lastSeenAt
+        ? new Date(String(record.lastSeenAt))
+        : null;
+    if (!shouldReleaseForInactivity({ years, lastSeenAt, deceasedAt: record.deceasedAt instanceof Date ? record.deceasedAt : null }, now)) {
+      continue;
+    }
+    await publishLife(userId, { deceased: true });
+    released.push(userId);
+  }
+  return released;
 }
 
 export type PublicArchiveLife = {

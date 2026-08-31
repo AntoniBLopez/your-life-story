@@ -23,3 +23,16 @@ export async function deleteAccountAction(confirmation: string, locale: "es" | "
     return { ok: true, data: undefined };
   } catch (error) { return { ok: false, error: error instanceof Error ? error.message : "No se pudo eliminar la cuenta." }; }
 }
+
+export async function updateSaveVoiceRecordingsAction(saveVoiceRecordings: boolean, locale: "es" | "en"): Promise<ActionResult<{ saveVoiceRecordings: boolean }>> {
+  try {
+    const user = await requireCurrentUser();
+    const { updateProfileFields } = await import("@/modules/identity/infrastructure/mongo-profile-repository");
+    await updateProfileFields(user.id, { saveVoiceRecordings });
+    revalidatePath(`/${locale}/app/settings`);
+    revalidatePath(`/${locale}/app/entries/new`);
+    return { ok: true, data: { saveVoiceRecordings } };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : (locale === "es" ? "No se pudo guardar la preferencia." : "Could not save the preference.") };
+  }
+}

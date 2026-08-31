@@ -23,6 +23,8 @@ type Props = {
   onPendingVoiceNote?: (note: PendingVoiceNote) => void;
   onVoiceSaved?: () => void;
   onError?: (message: string) => void;
+  onWarning?: (message: string) => void;
+  saveVoiceRecordings?: boolean;
   compact?: boolean;
 };
 
@@ -36,6 +38,8 @@ export function VoiceFieldRecorder({
   onPendingVoiceNote,
   onVoiceSaved,
   onError,
+  onWarning,
+  saveVoiceRecordings = true,
   compact,
 }: Props) {
   const [recording, setRecording] = useState(false);
@@ -50,24 +54,61 @@ export function VoiceFieldRecorder({
     ? {
         record: compact ? "Dictar" : "Hablar",
         stop: "Parar",
-        processing: "Transcribiendo…",
+        processing: "Guardando tu voz…",
         consent: "Activa el consentimiento de IA para dictar.",
         micError: "No se pudo acceder al micrófono.",
         transcribeError: "No se pudo transcribir el audio.",
+        savedWithoutTranscript: "Audio guardado. No se pudo transcribir, pero tu voz quedó en la experiencia.",
+        uploadError: "No se pudo guardar el audio.",
       }
     : {
         record: compact ? "Dictate" : "Speak",
         stop: "Stop",
-        processing: "Transcribing…",
+        processing: "Saving your voice…",
         consent: "Enable AI consent to dictate.",
         micError: "Could not access the microphone.",
         transcribeError: "Could not transcribe the audio.",
+        savedWithoutTranscript: "Audio saved. Transcription failed, but your voice was kept in the experience.",
+        uploadError: "Could not save the audio.",
       };
 
   useEffect(() => () => {
     if (timerRef.current) clearInterval(timerRef.current);
     streamRef.current?.getTracks().forEach((track) => track.stop());
   }, []);
+
+  async function saveVoiceNote(blob: Blob, mimeType: string, fileBase64: string, transcript: string) {
+    const contentType = normalizeAudioContentType(mimeType);
+    const fileName = `${fieldKey}-${Date.now()}.${mimeTypeToExtension(contentType)}`;
+
+    if (entryId) {
+      const result = await uploadAttachmentAction({
+        entryId,
+        fileName,
+        contentType,
+        size: blob.size,
+        fileBase64,
+        fieldKey,
+        transcript,
+      });
+      if (!result.ok) {
+        onError?.(result.error ?? t.uploadError);
+        return false;
+      }
+      onVoiceSaved?.();
+      return true;
+    }
+
+    onPendingVoiceNote?.({
+      fieldKey,
+      fileName,
+      contentType,
+      size: blob.size,
+      fileBase64,
+      transcript,
+    });
+    return true;
+  }
 
   async function handleRecordingStop(blob: Blob, mimeType: string) {
     setProcessing(true);
@@ -76,44 +117,30 @@ export function VoiceFieldRecorder({
       const contentType = normalizeAudioContentType(mimeType);
       const fileName = `${fieldKey}-${Date.now()}.${mimeTypeToExtension(contentType)}`;
 
-      const response = await fetch("/api/ai/transcribe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ audioBase64: fileBase64, fileName, mimeType: contentType, locale }),
-      });
-      const data = await response.json().catch(() => ({})) as { transcript?: string; error?: string };
-      if (!response.ok) {
-        onError?.(data.error ?? t.transcribeError);
-        return;
+      let transcript = "";
+      try {
+        const response = await fetch("/api/ai/transcribe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ audioBase64: fileBase64, fileName, mimeType: contentType, locale }),
+        });
+        const data = await response.json().catch(() => ({})) as { transcript?: string; error?: string };
+        if (response.ok) {
+          transcript = data.transcript?.trim() ?? "";
+          if (transcript) onTranscript(transcript);
+          else onWarning?.(t.savedWithoutTranscript);
+        } else {
+          onWarning?.(data.error ?? t.savedWithoutTranscript);
+        }
+      } catch {
+        onWarning?.(t.savedWithoutTranscript);
       }
 
-      const transcript = data.transcript?.trim() ?? "";
-      if (transcript) onTranscript(transcript);
-
-      if (entryId) {
-        const result = await uploadAttachmentAction({
-          entryId,
-          fileName,
-          contentType,
-          size: blob.size,
-          fileBase64,
-          fieldKey,
-          transcript,
-        });
-        if (!result.ok) onError?.(result.error);
-        else onVoiceSaved?.();
-      } else {
-        onPendingVoiceNote?.({
-          fieldKey,
-          fileName,
-          contentType,
-          size: blob.size,
-          fileBase64,
-          transcript,
-        });
+      if (saveVoiceRecordings) {
+        await saveVoiceNote(blob, mimeType, fileBase64, transcript);
       }
     } catch {
-      onError?.(t.transcribeError);
+      onError?.(t.uploadError);
     } finally {
       setProcessing(false);
       setSeconds(0);

@@ -57,3 +57,39 @@ export function yearFromDate(value: string | null | undefined) {
 export function isPubliclyArchived(profile: { publishedAt?: string | null }) {
   return Boolean(profile.publishedAt);
 }
+
+export const INACTIVITY_RELEASE_MIN_YEARS = 1;
+export const INACTIVITY_RELEASE_MAX_YEARS = 10;
+export const INACTIVITY_RELEASE_YEARS = Array.from(
+  { length: INACTIVITY_RELEASE_MAX_YEARS - INACTIVITY_RELEASE_MIN_YEARS + 1 },
+  (_, index) => INACTIVITY_RELEASE_MIN_YEARS + index,
+);
+
+export function parseInactivityReleaseYears(value: unknown): number | null {
+  const years = typeof value === "string" ? Number(value) : value;
+  if (typeof years !== "number" || !Number.isInteger(years)) return null;
+  if (years < INACTIVITY_RELEASE_MIN_YEARS || years > INACTIVITY_RELEASE_MAX_YEARS) return null;
+  return years;
+}
+
+export function inactivityReleaseDueAt(lastSeenAt: Date, years: number) {
+  const due = new Date(lastSeenAt.getTime());
+  due.setUTCFullYear(due.getUTCFullYear() + years);
+  return due;
+}
+
+export function shouldReleaseForInactivity(
+  input: {
+    years: number | null;
+    lastSeenAt: string | Date | null;
+    deceasedAt?: string | Date | null;
+  },
+  now = new Date(),
+) {
+  if (input.deceasedAt) return false;
+  const years = parseInactivityReleaseYears(input.years);
+  if (!years || !input.lastSeenAt) return false;
+  const lastSeen = input.lastSeenAt instanceof Date ? input.lastSeenAt : new Date(input.lastSeenAt);
+  if (Number.isNaN(lastSeen.getTime())) return false;
+  return now.getTime() >= inactivityReleaseDueAt(lastSeen, years).getTime();
+}

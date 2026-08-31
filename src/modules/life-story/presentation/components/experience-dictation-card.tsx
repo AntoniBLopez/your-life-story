@@ -24,6 +24,8 @@ type Props = {
   onPendingVoiceNote?: (note: PendingVoiceNote) => void;
   onVoiceSaved?: () => void;
   onError?: (message: string) => void;
+  onWarning?: (message: string) => void;
+  saveVoiceRecordings?: boolean;
 };
 
 export function ExperienceDictationCard({
@@ -37,6 +39,8 @@ export function ExperienceDictationCard({
   onPendingVoiceNote,
   onVoiceSaved,
   onError,
+  onWarning,
+  saveVoiceRecordings = true,
 }: Props) {
   const [recording, setRecording] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -51,25 +55,31 @@ export function ExperienceDictationCard({
   const t = locale === "es"
     ? {
         title: "Dictar la experiencia completa",
-        body: "Habla con naturalidad: qué pasó, qué fue difícil y qué aprendiste. Transcribimos el audio y rellenamos los campos por ti. Se guardan el audio y el texto.",
+        body: saveVoiceRecordings
+          ? "Habla con naturalidad: qué pasó, qué fue difícil y qué aprendiste. Transcribimos el audio y rellenamos los campos por ti. Se guardan el audio y el texto."
+          : "Habla con naturalidad. Solo usaremos el audio para transcribir; no guardaremos ningún archivo de voz (puedes cambiarlo en Ajustes).",
         record: "Empezar a hablar",
         stop: "Terminar",
         processing: "Organizando tu historia…",
         processingAppend: "Transcribiendo…",
         consent: "Activa el consentimiento de IA para dictar.",
         micError: "No se pudo acceder al micrófono.",
-        transcribeError: "No se pudo procesar el audio.",
+        transcribeError: "No se pudo transcribir el audio.",
+        savedWithoutTranscript: "Audio guardado. No se pudo transcribir, pero tu voz quedó en la experiencia.",
       }
     : {
         title: "Dictate the full experience",
-        body: "Speak naturally: what happened, what was hard, and what you learned. We transcribe the audio and fill in the fields for you. Both audio and text are saved.",
+        body: saveVoiceRecordings
+          ? "Speak naturally: what happened, what was hard, and what you learned. We transcribe the audio and fill in the fields for you. Both audio and text are saved."
+          : "Speak naturally. We will only use the audio to transcribe; no voice files will be stored (you can change this in Settings).",
         record: "Start speaking",
         stop: "Finish",
         processing: "Organizing your story…",
         processingAppend: "Transcribing…",
         consent: "Enable AI consent to dictate.",
         micError: "Could not access the microphone.",
-        transcribeError: "Could not process the audio.",
+        transcribeError: "Could not transcribe the audio.",
+        savedWithoutTranscript: "Audio saved. Transcription failed, but your voice was kept in the experience.",
       };
 
   useEffect(() => () => {
@@ -114,42 +124,46 @@ export function ExperienceDictationCard({
       const contentType = normalizeAudioContentType(mimeType);
       const fileName = `full-${Date.now()}.${mimeTypeToExtension(contentType)}`;
 
-      const transcribeResponse = await fetch("/api/ai/transcribe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ audioBase64: fileBase64, fileName, mimeType: contentType, locale }),
-      });
-      const transcribeData = await transcribeResponse.json().catch(() => ({})) as { transcript?: string; error?: string };
-      if (!transcribeResponse.ok) {
-        onError?.(transcribeData.error ?? t.transcribeError);
-        return;
-      }
-
-      const transcript = transcribeData.transcript?.trim() ?? "";
-      if (!transcript) {
-        onError?.(t.transcribeError);
-        return;
+      let transcript = "";
+      try {
+        const transcribeResponse = await fetch("/api/ai/transcribe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ audioBase64: fileBase64, fileName, mimeType: contentType, locale }),
+        });
+        const transcribeData = await transcribeResponse.json().catch(() => ({})) as { transcript?: string; error?: string };
+        if (transcribeResponse.ok) {
+          transcript = transcribeData.transcript?.trim() ?? "";
+        } else {
+          onWarning?.(transcribeData.error ?? t.savedWithoutTranscript);
+        }
+      } catch {
+        onWarning?.(t.savedWithoutTranscript);
       }
 
       if (mode === "append") {
-        onAppendTranscript?.(transcript);
+        if (transcript) onAppendTranscript?.(transcript);
+        if (saveVoiceRecordings) await saveVoiceNote(blob, mimeType, fileBase64, transcript);
+        return;
+      }
+
+      if (transcript) {
+        const dictationResponse = await fetch("/api/ai/entry-dictation", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ transcript, locale }),
+        });
+        const dictationData = await dictationResponse.json().catch(() => ({})) as EntryDictationOutput & { error?: string };
+        if (dictationResponse.ok) {
+          onFields(dictationData);
+        } else {
+          onWarning?.(dictationData.error ?? t.transcribeError);
+        }
+      }
+
+      if (saveVoiceRecordings) {
         await saveVoiceNote(blob, mimeType, fileBase64, transcript);
-        return;
       }
-
-      const dictationResponse = await fetch("/api/ai/entry-dictation", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transcript, locale }),
-      });
-      const dictationData = await dictationResponse.json().catch(() => ({})) as EntryDictationOutput & { error?: string };
-      if (!dictationResponse.ok) {
-        onError?.(dictationData.error ?? t.transcribeError);
-        return;
-      }
-
-      onFields(dictationData);
-      await saveVoiceNote(blob, mimeType, fileBase64, transcript);
     } catch {
       onError?.(t.transcribeError);
     } finally {

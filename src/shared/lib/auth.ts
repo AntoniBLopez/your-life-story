@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSessionUserId, destroySession } from "./auth/session";
 import { findUserById } from "@/modules/identity/infrastructure/mongo-user-repository";
+import { touchLastSeen } from "@/modules/identity/infrastructure/mongo-profile-repository";
 import { isArchiveAdmin } from "@/modules/archive/domain/archive";
 
 export class AuthenticationRequiredError extends Error {
@@ -35,15 +36,25 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
   };
 }
 
+async function rememberAccess(userId: string) {
+  try {
+    await touchLastSeen(userId);
+  } catch {
+    // Presence tracking must never block using the app.
+  }
+}
+
 export async function requireCurrentUser() {
   const user = await getCurrentUser();
   if (!user) throw new AuthenticationRequiredError();
+  await rememberAccess(user.id);
   return user;
 }
 
 export async function requirePageUser(locale: string) {
   const user = await getCurrentUser();
   if (!user) redirect(`/${locale}/login`);
+  await rememberAccess(user.id);
   return user;
 }
 

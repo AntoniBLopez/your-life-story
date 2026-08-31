@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Download, Globe, Landmark, LoaderCircle, ShieldAlert, Trash2, UsersRound } from "lucide-react";
-import { deleteAccountAction, exportAccountDataAction } from "@/modules/identity/application/account-actions";
+import { Download, Globe, Hourglass, Landmark, LoaderCircle, Mic, ShieldAlert, Trash2, UsersRound } from "lucide-react";
+import { deleteAccountAction, exportAccountDataAction, updateSaveVoiceRecordingsAction } from "@/modules/identity/application/account-actions";
 import { revokeAiConsentAction } from "@/modules/reflection/application/reflection-actions";
-import { setPublicArchiveConsentAction, submitDeathDeclarationAction } from "@/modules/archive/application/archive-actions";
+import { setInactivityReleaseAction, setPublicArchiveConsentAction, submitDeathDeclarationAction } from "@/modules/archive/application/archive-actions";
+import { INACTIVITY_RELEASE_YEARS, inactivityReleaseDueAt } from "@/modules/archive/domain/archive";
 
 type Props = {
   locale: "es" | "en";
@@ -13,11 +14,14 @@ type Props = {
   archiveSlug: string | null;
   published: boolean;
   deceased: boolean;
+  lastSeenAt: string | null;
+  inactivityReleaseYears: number | null;
   displayName: string;
   email: string;
+  saveVoiceRecordings: boolean;
 };
 
-export function AccountSettings({ locale, aiConsented, publicArchiveConsent, archiveSlug, published, deceased, displayName, email }: Props) {
+export function AccountSettings({ locale, aiConsented, publicArchiveConsent, archiveSlug, published, deceased, lastSeenAt, inactivityReleaseYears, displayName, email, saveVoiceRecordings: initialSaveVoiceRecordings }: Props) {
   const [pending, startTransition] = useTransition();
   const [confirmation, setConfirmation] = useState("");
   const [message, setMessage] = useState<string>();
@@ -25,6 +29,10 @@ export function AccountSettings({ locale, aiConsented, publicArchiveConsent, arc
   const [isPublic, setIsPublic] = useState(publicArchiveConsent && published);
   const [slug, setSlug] = useState(archiveSlug);
   const [deathSent, setDeathSent] = useState(false);
+  const [inactivityEnabled, setInactivityEnabled] = useState(Boolean(inactivityReleaseYears));
+  const [inactivityYears, setInactivityYears] = useState(inactivityReleaseYears ?? 1);
+  const [seenAt, setSeenAt] = useState(lastSeenAt);
+  const [saveVoiceRecordings, setSaveVoiceRecordings] = useState(initialSaveVoiceRecordings);
   const t = locale === "es"
     ? {
         eyebrow: "Control de datos",
@@ -60,6 +68,21 @@ export function AccountSettings({ locale, aiConsented, publicArchiveConsent, arc
         deleted: "Cuenta eliminada.",
         published: "Tu vida se ha publicado en el archivo.",
         unpublished: "Tu vida ya no es pública.",
+        inactivity: "Publicación automática por silencio",
+        inactivityBody: "Si dejas de entrar en la app durante el plazo que elijas, tu historia se publicará sola en el archivo y se marcará como fallecida. No hace falta que lo haga un familiar ni un administrador. El mínimo es 1 año y el máximo 10.",
+        inactivityOn: "Activar publicación automática",
+        inactivityOff: "No publicar por silencio",
+        inactivityYears: "Años sin acceder",
+        inactivitySave: "Guardar plazo",
+        inactivitySaved: "Si no entras durante ese tiempo, tu vida se publicará sola.",
+        inactivityDisabled: "La publicación automática por silencio está desactivada.",
+        inactivityDue: "Se publicaría a partir del",
+        voice: "Grabaciones de voz",
+        voiceBody: "Por defecto guardamos cada audio que dictas junto a su transcripción. Desmarca la opción si solo quieres transcribir sin guardar el archivo.",
+        voiceCheckbox: "Guardar grabaciones de voz",
+        voiceCheckboxHint: "Activado por defecto. Si lo desactivas, el audio solo se usa para transcribir.",
+        voiceSavedOn: "Tus grabaciones de voz se guardarán en cada experiencia.",
+        voiceSavedOff: "Solo se transcribirá el audio; no se guardará ningún archivo de voz.",
       }
     : {
         eyebrow: "Data control",
@@ -95,6 +118,21 @@ export function AccountSettings({ locale, aiConsented, publicArchiveConsent, arc
         deleted: "Account deleted.",
         published: "Your life has been published in the archive.",
         unpublished: "Your life is no longer public.",
+        inactivity: "Automatic publication after silence",
+        inactivityBody: "If you stop opening the app for the period you choose, your story will be published in the archive on its own and marked as deceased. No family member or administrator is required. The minimum is 1 year and the maximum is 10.",
+        inactivityOn: "Turn on automatic publication",
+        inactivityOff: "Do not publish after silence",
+        inactivityYears: "Years without access",
+        inactivitySave: "Save period",
+        inactivitySaved: "If you do not sign in during that time, your life will be published on its own.",
+        inactivityDisabled: "Automatic publication after silence is off.",
+        inactivityDue: "It would be published from",
+        voice: "Voice recordings",
+        voiceBody: "By default we save each dictated audio with its transcript. Uncheck this if you only want transcription without storing the file.",
+        voiceCheckbox: "Save voice recordings",
+        voiceCheckboxHint: "On by default. When off, audio is only used to transcribe.",
+        voiceSavedOn: "Your voice recordings will be saved in each experience.",
+        voiceSavedOff: "Audio will only be transcribed; no voice files will be stored.",
       };
 
   function exportData() {
@@ -133,6 +171,18 @@ export function AccountSettings({ locale, aiConsented, publicArchiveConsent, arc
     });
   }
 
+  function saveInactivity() {
+    setError(undefined);
+    startTransition(async () => {
+      const result = await setInactivityReleaseAction(inactivityEnabled, inactivityYears, locale);
+      if (!result.ok) { setError(result.error); return; }
+      setInactivityEnabled(Boolean(result.data.years));
+      if (result.data.years) setInactivityYears(result.data.years);
+      if (result.data.years && !seenAt) setSeenAt(new Date().toISOString());
+      setMessage(result.data.years ? t.inactivitySaved : t.inactivityDisabled);
+    });
+  }
+
   function declareDeath(formData: FormData) {
     setError(undefined);
     formData.set("locale", locale);
@@ -140,6 +190,16 @@ export function AccountSettings({ locale, aiConsented, publicArchiveConsent, arc
       const result = await submitDeathDeclarationAction(formData);
       if (!result.ok) setError(result.error);
       else setDeathSent(true);
+    });
+  }
+
+  function onSaveVoiceRecordingsChange(checked: boolean) {
+    setError(undefined);
+    startTransition(async () => {
+      const result = await updateSaveVoiceRecordingsAction(checked, locale);
+      if (!result.ok) { setError(result.error); return; }
+      setSaveVoiceRecordings(checked);
+      setMessage(checked ? t.voiceSavedOn : t.voiceSavedOff);
     });
   }
 
@@ -183,6 +243,41 @@ export function AccountSettings({ locale, aiConsented, publicArchiveConsent, arc
           )}
         </section>
         <section className="card p-6">
+          <Hourglass className="text-[var(--moss)]" size={21} />
+          <h2 className="display mt-3 text-2xl">{t.inactivity}</h2>
+          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{t.inactivityBody}</p>
+          {deceased ? (
+            <p className="mt-5 rounded-xl bg-[#fff0e5] p-3 text-sm text-[#8a5a3d]">{t.deceasedNote}</p>
+          ) : (
+            <div className="mt-5 space-y-4">
+              <label className="flex items-center gap-3 text-sm font-bold">
+                <input type="checkbox" checked={inactivityEnabled} onChange={(event) => setInactivityEnabled(event.target.checked)} />
+                {inactivityEnabled ? t.inactivityOn : t.inactivityOff}
+              </label>
+              {inactivityEnabled && (
+                <label>
+                  <span className="field-label">{t.inactivityYears}</span>
+                  <select className="select max-w-xs" value={inactivityYears} onChange={(event) => setInactivityYears(Number(event.target.value))}>
+                    {INACTIVITY_RELEASE_YEARS.map((years) => (
+                      <option key={years} value={years}>{years} {locale === "es" ? (years === 1 ? "año" : "años") : (years === 1 ? "year" : "years")}</option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              <button disabled={pending} className="btn btn-primary" onClick={saveInactivity}>
+                {pending && <LoaderCircle className="animate-spin" size={15} />}
+                {t.inactivitySave}
+              </button>
+              {inactivityEnabled && seenAt && (
+                <p className="text-sm text-[var(--muted)]">
+                  {t.inactivityDue}{" "}
+                  <strong>{new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "UTC" }).format(inactivityReleaseDueAt(new Date(seenAt), inactivityYears))}</strong>
+                </p>
+              )}
+            </div>
+          )}
+        </section>
+        <section className="card p-6">
           <UsersRound className="text-[var(--moss)]" size={21} />
           <h2 className="display mt-3 text-2xl">{t.death}</h2>
           <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{t.deathBody}</p>
@@ -205,6 +300,24 @@ export function AccountSettings({ locale, aiConsented, publicArchiveConsent, arc
           <h2 className="display mt-3 text-2xl">{t.export}</h2>
           <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{t.exportBody}</p>
           <button disabled={pending} className="btn btn-secondary mt-5" onClick={exportData}>{pending && <LoaderCircle className="animate-spin" size={15} />}<Download size={15} />{t.export}</button>
+        </section>
+        <section className="card p-6">
+          <Mic className="text-[var(--moss)]" size={21} />
+          <h2 className="display mt-3 text-2xl">{t.voice}</h2>
+          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{t.voiceBody}</p>
+          <label className="mt-5 flex cursor-pointer items-start gap-3">
+            <input
+              type="checkbox"
+              className="mt-1 h-4 w-4 shrink-0 accent-[var(--moss)]"
+              checked={saveVoiceRecordings}
+              disabled={pending}
+              onChange={(event) => onSaveVoiceRecordingsChange(event.target.checked)}
+            />
+            <span>
+              <span className="block text-sm font-semibold text-[var(--ink)]">{t.voiceCheckbox}</span>
+              <span className="mt-1 block text-sm leading-6 text-[var(--muted)]">{t.voiceCheckboxHint}</span>
+            </span>
+          </label>
         </section>
         <section className="card p-6">
           <ShieldAlert className="text-[var(--moss)]" size={21} />

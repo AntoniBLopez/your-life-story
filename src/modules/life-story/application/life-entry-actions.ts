@@ -7,7 +7,7 @@ import type { ActionResult } from "@/shared/types/action";
 import { assertValidStoryDates } from "../domain/life-entry";
 import { MongoLifeEntryRepository } from "../infrastructure/mongo-life-entry-repository";
 import { lifeEntryInputSchema } from "./life-entry-schema";
-import { storeAttachment } from "@/shared/lib/mongodb/attachments";
+import { storeAttachment, deleteAttachmentById } from "@/shared/lib/mongodb/attachments";
 import { ObjectId } from "mongodb";
 import {
   ATTACHMENT_CONTENT_TYPES,
@@ -119,5 +119,33 @@ export async function uploadAttachmentAction(request: z.input<typeof attachmentS
     return { ok: true, data: { id: attachment.id } };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "No se pudo guardar el adjunto." };
+  }
+}
+
+export async function deleteAttachmentAction(
+  attachmentId: string,
+  entryId: string,
+  locale: string,
+): Promise<ActionResult> {
+  const parsedEntryId = mongoIdSchema.safeParse(entryId);
+  const parsedAttachmentId = mongoIdSchema.safeParse(attachmentId);
+  if (!parsedEntryId.success || !parsedAttachmentId.success) {
+    return { ok: false, error: "Adjunto no válido." };
+  }
+
+  try {
+    const user = await requireCurrentUser();
+    const entry = await repository.findById(user.id, parsedEntryId.data);
+    if (!entry) return { ok: false, error: "No tienes acceso a esta experiencia." };
+
+    const deleted = await deleteAttachmentById(user.id, parsedAttachmentId.data);
+    if (!deleted || deleted.entryId !== parsedEntryId.data) {
+      return { ok: false, error: "No se encontró el adjunto." };
+    }
+
+    revalidatePath(`/${locale === "en" ? "en" : "es"}/app/entries/${parsedEntryId.data}/edit`);
+    return { ok: true, data: undefined };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "No se pudo eliminar el adjunto." };
   }
 }

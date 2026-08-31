@@ -13,6 +13,7 @@ import {
   unpublishLife,
   updatePublicationRequestStatus,
 } from "@/modules/archive/infrastructure/mongo-archive-repository";
+import { parseInactivityReleaseYears } from "@/modules/archive/domain/archive";
 import { findUserById } from "@/modules/identity/infrastructure/mongo-user-repository";
 
 function errorMessage(error: unknown, fallback: string) {
@@ -55,6 +56,36 @@ export async function setPublicArchiveConsentAction(publish: boolean, locale: "e
     return { ok: true, data: { slug: profile.archiveSlug } };
   } catch (error) {
     return { ok: false, error: errorMessage(error, locale === "es" ? "No se pudo guardar la publicación." : "Could not save publication.") };
+  }
+}
+
+export async function setInactivityReleaseAction(enabled: boolean, years: number, locale: "es" | "en"): Promise<ActionResult<{ years: number | null }>> {
+  try {
+    const user = await requireCurrentUser();
+    const profile = await getProfile(user.id);
+    if (!profile?.onboardedAt) {
+      return { ok: false, error: locale === "es" ? "Completa primero tu bienvenida." : "Finish onboarding first." };
+    }
+    if (profile.deceasedAt) {
+      return { ok: false, error: locale === "es" ? "Esta cuenta ya está marcada como fallecida." : "This account is already marked as deceased." };
+    }
+    if (!enabled) {
+      await upsertProfile(user.id, { inactivityReleaseYears: null });
+      revalidatePath(`/${locale}/app/settings`);
+      return { ok: true, data: { years: null } };
+    }
+    const parsedYears = parseInactivityReleaseYears(years);
+    if (!parsedYears) {
+      return { ok: false, error: locale === "es" ? "Elige un plazo de entre 1 y 10 años." : "Choose a period between 1 and 10 years." };
+    }
+    await upsertProfile(user.id, {
+      inactivityReleaseYears: parsedYears,
+      lastSeenAt: profile.lastSeenAt ? new Date(profile.lastSeenAt) : new Date(),
+    });
+    revalidatePath(`/${locale}/app/settings`);
+    return { ok: true, data: { years: parsedYears } };
+  } catch (error) {
+    return { ok: false, error: errorMessage(error, locale === "es" ? "No se pudo guardar el plazo de silencio." : "Could not save the inactivity period.") };
   }
 }
 

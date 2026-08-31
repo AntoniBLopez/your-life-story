@@ -14,6 +14,9 @@ type ProfileDbRecord = {
   archiveSlug?: string | null;
   publishedAt?: Date | null;
   deceasedAt?: Date | null;
+  lastSeenAt?: Date | null;
+  inactivityReleaseYears?: number | null;
+  saveVoiceRecordings?: boolean;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -29,6 +32,9 @@ export type ProfileWritableFields = Partial<
     | "archiveSlug"
     | "publishedAt"
     | "deceasedAt"
+    | "lastSeenAt"
+    | "inactivityReleaseYears"
+    | "saveVoiceRecordings"
   >
 >;
 
@@ -43,6 +49,9 @@ function mapProfile(record: ProfileDbRecord): Profile {
     archiveSlug: record.archiveSlug ?? null,
     publishedAt: record.publishedAt?.toISOString() ?? null,
     deceasedAt: record.deceasedAt?.toISOString() ?? null,
+    lastSeenAt: record.lastSeenAt?.toISOString() ?? null,
+    inactivityReleaseYears: typeof record.inactivityReleaseYears === "number" ? record.inactivityReleaseYears : null,
+    saveVoiceRecordings: record.saveVoiceRecordings !== false,
   };
 }
 
@@ -59,6 +68,9 @@ export async function createProfile(userId: string, input: { displayName?: strin
     archiveSlug: null,
     publishedAt: null,
     deceasedAt: null,
+    lastSeenAt: now,
+    inactivityReleaseYears: null,
+    saveVoiceRecordings: true,
     createdAt: now,
     updatedAt: now,
   };
@@ -89,4 +101,13 @@ export async function upsertProfile(userId: string, fields: ProfileWritableField
 export async function updateProfileFields(userId: string, fields: ProfileWritableFields) {
   const db = await getDb();
   await db.collection(COLLECTIONS.profiles).updateOne({ userId }, { $set: { ...fields, updatedAt: new Date() } });
+}
+
+const LAST_SEEN_TOUCH_MS = 12 * 60 * 60 * 1000;
+
+export async function touchLastSeen(userId: string) {
+  const profile = await getProfile(userId);
+  const lastSeen = profile?.lastSeenAt ? new Date(profile.lastSeenAt).getTime() : 0;
+  if (Date.now() - lastSeen < LAST_SEEN_TOUCH_MS) return;
+  await updateProfileFields(userId, { lastSeenAt: new Date() });
 }

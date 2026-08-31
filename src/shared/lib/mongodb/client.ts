@@ -38,6 +38,7 @@ async function ensureIndexes(db: Db) {
     db.collection(COLLECTIONS.profiles).createIndex({ userId: 1 }, { unique: true }),
     db.collection(COLLECTIONS.profiles).createIndex({ archiveSlug: 1 }, { unique: true, sparse: true }),
     db.collection(COLLECTIONS.profiles).createIndex({ publishedAt: 1 }),
+    db.collection(COLLECTIONS.profiles).createIndex({ inactivityReleaseYears: 1, lastSeenAt: 1 }),
     db.collection(COLLECTIONS.archivePublicationRequests).createIndex({ status: 1, createdAt: -1 }),
     db.collection(COLLECTIONS.archivePublicationRequests).createIndex({ targetEmail: 1 }),
     db.collection(COLLECTIONS.passwordResetTokens).createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),

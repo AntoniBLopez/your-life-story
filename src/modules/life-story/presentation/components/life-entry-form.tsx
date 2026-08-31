@@ -22,7 +22,7 @@ import {
 } from "@/modules/life-story/application/life-entry-actions";
 import type { EntryDictationOutput } from "@/modules/life-story/domain/entry-dictation-prompt";
 import type { EntryReflectionOutput } from "@/modules/life-story/domain/entry-reflection-prompt";
-import type { PendingVoiceNote, VoiceFieldKey } from "@/modules/life-story/domain/voice-note";
+import { AUDIO_CONTENT_TYPES, type PendingVoiceNote, type VoiceFieldKey } from "@/modules/life-story/domain/voice-note";
 import { resolveAttachmentContentType } from "@/modules/life-story/domain/attachment-content-type";
 import type { AttachmentRecord } from "@/shared/lib/mongodb/attachments";
 import { ExperienceDictationCard, type FullDictationMode } from "@/modules/life-story/presentation/components/experience-dictation-card";
@@ -30,6 +30,7 @@ import { ConfirmDialog } from "@/modules/life-story/presentation/components/conf
 import { FileAttachmentsList } from "@/modules/life-story/presentation/components/file-attachments-list";
 import { appendFieldTranscript, VoiceFieldRecorder } from "@/modules/life-story/presentation/components/voice-field-recorder";
 import { VoiceAttachmentsList } from "@/modules/life-story/presentation/components/voice-attachments-list";
+import { PendingVoiceNotesList } from "@/modules/life-story/presentation/components/pending-voice-notes-list";
 
 const ATTACHMENT_ACCEPT = "image/jpeg,image/png,image/webp,application/pdf,audio/webm,audio/mp4,audio/mpeg,audio/wav,audio/ogg,audio/x-m4a,.pdf,.jpg,.jpeg,.png,.webp";
 
@@ -93,10 +94,12 @@ function FieldLabelWithVoice({
   aiConsented,
   disabled,
   emphasized,
+  saveVoiceRecordings = true,
   onTranscript,
   onPendingVoiceNote,
   onVoiceSaved,
   onError,
+  onWarning,
 }: {
   label: string;
   locale: "es" | "en";
@@ -105,10 +108,12 @@ function FieldLabelWithVoice({
   aiConsented: boolean;
   disabled?: boolean;
   emphasized?: boolean;
+  saveVoiceRecordings?: boolean;
   onTranscript: (text: string) => void;
   onPendingVoiceNote: (note: PendingVoiceNote) => void;
   onVoiceSaved: () => void;
   onError: (message: string) => void;
+  onWarning: (message: string) => void;
 }) {
   return (
     <div className="mb-1.5 flex items-center justify-between gap-2">
@@ -120,10 +125,12 @@ function FieldLabelWithVoice({
         aiConsented={aiConsented}
         disabled={disabled}
         compact
+        saveVoiceRecordings={saveVoiceRecordings}
         onTranscript={onTranscript}
         onPendingVoiceNote={onPendingVoiceNote}
         onVoiceSaved={onVoiceSaved}
         onError={onError}
+        onWarning={onWarning}
       />
     </div>
   );
@@ -136,6 +143,7 @@ export function LifeEntryForm({
   link,
   aiConsented,
   attachments = [],
+  saveVoiceRecordings = true,
 }: {
   locale: "es" | "en";
   entry?: LifeEntry;
@@ -143,6 +151,7 @@ export function LifeEntryForm({
   link?: LifeEntryLink | null;
   aiConsented: boolean;
   attachments?: AttachmentRecord[];
+  saveVoiceRecordings?: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -152,6 +161,7 @@ export function LifeEntryForm({
   const [uploading, setUploading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>();
   const [uploadMessage, setUploadMessage] = useState<string>();
+  const [voiceMessage, setVoiceMessage] = useState<string>();
   const [title, setTitle] = useState(entry?.title ?? "");
   const [narrative, setNarrative] = useState(entry?.narrative ?? "");
   const [difficulty, setDifficulty] = useState(entry?.difficulty ?? "");
@@ -168,6 +178,8 @@ export function LifeEntryForm({
   const [generateAiPrompt, setGenerateAiPrompt] = useState<{ resolve: (value: boolean) => void } | null>(null);
   const isEdit = Boolean(entry);
   const otherEntries = entries.filter((item) => item.id !== entry?.id);
+  const savedVoiceNotes = attachments.filter((item) => AUDIO_CONTENT_TYPES.includes(item.mimeType as (typeof AUDIO_CONTENT_TYPES)[number]));
+  const hasVoiceSection = savedVoiceNotes.length > 0 || pendingVoiceNotes.length > 0;
   const t = locale === "es"
     ? {
         eyebrow: isEdit ? "Editar" : "Nueva experiencia",
@@ -305,7 +317,17 @@ export function LifeEntryForm({
 
   function queueVoiceNote(note: PendingVoiceNote) {
     setPendingVoiceNotes((current) => [...current, note]);
-    setUploadMessage(t.voiceSaved);
+    setVoiceMessage(t.voiceSaved);
+    setUploadError(undefined);
+  }
+
+  function removePendingVoiceNote(index: number) {
+    setPendingVoiceNotes((current) => current.filter((_, itemIndex) => itemIndex !== index));
+  }
+
+  function handleVoiceSaved() {
+    setVoiceMessage(t.voiceSaved);
+    router.refresh();
   }
 
   function applyDictation(fields: EntryDictationOutput) {
@@ -382,7 +404,7 @@ export function LifeEntryForm({
         setPendingVoiceNotes([]);
       }
 
-      router.push(`/${locale}/app`);
+      router.push(`/${locale}/app/entries/${entryId}/edit`);
       router.refresh();
     });
   }
@@ -481,10 +503,12 @@ export function LifeEntryForm({
             aiConsented={aiConsented}
             disabled={pending || generating}
             emphasized
+            saveVoiceRecordings={saveVoiceRecordings}
             onTranscript={(text) => setTitle((current) => appendInlineTranscript(current, text))}
             onPendingVoiceNote={queueVoiceNote}
-            onVoiceSaved={() => router.refresh()}
+            onVoiceSaved={handleVoiceSaved}
             onError={setError}
+            onWarning={setVoiceMessage}
           />
           <input className="input font-semibold text-lg" name="title" required minLength={2} maxLength={160} value={title} onChange={(event) => setTitle(event.target.value)} />
           {fieldErrors?.title && <p className="field-error">{fieldErrors.title[0]}</p>}
@@ -521,8 +545,10 @@ export function LifeEntryForm({
           onFields={applyDictation}
           onAppendTranscript={appendDictationTranscript}
           onPendingVoiceNote={queueVoiceNote}
-          onVoiceSaved={() => router.refresh()}
+          onVoiceSaved={handleVoiceSaved}
           onError={setError}
+          onWarning={setVoiceMessage}
+          saveVoiceRecordings={saveVoiceRecordings}
         />
 
         <label>
@@ -533,10 +559,12 @@ export function LifeEntryForm({
             entryId={entry?.id}
             aiConsented={aiConsented}
             disabled={pending || generating}
+            saveVoiceRecordings={saveVoiceRecordings}
             onTranscript={(text) => setNarrative((current) => appendFieldTranscript(current, text))}
             onPendingVoiceNote={queueVoiceNote}
-            onVoiceSaved={() => router.refresh()}
+            onVoiceSaved={handleVoiceSaved}
             onError={setError}
+            onWarning={setVoiceMessage}
           />
           <textarea className="textarea" name="narrative" maxLength={4000} value={narrative} onChange={(event) => setNarrative(event.target.value)} />
         </label>
@@ -615,10 +643,12 @@ export function LifeEntryForm({
             entryId={entry?.id}
             aiConsented={aiConsented}
             disabled={pending || generating}
+            saveVoiceRecordings={saveVoiceRecordings}
             onTranscript={(text) => setDifficulty((current) => appendFieldTranscript(current, text))}
             onPendingVoiceNote={queueVoiceNote}
-            onVoiceSaved={() => router.refresh()}
+            onVoiceSaved={handleVoiceSaved}
             onError={setError}
+            onWarning={setVoiceMessage}
           />
           <textarea className="textarea !min-h-24" name="difficulty" maxLength={4000} value={difficulty} onChange={(event) => setDifficulty(event.target.value)} />
         </label>
@@ -630,10 +660,12 @@ export function LifeEntryForm({
             entryId={entry?.id}
             aiConsented={aiConsented}
             disabled={pending || generating}
+            saveVoiceRecordings={saveVoiceRecordings}
             onTranscript={(text) => setLearning((current) => appendFieldTranscript(current, text))}
             onPendingVoiceNote={queueVoiceNote}
-            onVoiceSaved={() => router.refresh()}
+            onVoiceSaved={handleVoiceSaved}
             onError={setError}
+            onWarning={setVoiceMessage}
           />
           <textarea className="textarea !min-h-24" name="learning" maxLength={4000} value={learning} onChange={(event) => setLearning(event.target.value)} />
         </label>
@@ -645,10 +677,12 @@ export function LifeEntryForm({
             entryId={entry?.id}
             aiConsented={aiConsented}
             disabled={pending || generating}
+            saveVoiceRecordings={saveVoiceRecordings}
             onTranscript={(text) => setTransformation((current) => appendFieldTranscript(current, text))}
             onPendingVoiceNote={queueVoiceNote}
-            onVoiceSaved={() => router.refresh()}
+            onVoiceSaved={handleVoiceSaved}
             onError={setError}
+            onWarning={setVoiceMessage}
           />
           <textarea className="textarea !min-h-24" name="transformation" maxLength={4000} value={transformation} onChange={(event) => setTransformation(event.target.value)} />
         </label>
@@ -694,12 +728,34 @@ export function LifeEntryForm({
         <section className="card mt-5 p-5 sm:p-7">
           <h2 className="display text-2xl">{t.attachments}</h2>
           <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{t.attachmentsBody}</p>
-          {attachments.length > 0 && (
+
+          {hasVoiceSection && (
             <div className="mt-5 space-y-5">
-              <FileAttachmentsList locale={locale} attachments={attachments} />
-              <VoiceAttachmentsList locale={locale} attachments={attachments} />
+              {entry && savedVoiceNotes.length > 0 && (
+                <VoiceAttachmentsList
+                  locale={locale}
+                  entryId={entry.id}
+                  attachments={attachments}
+                  onDeleted={() => router.refresh()}
+                  onError={setUploadError}
+                />
+              )}
+              {pendingVoiceNotes.length > 0 && (
+                <PendingVoiceNotesList
+                  locale={locale}
+                  notes={pendingVoiceNotes}
+                  onRemove={removePendingVoiceNote}
+                />
+              )}
             </div>
           )}
+
+          {attachments.some((item) => !AUDIO_CONTENT_TYPES.includes(item.mimeType as (typeof AUDIO_CONTENT_TYPES)[number])) && (
+            <div className="mt-5">
+              <FileAttachmentsList locale={locale} attachments={attachments} />
+            </div>
+          )}
+
           {entry && (
           <label className={`btn btn-secondary mt-5 w-fit cursor-pointer ${uploading ? "pointer-events-none opacity-60" : ""}`}>
             {uploading ? <LoaderCircle className="animate-spin" size={15} /> : <Paperclip size={15} />}
@@ -722,7 +778,10 @@ export function LifeEntryForm({
               {uploadError}
             </p>
           )}
-          {uploadMessage && !uploadError && (
+          {voiceMessage && !uploadError && (
+            <p className="mt-3 rounded-xl border border-[#d6e4d2] bg-[#edf5ec] p-3 text-sm text-[var(--moss-deep)]">{voiceMessage}</p>
+          )}
+          {uploadMessage && !uploadError && !voiceMessage && (
             <p className="mt-3 rounded-xl bg-[#edf5ec] p-3 text-sm text-[var(--moss-deep)]">{uploadMessage}</p>
           )}
         </section>

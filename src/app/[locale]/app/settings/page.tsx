@@ -15,8 +15,11 @@ export default async function SettingsPage({ params }: { params: Promise<{ local
       archiveSlug={profile?.archiveSlug ?? null}
       published={Boolean(profile?.publishedAt)}
       deceased={Boolean(profile?.deceasedAt)}
+      lastSeenAt={profile?.lastSeenAt ?? null}
+      inactivityReleaseYears={profile?.inactivityReleaseYears ?? null}
       displayName={profile?.displayName ?? user.displayName ?? ""}
       email={user.email}
+      saveVoiceRecordings={profile?.saveVoiceRecordings !== false}
     />
   );
 }

@@ -89,7 +89,7 @@ export function ArchiveProfilePage({ locale, slug, displayName, deceasedAt, publ
                         <p className="text-xs font-bold uppercase tracking-wide text-[var(--muted)]">{t.files}</p>
                         {images.length > 0 && <div className="grid gap-3 sm:grid-cols-2">{images.map((file) => <a key={file.id} href={`/api/attachments/${file.id}`} target="_blank" rel="noreferrer"><img src={`/api/attachments/${file.id}`} alt={file.fileName} className="h-40 w-full rounded-xl object-cover" /></a>)}</div>}
                         {docs.map((file) => <a key={file.id} className="block text-sm font-bold text-[var(--moss)] underline" href={`/api/attachments/${file.id}`} target="_blank" rel="noreferrer">{file.fileName}</a>)}
-                        <VoiceAttachmentsList locale={locale} attachments={files.filter((file) => AUDIO_CONTENT_TYPES.includes(file.mimeType as (typeof AUDIO_CONTENT_TYPES)[number]))} />
+                        <VoiceAttachmentsList locale={locale} readOnly attachments={files.filter((file) => AUDIO_CONTENT_TYPES.includes(file.mimeType as (typeof AUDIO_CONTENT_TYPES)[number]))} />
                       </div>
                     )}
                   </div>

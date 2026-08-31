@@ -131,6 +131,24 @@ export async function storeAttachment(input: {
   return mapAttachment({ _id: insertedId, ...record });
 }
 
+export async function deleteAttachmentById(userId: string, attachmentId: string) {
+  const db = await getDb();
+  const record = await db.collection<AttachmentDbRecord>(COLLECTIONS.entryAttachments).findOne({
+    _id: toObjectId(attachmentId),
+    userId,
+  });
+  if (!record) return null;
+
+  const bucket = new GridFSBucket(db, { bucketName: GRIDFS_BUCKET });
+  try {
+    await bucket.delete(new ObjectId(record.gridFsId));
+  } catch {
+    // File may already be missing.
+  }
+  await db.collection(COLLECTIONS.entryAttachments).deleteOne({ _id: toObjectId(attachmentId), userId });
+  return mapAttachment(record);
+}
+
 export async function getAttachmentById(userId: string, attachmentId: string) {
   const db = await getDb();
   const record = await db.collection<AttachmentDbRecord>(COLLECTIONS.entryAttachments).findOne({ _id: toObjectId(attachmentId), userId });

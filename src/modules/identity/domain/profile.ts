@@ -10,4 +10,7 @@ export type Profile = {
   archiveSlug: string | null;
   publishedAt: string | null;
   deceasedAt: string | null;
+  lastSeenAt: string | null;
+  inactivityReleaseYears: number | null;
+  saveVoiceRecordings: boolean;
 };

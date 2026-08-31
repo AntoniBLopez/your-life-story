@@ -13,6 +13,8 @@ type AdminUserRow = {
   publishedAt: string | null;
   deceasedAt: string | null;
   archiveSlug: string | null;
+  inactivityReleaseYears: number | null;
+  lastSeenAt: string | null;
   entryCount: number;
 };
 
@@ -30,8 +32,8 @@ export function AdminPanel({
   const [query, setQuery] = useState("");
   const users = initialUsers;
   const t = locale === "es"
-    ? { eyebrow: "Administración", title: "Archivo público y fallecimientos", intro: "Revisa peticiones, marca personas como fallecidas y publica sus vidas en el archivo histórico.", pending: "Pendientes", none: "No hay peticiones pendientes.", approve: "Publicar y marcar fallecida", reject: "Rechazar", search: "Buscar cuenta por nombre o email", consent: "Quiso publicar", published: "En archivo", deceased: "Fallecida", moments: "momentos", publish: "Publicar", publishDead: "Publicar como fallecida", unpublish: "Retirar" }
-    : { eyebrow: "Administration", title: "Public archive and deaths", intro: "Review requests, mark people as deceased and publish their lives in the historical archive.", pending: "Pending", none: "There are no pending requests.", approve: "Publish and mark deceased", reject: "Reject", search: "Search an account by name or email", consent: "Wanted to publish", published: "In archive", deceased: "Deceased", moments: "moments", publish: "Publish", publishDead: "Publish as deceased", unpublish: "Remove" };
+    ? { eyebrow: "Administración", title: "Archivo público y fallecimientos", intro: "Revisa peticiones, marca personas como fallecidas y publica sus vidas en el archivo histórico.", pending: "Pendientes", none: "No hay peticiones pendientes.", approve: "Publicar y marcar fallecida", reject: "Rechazar", search: "Buscar cuenta por nombre o email", consent: "Quiso publicar", published: "En archivo", deceased: "Fallecida", moments: "momentos", publish: "Publicar", publishDead: "Publicar como fallecida", unpublish: "Retirar", inactivity: "Silencio automático" }
+    : { eyebrow: "Administration", title: "Public archive and deaths", intro: "Review requests, mark people as deceased and publish their lives in the historical archive.", pending: "Pending", none: "There are no pending requests.", approve: "Publish and mark deceased", reject: "Reject", search: "Search an account by name or email", consent: "Wanted to publish", published: "In archive", deceased: "Deceased", moments: "moments", publish: "Publish", publishDead: "Publish as deceased", unpublish: "Remove", inactivity: "Automatic silence" };
 
   function review(id: string, decision: "approved" | "rejected") {
     setError(undefined);
@@ -116,6 +118,7 @@ export function AdminPanel({
                     {user.publicArchiveConsent && <span className="pill">{t.consent}</span>}
                     {user.publishedAt && <span className="pill">{t.published}</span>}
                     {user.deceasedAt && <span className="pill !bg-[#fff0e5] !text-[#8a5a3d]">{t.deceased}</span>}
+                    {user.inactivityReleaseYears && <span className="pill">{t.inactivity}: {user.inactivityReleaseYears} {locale === "es" ? "años" : "years"}</span>}
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
