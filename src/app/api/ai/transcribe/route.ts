@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const transcript = await transcribeAudio(buffer, fileName, mimeType, locale);
+    const transcript = await transcribeAudio(buffer, fileName, mimeType);
     return Response.json({ transcript });
   } catch {
     return Response.json({

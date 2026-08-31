@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { ArrowLeft, LoaderCircle, Paperclip, Sparkles } from "lucide-react";
 import {
   CHANGE_DIRECTIONS,
@@ -12,6 +12,7 @@ import {
   type LifeEntry,
   type LifeEntryLink,
   type ChangeDirection,
+  type DatePrecision,
   type LifeArea,
   type MomentFlag,
 } from "@/modules/life-story/domain/life-entry";
@@ -31,6 +32,12 @@ import { FileAttachmentsList } from "@/modules/life-story/presentation/component
 import { appendFieldTranscript, VoiceFieldRecorder } from "@/modules/life-story/presentation/components/voice-field-recorder";
 import { VoiceAttachmentsList } from "@/modules/life-story/presentation/components/voice-attachments-list";
 import { PendingVoiceNotesList } from "@/modules/life-story/presentation/components/pending-voice-notes-list";
+import {
+  clearLifeEntryDraft,
+  getLifeEntryDraftKey,
+  loadLifeEntryDraft,
+  saveLifeEntryDraft,
+} from "@/modules/life-story/domain/life-entry-draft";
 
 const ATTACHMENT_ACCEPT = "image/jpeg,image/png,image/webp,application/pdf,audio/webm,audio/mp4,audio/mpeg,audio/wav,audio/ogg,audio/x-m4a,.pdf,.jpg,.jpeg,.png,.webp";
 
@@ -173,9 +180,16 @@ export function LifeEntryForm({
   const [changeDirection, setChangeDirection] = useState<ChangeDirection>(entry?.changeDirection ?? "neutral");
   const [momentFlags, setMomentFlags] = useState<MomentFlag[]>(entry?.momentFlags ?? []);
   const [tags, setTags] = useState(entry?.tags.join(", ") ?? "");
+  const [startDate, setStartDate] = useState(entry?.startDate ?? "");
+  const [endDate, setEndDate] = useState(entry?.endDate ?? "");
+  const [datePrecision, setDatePrecision] = useState<DatePrecision>(entry?.datePrecision ?? "day");
+  const [linkedEntryId, setLinkedEntryId] = useState(link?.targetEntryId ?? "");
+  const [linkType, setLinkType] = useState<"related" | "consequence">(link?.relation ?? "related");
   const [pendingVoiceNotes, setPendingVoiceNotes] = useState<PendingVoiceNote[]>([]);
   const [fullDictationPrompt, setFullDictationPrompt] = useState<{ resolve: (value: FullDictationMode | null) => void } | null>(null);
   const [generateAiPrompt, setGenerateAiPrompt] = useState<{ resolve: (value: boolean) => void } | null>(null);
+  const draftKey = getLifeEntryDraftKey(entry?.id);
+  const [draftReady, setDraftReady] = useState(false);
   const isEdit = Boolean(entry);
   const otherEntries = entries.filter((item) => item.id !== entry?.id);
   const savedVoiceNotes = attachments.filter((item) => AUDIO_CONTENT_TYPES.includes(item.mimeType as (typeof AUDIO_CONTENT_TYPES)[number]));
@@ -277,6 +291,68 @@ export function LifeEntryForm({
         uploadInvalidType: (name: string) => `Could not attach «${name}»: unsupported format.`,
         uploading: "Uploading files…",
       };
+
+  useEffect(() => {
+    setDraftReady(false);
+    const draft = loadLifeEntryDraft(draftKey);
+    if (draft) {
+      setTitle(draft.title);
+      setNarrative(draft.narrative);
+      setDifficulty(draft.difficulty);
+      setLearning(draft.learning);
+      setTransformation(draft.transformation);
+      setLifeAreas(draft.lifeAreas);
+      setChangeDirection(draft.changeDirection);
+      setMomentFlags(draft.momentFlags);
+      setTags(draft.tags);
+      setStartDate(draft.startDate);
+      setEndDate(draft.endDate);
+      setDatePrecision(draft.datePrecision);
+      setLinkedEntryId(draft.linkedEntryId);
+      setLinkType(draft.linkType);
+      setPendingVoiceNotes(draft.pendingVoiceNotes);
+    }
+    setDraftReady(true);
+  }, [draftKey]);
+
+  useEffect(() => {
+    if (!draftReady) return;
+    saveLifeEntryDraft(draftKey, {
+      title,
+      narrative,
+      difficulty,
+      learning,
+      transformation,
+      lifeAreas,
+      changeDirection,
+      momentFlags,
+      tags,
+      startDate,
+      endDate,
+      datePrecision,
+      linkedEntryId,
+      linkType,
+      pendingVoiceNotes,
+    });
+  }, [
+    draftReady,
+    draftKey,
+    title,
+    narrative,
+    difficulty,
+    learning,
+    transformation,
+    lifeAreas,
+    changeDirection,
+    momentFlags,
+    tags,
+    startDate,
+    endDate,
+    datePrecision,
+    linkedEntryId,
+    linkType,
+    pendingVoiceNotes,
+  ]);
 
   function hasDictationText() {
     return [title, narrative, difficulty, learning, transformation].some((value) => value.trim().length > 0);
@@ -404,6 +480,7 @@ export function LifeEntryForm({
         setPendingVoiceNotes([]);
       }
 
+      clearLifeEntryDraft(draftKey);
       router.push(`/${locale}/app/entries/${entryId}/edit`);
       router.refresh();
     });
@@ -517,19 +594,19 @@ export function LifeEntryForm({
         <div className="grid gap-4 sm:grid-cols-2">
           <label>
             <span className="field-label">{t.start}</span>
-            <input className="input" type="date" name="startDate" required defaultValue={entry?.startDate ?? ""} />
+            <input className="input" type="date" name="startDate" required value={startDate} onChange={(event) => setStartDate(event.target.value)} />
             {fieldErrors?.startDate && <p className="field-error">{fieldErrors.startDate[0]}</p>}
           </label>
           <label>
             <span className="field-label">{t.end}</span>
-            <input className="input" type="date" name="endDate" defaultValue={entry?.endDate ?? ""} />
+            <input className="input" type="date" name="endDate" value={endDate} onChange={(event) => setEndDate(event.target.value)} />
             {fieldErrors?.endDate && <p className="field-error">{fieldErrors.endDate[0]}</p>}
           </label>
         </div>
 
         <label>
           <span className="field-label">{t.precision}</span>
-          <select className="select" name="datePrecision" defaultValue={entry?.datePrecision ?? "day"}>
+          <select className="select" name="datePrecision" value={datePrecision} onChange={(event) => setDatePrecision(event.target.value as DatePrecision)}>
             {DATE_PRECISIONS.map((value) => (
               <option key={value} value={value}>{PRECISION_LABELS[locale][value]}</option>
             ))}
@@ -696,7 +773,7 @@ export function LifeEntryForm({
           <div className="grid gap-4 sm:grid-cols-2">
             <label>
               <span className="field-label">{t.link}</span>
-              <select className="select" name="linkedEntryId" defaultValue={link?.targetEntryId ?? ""}>
+              <select className="select" name="linkedEntryId" value={linkedEntryId} onChange={(event) => setLinkedEntryId(event.target.value)}>
                 <option value="">{t.none}</option>
                 {otherEntries.map((item) => (
                   <option key={item.id} value={item.id}>{item.title}</option>
@@ -705,7 +782,7 @@ export function LifeEntryForm({
             </label>
             <label>
               <span className="field-label">{t.linkType}</span>
-              <select className="select" name="linkType" defaultValue={link?.relation ?? "related"}>
+              <select className="select" name="linkType" value={linkType} onChange={(event) => setLinkType(event.target.value as "related" | "consequence")}>
                 <option value="related">{t.related}</option>
                 <option value="consequence">{t.consequence}</option>
               </select>

@@ -130,7 +130,6 @@ export async function transcribeAudio(
   buffer: Buffer,
   fileName: string,
   mimeType: string,
-  locale: "es" | "en",
 ) {
   const slots = listGroqProviderSlots();
   if (slots.length === 0) {
@@ -145,7 +144,6 @@ export async function transcribeAudio(
       const response = await client.audio.transcriptions.create({
         file,
         model: "whisper-large-v3",
-        language: locale,
         response_format: "text",
         temperature: 0,
       });
