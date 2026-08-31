@@ -34,10 +34,12 @@ function StoryLifeTreeInner({
   entries,
   links,
   locale,
+  readOnly = false,
 }: {
   entries: LifeEntry[];
   links: LifeEntryLink[];
   locale: "es" | "en";
+  readOnly?: boolean;
 }) {
   const graph = useMemo(() => buildLifeEntryGraph(entries, links), [entries, links]);
 
@@ -51,20 +53,37 @@ function StoryLifeTreeInner({
     },
     data: {
       label: (
-        <Link href={`/${locale}/app/entries/${node.entry.id}/edit`} className="block p-3 text-left">
-          <span className="text-xs font-bold text-[var(--muted)]">{formatStoryDate(node.entry.startDate, node.entry.datePrecision, locale)}</span>
-          <strong className="display mt-1 block text-base leading-tight">{node.entry.title}</strong>
-          <span className="mt-1 block text-xs text-[var(--moss)]">{titleCase(node.entry.lifeArea)}</span>
-          {node.entry.momentFlags.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-1">
-              {node.entry.momentFlags.map((flag) => (
-                <span key={flag} className="rounded-full bg-[#fff0e5] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[#8a5a3d]">
-                  {momentFlagLabel(flag, locale)}
-                </span>
-              ))}
-            </div>
-          )}
-        </Link>
+        readOnly ? (
+          <div className="block p-3 text-left">
+            <span className="text-xs font-bold text-[var(--muted)]">{formatStoryDate(node.entry.startDate, node.entry.datePrecision, locale)}</span>
+            <strong className="display mt-1 block text-base leading-tight">{node.entry.title}</strong>
+            <span className="mt-1 block text-xs text-[var(--moss)]">{titleCase(node.entry.lifeArea)}</span>
+            {node.entry.momentFlags.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1">
+                {node.entry.momentFlags.map((flag) => (
+                  <span key={flag} className="rounded-full bg-[#fff0e5] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[#8a5a3d]">
+                    {momentFlagLabel(flag, locale)}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <Link href={`/${locale}/app/entries/${node.entry.id}/edit`} className="block p-3 text-left">
+            <span className="text-xs font-bold text-[var(--muted)]">{formatStoryDate(node.entry.startDate, node.entry.datePrecision, locale)}</span>
+            <strong className="display mt-1 block text-base leading-tight">{node.entry.title}</strong>
+            <span className="mt-1 block text-xs text-[var(--moss)]">{titleCase(node.entry.lifeArea)}</span>
+            {node.entry.momentFlags.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1">
+                {node.entry.momentFlags.map((flag) => (
+                  <span key={flag} className="rounded-full bg-[#fff0e5] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[#8a5a3d]">
+                    {momentFlagLabel(flag, locale)}
+                  </span>
+                ))}
+              </div>
+            )}
+          </Link>
+        )
       ),
     },
   }));
@@ -120,14 +139,16 @@ export function StoryLifeTree({
   entries,
   links,
   locale,
+  readOnly = false,
 }: {
   entries: LifeEntry[];
   links: LifeEntryLink[];
   locale: "es" | "en";
+  readOnly?: boolean;
 }) {
   return (
     <ReactFlowProvider>
-      <StoryLifeTreeInner entries={entries} links={links} locale={locale} />
+      <StoryLifeTreeInner entries={entries} links={links} locale={locale} readOnly={readOnly} />
     </ReactFlowProvider>
   );
 }

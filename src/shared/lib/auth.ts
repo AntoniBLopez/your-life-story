@@ -1,10 +1,17 @@
 import { redirect } from "next/navigation";
 import { getSessionUserId, destroySession } from "./auth/session";
 import { findUserById } from "@/modules/identity/infrastructure/mongo-user-repository";
+import { isArchiveAdmin } from "@/modules/archive/domain/archive";
 
 export class AuthenticationRequiredError extends Error {
   constructor() {
     super("Authentication required");
+  }
+}
+
+export class AdminRequiredError extends Error {
+  constructor() {
+    super("Admin access required");
   }
 }
 
@@ -37,6 +44,18 @@ export async function requireCurrentUser() {
 export async function requirePageUser(locale: string) {
   const user = await getCurrentUser();
   if (!user) redirect(`/${locale}/login`);
+  return user;
+}
+
+export async function requireAdminUser() {
+  const user = await requireCurrentUser();
+  if (!isArchiveAdmin(user.email)) throw new AdminRequiredError();
+  return user;
+}
+
+export async function requireAdminPage(locale: string) {
+  const user = await requirePageUser(locale);
+  if (!isArchiveAdmin(user.email)) redirect(`/${locale}/app`);
   return user;
 }
 

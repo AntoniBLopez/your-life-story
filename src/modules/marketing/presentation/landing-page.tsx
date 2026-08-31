@@ -1,33 +1,34 @@
 import Link from "next/link";
+import type { Route } from "next";
 import { ArrowRight, BrainCircuit, ChevronDown, LockKeyhole, Menu, Network, Sprout, TreePine, Globe } from "lucide-react";
 import { LanguageSwitcher } from "@/modules/identity/presentation/components/language-switcher";
 
 type Copy = {
-  nav: { how: string; privacy: string; login: string; start: string };
+  nav: { how: string; privacy: string; archive: string; login: string; start: string };
   hero: { eyebrow: string; title: string; emphasis: string; body: string; primary: string; secondary: string; note: string };
   preview: { now: string; hard: string; learn: string; changing: string; labels: string[] };
   value: { eyebrow: string; title: string; cards: { title: string; body: string }[] };
   privacy: { eyebrow: string; title: string; body: string; points: string[] };
   cta: { title: string; body: string; action: string };
-  footer: { tagline: string; how: string; privacy: string; login: string; copyright: string };
+  footer: { tagline: string; how: string; privacy: string; archive: string; login: string; copyright: string };
 };
 
 const copy: Record<"es" | "en", Copy> = {
   es: {
-    nav: { how: "Cómo funciona", privacy: "Privacidad", login: "Entrar", start: "Empieza tu historia" },
+    nav: { how: "Cómo funciona", privacy: "Privacidad", archive: "Archivo de vidas", login: "Entrar", start: "Empieza tu historia" },
     hero: { eyebrow: "Tu vida, con perspectiva", title: "Tu historia merece algo más que", emphasis: "perderse en la memoria.", body: "Registra los momentos que te hicieron ser quien eres. Observa tus cambios, conecta tus aprendizajes y vuelve a ellos cuando necesites claridad.", primary: "Empieza a escribir", secondary: "Descubre cómo funciona", note: "Un espacio privado, sólo para ti." },
     preview: { now: "Hoy", hard: "Un cambio difícil", learn: "Aprendí a pedir ayuda", changing: "Tu historia no es una lista. Es una evolución.", labels: ["Trabajo", "Relaciones", "Bienestar", "Aprendizajes"] },
     value: { eyebrow: "Un lugar para mirar con calma", title: "Saca tu vida de la cabeza. Encuentra el hilo que la une.", cards: [{ title: "Guarda lo importante", body: "Fechas, situaciones, giros y pequeños detalles que no quieres olvidar." }, { title: "Ve tus patrones", body: "Una línea temporal y un árbol de vida revelan conexiones que antes pasaban desapercibidas." }, { title: "Ponlo en perspectiva", body: "Una reflexión guiada te ayuda a hacer mejores preguntas, a tu ritmo." }] },
     privacy: { eyebrow: "Tu historia te pertenece", title: "Diseñado para la intimidad, no para el ruido.", body: "Cada recuerdo vive aislado en tu cuenta. Tú decides qué guardar, revisar, exportar o borrar.", points: ["Datos aislados por cuenta", "Archivos privados y enlaces seguros", "Consentimiento claro antes de usar la IA"] },
-    cta: { title: "Empieza por un momento que recuerdes.", body: "No hace falta contarlo todo hoy. Una fecha, una situación o un aprendizaje es suficiente.", action: "Crear mi espacio privado" }, footer: { tagline: "Una forma más amable de recordar.", how: "Cómo funciona", privacy: "Privacidad", login: "Entrar", copyright: "Tu historia sigue siendo tuya." },
+    cta: { title: "Empieza por un momento que recuerdes.", body: "No hace falta contarlo todo hoy. Una fecha, una situación o un aprendizaje es suficiente.", action: "Crear mi espacio privado" }, footer: { tagline: "Una forma más amable de recordar.", how: "Cómo funciona", privacy: "Privacidad", archive: "Archivo de vidas", login: "Entrar", copyright: "Tu historia sigue siendo tuya." },
   },
   en: {
-    nav: { how: "How it works", privacy: "Privacy", login: "Sign in", start: "Start your story" },
+    nav: { how: "How it works", privacy: "Privacy", archive: "Life archive", login: "Sign in", start: "Start your story" },
     hero: { eyebrow: "Your life, in perspective", title: "Your story deserves more than being", emphasis: "lost to memory.", body: "Capture the moments that shaped you. Notice your changes, connect your lessons and return to them whenever you need clarity.", primary: "Start writing", secondary: "See how it works", note: "A private space, just for you." },
     preview: { now: "Today", hard: "A difficult change", learn: "I learnt to ask for help", changing: "Your story is not a list. It is an evolution.", labels: ["Work", "Relationships", "Wellbeing", "Lessons"] },
     value: { eyebrow: "A place to look slowly", title: "Take your life out of your head. Find the thread that connects it.", cards: [{ title: "Keep what matters", body: "Dates, situations, turning points and little details you do not want to lose." }, { title: "Notice your patterns", body: "A timeline and life tree reveal connections you had not seen before." }, { title: "Put it in perspective", body: "Guided reflection helps you ask better questions, at your own pace." }] },
     privacy: { eyebrow: "Your story belongs to you", title: "Built for intimacy, not noise.", body: "Every memory stays isolated in your account. You decide what to keep, revisit, export or erase.", points: ["Account-isolated data", "Private files and secure links", "Clear consent before using AI"] },
-    cta: { title: "Start with one moment you remember.", body: "You do not have to tell it all today. A date, a situation or a lesson is enough.", action: "Create my private space" }, footer: { tagline: "A gentler way to remember.", how: "How it works", privacy: "Privacy", login: "Sign in", copyright: "Your story is still yours." },
+    cta: { title: "Start with one moment you remember.", body: "You do not have to tell it all today. A date, a situation or a lesson is enough.", action: "Create my private space" }, footer: { tagline: "A gentler way to remember.", how: "How it works", privacy: "Privacy", archive: "Life archive", login: "Sign in", copyright: "Your story is still yours." },
   },
 };
 
@@ -45,6 +46,7 @@ export function LandingPage({ locale }: { locale: "es" | "en" }) {
       <nav className="hidden items-center gap-6 text-sm font-semibold text-[var(--muted)] md:flex">
         <a href="#how">{t.nav.how}</a>
         <a href="#privacy">{t.nav.privacy}</a>
+        <Link href={`/${activeLocale}/archive` as Route}>{t.nav.archive}</Link>
       </nav>
       <div className="flex shrink-0 items-center gap-1 sm:gap-3">
         <LanguageSwitcher compact />
@@ -62,6 +64,7 @@ export function LandingPage({ locale }: { locale: "es" | "en" }) {
           <div className="absolute right-0 top-12 z-30 grid min-w-52 gap-1 rounded-2xl border border-[var(--line)] bg-[var(--paper)] p-2 text-sm font-semibold shadow-xl">
             <a className="rounded-xl px-3 py-2.5 hover:bg-[#edf3eb]" href="#how">{t.nav.how}</a>
             <a className="rounded-xl px-3 py-2.5 hover:bg-[#edf3eb]" href="#privacy">{t.nav.privacy}</a>
+            <Link className="rounded-xl px-3 py-2.5 hover:bg-[#edf3eb]" href={`/${activeLocale}/archive` as Route}>{t.nav.archive}</Link>
             <Link className="rounded-xl px-3 py-2.5 hover:bg-[#edf3eb]" href={`/${activeLocale}/login`}>{t.nav.login}</Link>
             <Link className="btn btn-primary mt-1" href={`/${activeLocale}/register`}>
               {t.nav.start}
@@ -217,6 +220,7 @@ export function LandingPage({ locale }: { locale: "es" | "en" }) {
         <nav className="flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold text-[var(--muted)]">
           <a href="#how">{t.footer.how}</a>
           <a href="#privacy">{t.footer.privacy}</a>
+          <Link href={`/${activeLocale}/archive` as Route}>{t.footer.archive}</Link>
           <Link href={`/${activeLocale}/login`}>{t.footer.login}</Link>
         </nav>
         <div className="text-xs text-[var(--muted)]">

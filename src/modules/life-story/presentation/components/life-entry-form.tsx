@@ -23,10 +23,15 @@ import {
 import type { EntryDictationOutput } from "@/modules/life-story/domain/entry-dictation-prompt";
 import type { EntryReflectionOutput } from "@/modules/life-story/domain/entry-reflection-prompt";
 import type { PendingVoiceNote, VoiceFieldKey } from "@/modules/life-story/domain/voice-note";
+import { resolveAttachmentContentType } from "@/modules/life-story/domain/attachment-content-type";
 import type { AttachmentRecord } from "@/shared/lib/mongodb/attachments";
-import { ExperienceDictationCard } from "@/modules/life-story/presentation/components/experience-dictation-card";
+import { ExperienceDictationCard, type FullDictationMode } from "@/modules/life-story/presentation/components/experience-dictation-card";
+import { ConfirmDialog } from "@/modules/life-story/presentation/components/confirm-dialog";
+import { FileAttachmentsList } from "@/modules/life-story/presentation/components/file-attachments-list";
 import { appendFieldTranscript, VoiceFieldRecorder } from "@/modules/life-story/presentation/components/voice-field-recorder";
 import { VoiceAttachmentsList } from "@/modules/life-story/presentation/components/voice-attachments-list";
+
+const ATTACHMENT_ACCEPT = "image/jpeg,image/png,image/webp,application/pdf,audio/webm,audio/mp4,audio/mpeg,audio/wav,audio/ogg,audio/x-m4a,.pdf,.jpg,.jpeg,.png,.webp";
 
 const AREA_LABELS = {
   es: {
@@ -87,6 +92,7 @@ function FieldLabelWithVoice({
   entryId,
   aiConsented,
   disabled,
+  emphasized,
   onTranscript,
   onPendingVoiceNote,
   onVoiceSaved,
@@ -98,6 +104,7 @@ function FieldLabelWithVoice({
   entryId?: string;
   aiConsented: boolean;
   disabled?: boolean;
+  emphasized?: boolean;
   onTranscript: (text: string) => void;
   onPendingVoiceNote: (note: PendingVoiceNote) => void;
   onVoiceSaved: () => void;
@@ -105,7 +112,7 @@ function FieldLabelWithVoice({
 }) {
   return (
     <div className="mb-1.5 flex items-center justify-between gap-2">
-      <span className="field-label !mb-0">{label}</span>
+      <span className={`field-label !mb-0 ${emphasized ? "!font-bold !text-base !text-[var(--ink)]" : ""}`}>{label}</span>
       <VoiceFieldRecorder
         locale={locale}
         fieldKey={fieldKey}
@@ -141,6 +148,8 @@ export function LifeEntryForm({
   const [pending, startTransition] = useTransition();
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string>();
+  const [uploadError, setUploadError] = useState<string>();
+  const [uploading, setUploading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>();
   const [uploadMessage, setUploadMessage] = useState<string>();
   const [title, setTitle] = useState(entry?.title ?? "");
@@ -155,6 +164,8 @@ export function LifeEntryForm({
   const [momentFlags, setMomentFlags] = useState<MomentFlag[]>(entry?.momentFlags ?? []);
   const [tags, setTags] = useState(entry?.tags.join(", ") ?? "");
   const [pendingVoiceNotes, setPendingVoiceNotes] = useState<PendingVoiceNote[]>([]);
+  const [fullDictationPrompt, setFullDictationPrompt] = useState<{ resolve: (value: FullDictationMode | null) => void } | null>(null);
+  const [generateAiPrompt, setGenerateAiPrompt] = useState<{ resolve: (value: boolean) => void } | null>(null);
   const isEdit = Boolean(entry);
   const otherEntries = entries.filter((item) => item.id !== entry?.id);
   const t = locale === "es"
@@ -184,6 +195,7 @@ export function LifeEntryForm({
         consequence: "Consecuencia",
         attachments: "Adjuntos",
         uploaded: "Archivo guardado.",
+        uploadedMany: (count: number) => `${count} archivos guardados.`,
         save: isEdit ? "Guardar cambios" : "Guardar experiencia",
         cancel: "Volver a mi historia",
         generateAi: "Generar con IA",
@@ -194,6 +206,16 @@ export function LifeEntryForm({
         narrativeTooShort: "Escribe al menos unas líneas en «Qué ocurrió» antes de generar.",
         voiceSaved: "Nota de voz guardada.",
         attachmentsBody: "JPG, PNG, WEBP, PDF o audio, hasta 15 MB. Se guardan al elegir el archivo o al dictar.",
+        fullDictationTitle: "Ya hay texto en la experiencia",
+        fullDictationBody: "Puedes añadir lo que hables al final de «Qué ocurrió» sin tocar el resto, o sustituir título y reflexiones por lo que digas ahora.",
+        fullDictationAppend: "Añadir a qué ocurrió",
+        fullDictationReplace: "Sustituir y regenerar",
+        dialogCancel: "Cancelar",
+        generateAiConfirmTitle: "Se reemplazará el contenido",
+        generateAiConfirmBody: "Generar con IA sustituirá las áreas de vida, cómo lo sentiste, tipos de momento, reflexiones y etiquetas que ya tengas. ¿Quieres continuar?",
+        generateAiConfirm: "Sí, generar",
+        uploadInvalidType: (name: string) => `No se pudo adjuntar «${name}»: formato no compatible.`,
+        uploading: "Subiendo archivos…",
       }
     : {
         eyebrow: isEdit ? "Edit" : "New experience",
@@ -221,6 +243,7 @@ export function LifeEntryForm({
         consequence: "Consequence",
         attachments: "Attachments",
         uploaded: "File saved.",
+        uploadedMany: (count: number) => `${count} files saved.`,
         save: isEdit ? "Save changes" : "Save experience",
         cancel: "Back to my story",
         generateAi: "Generate with AI",
@@ -231,7 +254,54 @@ export function LifeEntryForm({
         narrativeTooShort: "Write at least a few lines in «What happened» before generating.",
         voiceSaved: "Voice note saved.",
         attachmentsBody: "JPG, PNG, WEBP, PDF or audio, up to 15 MB. Files are saved when you choose them or dictate.",
+        fullDictationTitle: "There is already text in this experience",
+        fullDictationBody: "You can add what you say to the end of «What happened» without changing anything else, or replace the title and reflections with what you say now.",
+        fullDictationAppend: "Add to what happened",
+        fullDictationReplace: "Replace and regenerate",
+        dialogCancel: "Cancel",
+        generateAiConfirmTitle: "Content will be replaced",
+        generateAiConfirmBody: "Generate with AI will replace any life areas, how it felt, moment types, reflections and tags you already have. Do you want to continue?",
+        generateAiConfirm: "Yes, generate",
+        uploadInvalidType: (name: string) => `Could not attach «${name}»: unsupported format.`,
+        uploading: "Uploading files…",
       };
+
+  function hasDictationText() {
+    return [title, narrative, difficulty, learning, transformation].some((value) => value.trim().length > 0);
+  }
+
+  function hasReflectionContentToLose() {
+    return Boolean(
+      difficulty.trim()
+      || learning.trim()
+      || transformation.trim()
+      || tags.trim()
+      || lifeAreas.length > 0
+      || momentFlags.length > 0
+      || changeDirection !== "neutral",
+    );
+  }
+
+  function requestFullDictationStart(): Promise<FullDictationMode | null> {
+    if (!hasDictationText()) return Promise.resolve("replace");
+    return new Promise((resolve) => {
+      setFullDictationPrompt({ resolve });
+    });
+  }
+
+  function requestGenerateAiConfirm(): Promise<boolean> {
+    if (!hasReflectionContentToLose()) return Promise.resolve(true);
+    return new Promise((resolve) => {
+      setGenerateAiPrompt({ resolve });
+    });
+  }
+
+  function appendInlineTranscript(current: string, transcript: string) {
+    const next = transcript.trim();
+    if (!next) return current;
+    const base = current.trim();
+    return base ? `${base} ${next}` : next;
+  }
 
   function queueVoiceNote(note: PendingVoiceNote) {
     setPendingVoiceNotes((current) => [...current, note]);
@@ -244,6 +314,10 @@ export function LifeEntryForm({
     if (fields.difficulty) setDifficulty(fields.difficulty);
     if (fields.learning) setLearning(fields.learning);
     if (fields.transformation) setTransformation(fields.transformation);
+  }
+
+  function appendDictationTranscript(transcript: string) {
+    setNarrative((current) => appendFieldTranscript(current, transcript));
   }
 
   function applyReflection(fields: EntryReflectionOutput) {
@@ -314,23 +388,39 @@ export function LifeEntryForm({
   }
 
   function upload(fileList: FileList | null) {
-    const file = fileList?.[0];
-    if (!file || !entry) return;
-    setError(undefined);
+    const files = fileList ? [...fileList] : [];
+    if (!files.length || !entry) return;
+    setUploadError(undefined);
     setUploadMessage(undefined);
+    setUploading(true);
     startTransition(async () => {
       try {
-        const result = await uploadAttachmentAction({
-          entryId: entry.id,
-          fileName: file.name,
-          contentType: file.type as "image/jpeg" | "image/png" | "image/webp" | "application/pdf",
-          size: file.size,
-          fileBase64: await fileToBase64(file),
-        });
-        if (!result.ok) setError(result.error);
-        else setUploadMessage(t.uploaded);
+        let saved = 0;
+        for (const file of files) {
+          const contentType = resolveAttachmentContentType(file.name, file.type);
+          if (!contentType) {
+            setUploadError(t.uploadInvalidType(file.name));
+            return;
+          }
+          const result = await uploadAttachmentAction({
+            entryId: entry.id,
+            fileName: file.name,
+            contentType,
+            size: file.size,
+            fileBase64: await fileToBase64(file),
+          });
+          if (!result.ok) {
+            setUploadError(result.error);
+            return;
+          }
+          saved += 1;
+        }
+        setUploadMessage(saved === 1 ? t.uploaded : t.uploadedMany(saved));
+        router.refresh();
       } catch (caught) {
-        setError(caught instanceof Error ? caught.message : t.attachmentsBody);
+        setUploadError(caught instanceof Error ? caught.message : t.attachmentsBody);
+      } finally {
+        setUploading(false);
       }
     });
   }
@@ -345,6 +435,9 @@ export function LifeEntryForm({
       setError(t.consentRequired);
       return;
     }
+
+    const confirmed = await requestGenerateAiConfirm();
+    if (!confirmed) return;
 
     setGenerating(true);
     setError(undefined);
@@ -368,6 +461,7 @@ export function LifeEntryForm({
   }
 
   return (
+    <>
     <div className="mx-auto max-w-3xl fade-in">
       <Link href={`/${locale}/app`} className="btn btn-quiet !px-0 text-sm">
         <ArrowLeft size={15} />
@@ -378,16 +472,23 @@ export function LifeEntryForm({
       <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--muted)]">{t.body}</p>
 
       <form action={submit} className="card mt-8 space-y-5 p-5 sm:p-7">
-        <ExperienceDictationCard
-          locale={locale}
-          entryId={entry?.id}
-          aiConsented={aiConsented}
-          disabled={pending || generating}
-          onFields={applyDictation}
-          onPendingVoiceNote={queueVoiceNote}
-          onVoiceSaved={() => router.refresh()}
-          onError={setError}
-        />
+        <label>
+          <FieldLabelWithVoice
+            label={t.name}
+            locale={locale}
+            fieldKey="title"
+            entryId={entry?.id}
+            aiConsented={aiConsented}
+            disabled={pending || generating}
+            emphasized
+            onTranscript={(text) => setTitle((current) => appendInlineTranscript(current, text))}
+            onPendingVoiceNote={queueVoiceNote}
+            onVoiceSaved={() => router.refresh()}
+            onError={setError}
+          />
+          <input className="input font-semibold text-lg" name="title" required minLength={2} maxLength={160} value={title} onChange={(event) => setTitle(event.target.value)} />
+          {fieldErrors?.title && <p className="field-error">{fieldErrors.title[0]}</p>}
+        </label>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <label>
@@ -411,22 +512,18 @@ export function LifeEntryForm({
           </select>
         </label>
 
-        <label>
-          <FieldLabelWithVoice
-            label={t.name}
-            locale={locale}
-            fieldKey="title"
-            entryId={entry?.id}
-            aiConsented={aiConsented}
-            disabled={pending || generating}
-            onTranscript={(text) => setTitle((current) => appendFieldTranscript(current, text))}
-            onPendingVoiceNote={queueVoiceNote}
-            onVoiceSaved={() => router.refresh()}
-            onError={setError}
-          />
-          <input className="input" name="title" required minLength={2} maxLength={160} value={title} onChange={(event) => setTitle(event.target.value)} />
-          {fieldErrors?.title && <p className="field-error">{fieldErrors.title[0]}</p>}
-        </label>
+        <ExperienceDictationCard
+          locale={locale}
+          entryId={entry?.id}
+          aiConsented={aiConsented}
+          disabled={pending || generating}
+          onRequestStart={requestFullDictationStart}
+          onFields={applyDictation}
+          onAppendTranscript={appendDictationTranscript}
+          onPendingVoiceNote={queueVoiceNote}
+          onVoiceSaved={() => router.refresh()}
+          onError={setError}
+        />
 
         <label>
           <FieldLabelWithVoice
@@ -598,19 +695,21 @@ export function LifeEntryForm({
           <h2 className="display text-2xl">{t.attachments}</h2>
           <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{t.attachmentsBody}</p>
           {attachments.length > 0 && (
-            <div className="mt-5">
+            <div className="mt-5 space-y-5">
+              <FileAttachmentsList locale={locale} attachments={attachments} />
               <VoiceAttachmentsList locale={locale} attachments={attachments} />
             </div>
           )}
           {entry && (
-          <label className="btn btn-secondary mt-5 w-fit cursor-pointer">
-            <Paperclip size={15} />
-            {locale === "es" ? "Añadir archivo" : "Add file"}
+          <label className={`btn btn-secondary mt-5 w-fit cursor-pointer ${uploading ? "pointer-events-none opacity-60" : ""}`}>
+            {uploading ? <LoaderCircle className="animate-spin" size={15} /> : <Paperclip size={15} />}
+            {uploading ? t.uploading : (locale === "es" ? "Añadir archivos" : "Add files")}
             <input
               className="sr-only"
               type="file"
-              accept="image/jpeg,image/png,image/webp,application/pdf"
-              disabled={pending}
+              multiple
+              accept={ATTACHMENT_ACCEPT}
+              disabled={pending || uploading}
               onChange={(event) => {
                 upload(event.target.files);
                 event.target.value = "";
@@ -618,9 +717,67 @@ export function LifeEntryForm({
             />
           </label>
           )}
-          {uploadMessage && <p className="mt-3 rounded-xl bg-[#edf5ec] p-3 text-sm text-[var(--moss-deep)]">{uploadMessage}</p>}
+          {uploadError && (
+            <p role="alert" className="mt-3 rounded-xl border border-[#e8c3c3] bg-[#fdf3f3] p-3 text-sm text-[var(--danger)]">
+              {uploadError}
+            </p>
+          )}
+          {uploadMessage && !uploadError && (
+            <p className="mt-3 rounded-xl bg-[#edf5ec] p-3 text-sm text-[var(--moss-deep)]">{uploadMessage}</p>
+          )}
         </section>
       )}
     </div>
+
+    <ConfirmDialog
+      open={Boolean(fullDictationPrompt)}
+      title={t.fullDictationTitle}
+      body={t.fullDictationBody}
+      cancelLabel={t.dialogCancel}
+      onClose={() => {
+        fullDictationPrompt?.resolve(null);
+        setFullDictationPrompt(null);
+      }}
+      actions={[
+        {
+          label: t.fullDictationAppend,
+          variant: "primary",
+          onClick: () => {
+            fullDictationPrompt?.resolve("append");
+            setFullDictationPrompt(null);
+          },
+        },
+        {
+          label: t.fullDictationReplace,
+          variant: "secondary",
+          onClick: () => {
+            fullDictationPrompt?.resolve("replace");
+            setFullDictationPrompt(null);
+          },
+        },
+      ]}
+    />
+
+    <ConfirmDialog
+      open={Boolean(generateAiPrompt)}
+      title={t.generateAiConfirmTitle}
+      body={t.generateAiConfirmBody}
+      cancelLabel={t.dialogCancel}
+      onClose={() => {
+        generateAiPrompt?.resolve(false);
+        setGenerateAiPrompt(null);
+      }}
+      actions={[
+        {
+          label: t.generateAiConfirm,
+          variant: "primary",
+          onClick: () => {
+            generateAiPrompt?.resolve(true);
+            setGenerateAiPrompt(null);
+          },
+        },
+      ]}
+    />
+    </>
   );
 }

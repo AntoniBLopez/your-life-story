@@ -6,4 +6,8 @@ export type Profile = {
   locale: SupportedLocale;
   aiConsentAt: string | null;
   onboardedAt: string | null;
+  publicArchiveConsent: boolean;
+  archiveSlug: string | null;
+  publishedAt: string | null;
+  deceasedAt: string | null;
 };

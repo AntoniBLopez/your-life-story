@@ -17,6 +17,7 @@ export async function deleteAllUserData(userId: string) {
     db.collection(COLLECTIONS.profiles).deleteMany({ userId }),
     db.collection(COLLECTIONS.passwordResetTokens).deleteMany({ userId }),
     db.collection(COLLECTIONS.sessions).deleteMany({ userId }),
+    db.collection(COLLECTIONS.archivePublicationRequests).deleteMany({ targetUserId: userId }),
     db.collection(COLLECTIONS.users).deleteMany({ _id: toObjectId(userId) }),
   ]);
   await destroyAllUserSessions(userId);

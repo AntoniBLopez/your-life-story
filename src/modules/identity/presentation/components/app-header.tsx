@@ -1,13 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import type { Route } from "next";
 import { usePathname, useRouter } from "next/navigation";
 import { useTransition } from "react";
-import { Bot, BookOpen, LogOut, Search, Settings, Sprout, UsersRound } from "lucide-react";
+import { Bot, BookOpen, Landmark, LogOut, Search, Settings, Shield, Sprout, UsersRound } from "lucide-react";
 import { signOutAction } from "@/modules/identity/application/auth-actions";
 import { LanguageSwitcher } from "./language-switcher";
+import { isArchiveAdmin } from "@/modules/archive/domain/archive";
 
-export function AppHeader({ locale }: { locale: "es" | "en" }) {
+export function AppHeader({ locale, email }: { locale: "es" | "en"; email?: string | null }) {
   const pathname = usePathname();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -17,8 +19,10 @@ export function AppHeader({ locale }: { locale: "es" | "en" }) {
     !is(`/${locale}/app/reflect`) &&
     !is(`/${locale}/app/family`) &&
     !is(`/${locale}/app/settings`) &&
-    !is(`/${locale}/app/search`);
-  const t = locale === "es" ? { story: "Mi historia", reflect: "Reflexiona", tree: "Árbol", settings: "Ajustes", out: "Cerrar sesión" } : { story: "My story", reflect: "Reflect", tree: "Tree", settings: "Settings", out: "Sign out" };
+    !is(`/${locale}/app/search`) &&
+    !is(`/${locale}/app/admin`);
+  const admin = isArchiveAdmin(email);
+  const t = locale === "es" ? { story: "Mi historia", reflect: "Reflexiona", tree: "Árbol", settings: "Ajustes", out: "Cerrar sesión", archive: "Archivo", admin: "Admin" } : { story: "My story", reflect: "Reflect", tree: "Tree", settings: "Settings", out: "Sign out", archive: "Archive", admin: "Admin" };
 
   function handleBrandClick(event: React.MouseEvent<HTMLAnchorElement>) {
     if (window.scrollY > 0) {
@@ -60,6 +64,16 @@ export function AppHeader({ locale }: { locale: "es" | "en" }) {
           <UsersRound size={17} />
           <span className="hidden md:inline text-xs">{t.tree}</span>
         </Link>
+        <Link title={t.archive} className="btn btn-quiet !p-2 hidden sm:inline-flex" href={`/${locale}/archive` as Route}>
+          <Landmark size={16} />
+          <span className="hidden md:inline text-xs">{t.archive}</span>
+        </Link>
+        {admin && (
+          <Link title={t.admin} className={`btn btn-quiet !p-2 ${is(`/${locale}/app/admin`) ? "!bg-[#edf3eb]" : ""}`} href={`/${locale}/app/admin` as Route}>
+            <Shield size={16} />
+            <span className="hidden md:inline text-xs">{t.admin}</span>
+          </Link>
+        )}
         <Link title={t.settings} className="btn btn-quiet !p-2 hidden sm:inline-flex" href={`/${locale}/app/settings`}>
           <Settings size={16} />
         </Link>

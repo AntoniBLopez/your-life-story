@@ -8,17 +8,23 @@ import { assertValidStoryDates } from "../domain/life-entry";
 import { MongoLifeEntryRepository } from "../infrastructure/mongo-life-entry-repository";
 import { lifeEntryInputSchema } from "./life-entry-schema";
 import { storeAttachment } from "@/shared/lib/mongodb/attachments";
-import { AUDIO_CONTENT_TYPES, VOICE_FIELD_KEYS, type AudioContentType } from "../domain/voice-note";
+import { ObjectId } from "mongodb";
+import {
+  ATTACHMENT_CONTENT_TYPES,
+  isAudioContentType,
+  resolveAttachmentContentType,
+  type AttachmentContentType,
+} from "../domain/attachment-content-type";
+import { VOICE_FIELD_KEYS } from "../domain/voice-note";
 
 const repository = new MongoLifeEntryRepository();
 
-const imageContentTypes = ["image/jpeg", "image/png", "image/webp", "application/pdf"] as const;
-const attachmentContentTypes = [...imageContentTypes, ...AUDIO_CONTENT_TYPES] as const;
+const mongoIdSchema = z.string().refine((value) => ObjectId.isValid(value), "Invalid entry id.");
 
 const attachmentSchema = z.object({
-  entryId: z.string().uuid(),
+  entryId: mongoIdSchema,
   fileName: z.string().min(1).max(160),
-  contentType: z.enum(attachmentContentTypes),
+  contentType: z.enum(ATTACHMENT_CONTENT_TYPES),
   size: z.number().int().positive().max(15 * 1024 * 1024),
   fieldKey: z.enum(VOICE_FIELD_KEYS).optional(),
   transcript: z.string().max(8000).optional(),
@@ -81,8 +87,16 @@ export async function deleteLifeEntryAction(entryId: string, locale: string): Pr
 }
 
 export async function uploadAttachmentAction(request: z.input<typeof attachmentSchema> & { fileBase64: string }): Promise<ActionResult<{ id: string }>> {
-  const parsed = attachmentSchema.extend({ fileBase64: z.string().min(1) }).safeParse(request);
-  const isAudio = parsed.success && AUDIO_CONTENT_TYPES.includes(parsed.data.contentType as AudioContentType);
+  const contentType = resolveAttachmentContentType(request.fileName, request.contentType);
+  if (!contentType) {
+    return { ok: false, error: "El archivo no cumple los requisitos: imágenes, PDF o audio, hasta 15 MB." };
+  }
+
+  const parsed = attachmentSchema.extend({ fileBase64: z.string().min(1) }).safeParse({
+    ...request,
+    contentType,
+  });
+  const isAudio = parsed.success && isAudioContentType(parsed.data.contentType);
   if (!parsed.success) {
     return { ok: false, error: "El archivo no cumple los requisitos: imágenes, PDF o audio, hasta 15 MB." };
   }

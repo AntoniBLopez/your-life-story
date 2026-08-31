@@ -11,12 +11,16 @@ import {
   type PendingVoiceNote,
 } from "@/modules/life-story/domain/voice-note";
 
+export type FullDictationMode = "append" | "replace";
+
 type Props = {
   locale: "es" | "en";
   entryId?: string;
   aiConsented: boolean;
   disabled?: boolean;
+  onRequestStart?: () => Promise<FullDictationMode | null>;
   onFields: (fields: EntryDictationOutput) => void;
+  onAppendTranscript?: (transcript: string) => void;
   onPendingVoiceNote?: (note: PendingVoiceNote) => void;
   onVoiceSaved?: () => void;
   onError?: (message: string) => void;
@@ -27,18 +31,22 @@ export function ExperienceDictationCard({
   entryId,
   aiConsented,
   disabled,
+  onRequestStart,
   onFields,
+  onAppendTranscript,
   onPendingVoiceNote,
   onVoiceSaved,
   onError,
 }: Props) {
   const [recording, setRecording] = useState(false);
   const [processing, setProcessing] = useState(false);
+  const [activeMode, setActiveMode] = useState<FullDictationMode>("replace");
   const [seconds, setSeconds] = useState(0);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
+  const dictationModeRef = useRef<FullDictationMode>("replace");
 
   const t = locale === "es"
     ? {
@@ -47,6 +55,7 @@ export function ExperienceDictationCard({
         record: "Empezar a hablar",
         stop: "Terminar",
         processing: "Organizando tu historia…",
+        processingAppend: "Transcribiendo…",
         consent: "Activa el consentimiento de IA para dictar.",
         micError: "No se pudo acceder al micrófono.",
         transcribeError: "No se pudo procesar el audio.",
@@ -57,6 +66,7 @@ export function ExperienceDictationCard({
         record: "Start speaking",
         stop: "Finish",
         processing: "Organizing your story…",
+        processingAppend: "Transcribing…",
         consent: "Enable AI consent to dictate.",
         micError: "Could not access the microphone.",
         transcribeError: "Could not process the audio.",
@@ -67,8 +77,38 @@ export function ExperienceDictationCard({
     streamRef.current?.getTracks().forEach((track) => track.stop());
   }, []);
 
+  async function saveVoiceNote(blob: Blob, mimeType: string, fileBase64: string, transcript: string) {
+    const contentType = normalizeAudioContentType(mimeType);
+    const fileName = `full-${Date.now()}.${mimeTypeToExtension(contentType)}`;
+
+    if (entryId) {
+      const { uploadAttachmentAction } = await import("@/modules/life-story/application/life-entry-actions");
+      const result = await uploadAttachmentAction({
+        entryId,
+        fileName,
+        contentType,
+        size: blob.size,
+        fileBase64,
+        fieldKey: "full",
+        transcript,
+      });
+      if (!result.ok) onError?.(result.error);
+      else onVoiceSaved?.();
+    } else {
+      onPendingVoiceNote?.({
+        fieldKey: "full",
+        fileName,
+        contentType,
+        size: blob.size,
+        fileBase64,
+        transcript,
+      });
+    }
+  }
+
   async function handleRecordingStop(blob: Blob, mimeType: string) {
     setProcessing(true);
+    const mode = dictationModeRef.current;
     try {
       const fileBase64 = await blobToBase64(blob);
       const contentType = normalizeAudioContentType(mimeType);
@@ -91,6 +131,12 @@ export function ExperienceDictationCard({
         return;
       }
 
+      if (mode === "append") {
+        onAppendTranscript?.(transcript);
+        await saveVoiceNote(blob, mimeType, fileBase64, transcript);
+        return;
+      }
+
       const dictationResponse = await fetch("/api/ai/entry-dictation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -103,30 +149,7 @@ export function ExperienceDictationCard({
       }
 
       onFields(dictationData);
-
-      if (entryId) {
-        const { uploadAttachmentAction } = await import("@/modules/life-story/application/life-entry-actions");
-        const result = await uploadAttachmentAction({
-          entryId,
-          fileName,
-          contentType,
-          size: blob.size,
-          fileBase64,
-          fieldKey: "full",
-          transcript,
-        });
-        if (!result.ok) onError?.(result.error);
-        else onVoiceSaved?.();
-      } else {
-        onPendingVoiceNote?.({
-          fieldKey: "full",
-          fileName,
-          contentType,
-          size: blob.size,
-          fileBase64,
-          transcript,
-        });
-      }
+      await saveVoiceNote(blob, mimeType, fileBase64, transcript);
     } catch {
       onError?.(t.transcribeError);
     } finally {
@@ -135,11 +158,13 @@ export function ExperienceDictationCard({
     }
   }
 
-  async function startRecording() {
+  async function startRecording(mode: FullDictationMode) {
     if (!aiConsented) {
       onError?.(t.consent);
       return;
     }
+    dictationModeRef.current = mode;
+    setActiveMode(mode);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
@@ -165,12 +190,24 @@ export function ExperienceDictationCard({
     }
   }
 
+  async function handleRecordClick() {
+    if (recording) {
+      stopRecording();
+      return;
+    }
+    const mode = onRequestStart ? await onRequestStart() : "replace";
+    if (!mode) return;
+    await startRecording(mode);
+  }
+
   function stopRecording() {
     if (timerRef.current) clearInterval(timerRef.current);
     mediaRecorderRef.current?.stop();
     mediaRecorderRef.current = null;
     setRecording(false);
   }
+
+  const processingLabel = activeMode === "append" ? t.processingAppend : t.processing;
 
   return (
     <div className="rounded-2xl border border-[var(--line)] bg-gradient-to-br from-[#f8faf5] to-[#fcfdf9] p-4 sm:p-5">
@@ -185,10 +222,10 @@ export function ExperienceDictationCard({
             type="button"
             className="btn btn-primary mt-4"
             disabled={disabled || processing}
-            onClick={() => (recording ? stopRecording() : void startRecording())}
+            onClick={() => void handleRecordClick()}
           >
             {processing ? <LoaderCircle className="animate-spin" size={16} /> : recording ? <Square size={16} /> : <Mic size={16} />}
-            {processing ? t.processing : recording ? `${t.stop} (${seconds}s)` : t.record}
+            {processing ? processingLabel : recording ? `${t.stop} (${seconds}s)` : t.record}
           </button>
         </div>
       </div>

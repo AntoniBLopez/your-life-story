@@ -137,6 +137,12 @@ export async function getAttachmentById(userId: string, attachmentId: string) {
   return record ? mapAttachment(record) : null;
 }
 
+export async function findAttachmentById(attachmentId: string) {
+  const db = await getDb();
+  const record = await db.collection<AttachmentDbRecord>(COLLECTIONS.entryAttachments).findOne({ _id: toObjectId(attachmentId) });
+  return record ? mapAttachment(record) : null;
+}
+
 export async function openAttachmentStream(gridFsId: string) {
   const db = await getDb();
   const bucket = new GridFSBucket(db, { bucketName: GRIDFS_BUCKET });

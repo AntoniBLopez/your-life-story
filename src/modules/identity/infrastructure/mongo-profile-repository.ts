@@ -10,9 +10,27 @@ type ProfileDbRecord = {
   locale: SupportedLocale;
   aiConsentAt: Date | null;
   onboardedAt: Date | null;
+  publicArchiveConsent?: boolean;
+  archiveSlug?: string | null;
+  publishedAt?: Date | null;
+  deceasedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 };
+
+export type ProfileWritableFields = Partial<
+  Pick<
+    ProfileDbRecord,
+    | "displayName"
+    | "locale"
+    | "aiConsentAt"
+    | "onboardedAt"
+    | "publicArchiveConsent"
+    | "archiveSlug"
+    | "publishedAt"
+    | "deceasedAt"
+  >
+>;
 
 function mapProfile(record: ProfileDbRecord): Profile {
   return {
@@ -21,6 +39,10 @@ function mapProfile(record: ProfileDbRecord): Profile {
     locale: record.locale,
     aiConsentAt: record.aiConsentAt?.toISOString() ?? null,
     onboardedAt: record.onboardedAt?.toISOString() ?? null,
+    publicArchiveConsent: Boolean(record.publicArchiveConsent),
+    archiveSlug: record.archiveSlug ?? null,
+    publishedAt: record.publishedAt?.toISOString() ?? null,
+    deceasedAt: record.deceasedAt?.toISOString() ?? null,
   };
 }
 
@@ -33,6 +55,10 @@ export async function createProfile(userId: string, input: { displayName?: strin
     locale: input.locale,
     aiConsentAt: null,
     onboardedAt: null,
+    publicArchiveConsent: false,
+    archiveSlug: null,
+    publishedAt: null,
+    deceasedAt: null,
     createdAt: now,
     updatedAt: now,
   };
@@ -46,7 +72,7 @@ export async function getProfile(userId: string) {
   return record ? mapProfile(record) : null;
 }
 
-export async function upsertProfile(userId: string, fields: Partial<Pick<ProfileDbRecord, "displayName" | "locale" | "aiConsentAt" | "onboardedAt">>) {
+export async function upsertProfile(userId: string, fields: ProfileWritableFields) {
   const db = await getDb();
   const now = new Date();
   await db.collection(COLLECTIONS.profiles).updateOne(
@@ -60,7 +86,7 @@ export async function upsertProfile(userId: string, fields: Partial<Pick<Profile
   return getProfile(userId);
 }
 
-export async function updateProfileFields(userId: string, fields: Partial<Pick<ProfileDbRecord, "displayName" | "locale" | "aiConsentAt" | "onboardedAt">>) {
+export async function updateProfileFields(userId: string, fields: ProfileWritableFields) {
   const db = await getDb();
   await db.collection(COLLECTIONS.profiles).updateOne({ userId }, { $set: { ...fields, updatedAt: new Date() } });
 }

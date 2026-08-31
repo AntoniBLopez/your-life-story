@@ -10,6 +10,7 @@ export const COLLECTIONS = {
   chatThreads: "chat_threads",
   chatMessages: "chat_messages",
   passwordResetTokens: "password_reset_tokens",
+  archivePublicationRequests: "archive_publication_requests",
 } as const;
 
 export const GRIDFS_BUCKET = "life_attachments";
