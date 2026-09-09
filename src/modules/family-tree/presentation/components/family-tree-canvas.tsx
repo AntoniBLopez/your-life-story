@@ -119,14 +119,14 @@ function FamilyTreeCanvasInner({
       <MiniMap
         zoomable
         pannable
-        nodeColor="#fffef9"
-        nodeStrokeColor="#3d654c"
-        nodeBorderRadius={10}
-        nodeStrokeWidth={2}
-        maskColor="rgb(36 74 54 / 0.14)"
-        maskStrokeColor="#3d654c"
-        maskStrokeWidth={1.5}
-        bgColor="#b8c7b3"
+        nodeColor="#2f3b35"
+        nodeStrokeColor="#1e2924"
+        nodeBorderRadius={8}
+        nodeStrokeWidth={1.25}
+        maskColor="rgb(36 49 43 / 0.14)"
+        maskStrokeColor="#8a7f70"
+        maskStrokeWidth={1.25}
+        bgColor="#efe8dc"
       />
     </ReactFlow>
   );

@@ -74,9 +74,9 @@ a { color: inherit; text-decoration: none; }
 .family-tree-canvas-tools .react-flow__controls { position: relative; left: auto; bottom: auto; margin: 0; }
 .family-tree-canvas-tool-btn { display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; border: 1px solid var(--line); border-radius: .9rem; background: #fffef9; color: var(--moss-deep); box-shadow: 0 8px 22px #244a3614; cursor: pointer; }
 .family-tree-canvas-tool-btn:hover { background: #edf3eb; }
-.react-flow__minimap { border: 1px solid #8fa88a; border-radius: 1rem; overflow: hidden; box-shadow: 0 10px 24px #244a3620; background: #b8c7b3; }
-.react-flow__minimap svg { display: block; border-radius: 1rem; }
-.react-flow__minimap-mask { fill: rgb(36 74 54 / 0.14); }
+.react-flow__minimap { border: 1px solid var(--line); border-radius: .9rem; overflow: hidden; box-shadow: 0 8px 22px #244a3614; background: #efe8dc; }
+.react-flow__minimap svg { display: block; border-radius: .9rem; }
+.react-flow__minimap-mask { fill: rgb(36 49 43 / 0.14); stroke: #8a7f70; }
 
 @media (max-width: 720px) {
   .container { width: min(100% - 1.5rem, 1160px); }
