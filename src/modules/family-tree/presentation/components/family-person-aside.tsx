@@ -58,6 +58,7 @@ export function FamilyPersonAside({
   const [timeZone, setTimeZone] = useState("UTC");
   const hasBirth = canRemindBirthday(person.birthDate);
   const hasPreset = presets.length > 0;
+  const isMe = youPersonId ? person.id === youPersonId : person.isSubject;
   const t = locale === "es"
     ? {
         remember: "Recordar cumpleaños",
@@ -188,7 +189,7 @@ export function FamilyPersonAside({
             <dd className="text-right">{labels.shared}</dd>
           </div>
         )}
-        {person.birthdayReminderEnabled && !readOnly && (
+        {person.birthdayReminderEnabled && !readOnly && !isMe && (
           <div className="flex justify-between gap-3">
             <dt className="font-bold text-[var(--muted)]">{locale === "es" ? "Recordatorio" : "Reminder"}</dt>
             <dd className="text-right">{locale === "es" ? "Google Calendar" : "Google Calendar"}</dd>
@@ -198,7 +199,7 @@ export function FamilyPersonAside({
       {!readOnly && (
       <div className="mt-4 flex flex-col gap-2">
         <button className="btn btn-primary w-full" onClick={onEdit}><Pencil size={14} />{labels.edit}</button>
-        {!person.birthdayReminderEnabled && (
+        {!person.birthdayReminderEnabled && !isMe && (
           <span className="w-full" title={!hasBirth ? t.needBirthTooltip : undefined}>
             <button
               disabled={pending || !hasBirth}
@@ -212,7 +213,7 @@ export function FamilyPersonAside({
         )}
       </div>
       )}
-      {!readOnly && setupOpen && !person.birthdayReminderEnabled && (
+      {!readOnly && setupOpen && !person.birthdayReminderEnabled && !isMe && (
         <div className="mt-4 min-w-0 overflow-hidden rounded-xl border border-[var(--line)] bg-[#fbfaf6] p-3">
           <p className="text-sm font-bold text-[var(--ink)]">{t.setupTitle}</p>
           <p className="mt-1 text-xs leading-5 text-[var(--muted)]">{t.setupBody}</p>

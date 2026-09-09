@@ -64,7 +64,12 @@ a { color: inherit; text-decoration: none; }
 .tree-node::after { content: ""; position: absolute; top: 50%; left: 100%; width: 2rem; height: 1px; background: #b5cbb4; }
 .tree-node:nth-child(4n)::after { display: none; }
 .react-flow__node { border-radius: .9rem; border: 1px solid #cbd9ca; background: #fffefa; color: var(--ink); box-shadow: 0 8px 18px #26332b0d; font-size: .78rem; }
-.react-flow__controls { box-shadow: 0 6px 16px #24312b13; }
+.react-flow__controls { border: 1px solid var(--line); border-radius: .9rem; overflow: hidden; box-shadow: 0 8px 22px #244a3614; }
+.react-flow__controls-button { border-bottom: 1px solid var(--line); background: #fffef9; color: var(--moss-deep); }
+.react-flow__controls-button:hover { background: #edf3eb; }
+.react-flow__controls-button:last-child { border-bottom: 0; }
+.react-flow__minimap { border: 1px solid var(--line); border-radius: 1rem; overflow: hidden; box-shadow: 0 10px 24px #244a3616; background: linear-gradient(165deg, #fffef9 0%, #f3f7ef 55%, #eaf1e6 100%); }
+.react-flow__minimap svg { display: block; border-radius: 1rem; }
 
 @media (max-width: 720px) {
   .container { width: min(100% - 1.5rem, 1160px); }

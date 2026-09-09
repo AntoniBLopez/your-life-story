@@ -1,13 +1,15 @@
+import { ObjectId } from "mongodb";
 import { z } from "zod";
 import { RELATIONSHIP_TYPES } from "../domain/family-graph";
 
+const mongoIdSchema = z.string().refine((value) => ObjectId.isValid(value), "Invalid document id.");
 const optionalDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal("")).transform((value) => value || null);
 const optionalText = z.string().trim().max(120).optional().or(z.literal("")).transform((value) => value || null);
-const optionalPersonId = z.string().uuid().optional().or(z.literal("")).transform((value) => value || null);
+const optionalPersonId = mongoIdSchema.optional().or(z.literal("")).transform((value) => value || null);
 
 export const familyNodeLayoutSchema = z.object({
   positions: z.array(z.object({
-    personId: z.string().uuid(),
+    personId: mongoIdSchema,
     x: z.number().finite(),
     y: z.number().finite(),
   })).min(1).max(80),
@@ -42,7 +44,24 @@ export const familyPersonSchema = z.object({
 });
 
 export const familyRelationshipSchema = z.object({
-  sourcePersonId: z.string().uuid(),
-  targetPersonId: z.string().uuid(),
+  sourcePersonId: mongoIdSchema,
+  targetPersonId: mongoIdSchema,
   relationshipType: z.enum(RELATIONSHIP_TYPES),
 });
+
+export function parseFamilyPersonForm(formData: FormData) {
+  return familyPersonSchema.safeParse({
+    fullName: String(formData.get("fullName") ?? ""),
+    birthDate: String(formData.get("birthDate") ?? ""),
+    deathDate: String(formData.get("deathDate") ?? ""),
+    birthCountry: String(formData.get("birthCountry") ?? ""),
+    birthCity: String(formData.get("birthCity") ?? ""),
+    gender: String(formData.get("gender") ?? ""),
+    baptized: String(formData.get("baptized") ?? ""),
+    notes: String(formData.get("notes") ?? ""),
+    email: String(formData.get("email") ?? ""),
+    motherId: String(formData.get("motherId") ?? ""),
+    fatherId: String(formData.get("fatherId") ?? ""),
+    isSubject: formData.get("isSubject") === "on",
+  });
+}
