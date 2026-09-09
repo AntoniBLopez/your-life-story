@@ -100,7 +100,7 @@ export function FamilyPersonReminderEdit({
       {enabled && <input type="hidden" name="birthdayReminderEnabled" value="on" />}
       <button
         type="button"
-        className="flex w-full items-center gap-3 px-4 py-3 text-left"
+        className="flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left"
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
       >

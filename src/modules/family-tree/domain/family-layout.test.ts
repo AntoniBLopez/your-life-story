@@ -66,13 +66,13 @@ describe("family layout", () => {
     expect(sources).not.toContain("stepfather");
   });
 
-  it("restores saved horizontal position but keeps generation row height", () => {
+  it("restores saved node positions over auto layout", () => {
     const { positions: autoPositions } = buildFamilyPositions(blendedFamily, blendedGraph, "subject");
     const peopleWithSavedLayout = blendedFamily.map((person) =>
       person.id === "subject" ? { ...person, layoutX: 420, layoutY: 880 } : person,
     );
     const merged = mergeSavedLayoutPositions(autoPositions, peopleWithSavedLayout);
-    expect(merged.get("subject")).toMatchObject({ x: 420, y: autoPositions.get("subject")!.y });
+    expect(merged.get("subject")).toMatchObject({ x: 420, y: 880 });
   });
 
   it("places the middle child directly below the mother for three siblings", () => {

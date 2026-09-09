@@ -18,24 +18,24 @@ export function FamilyTreeResetLayoutControl({
   const [pending, startTransition] = useTransition();
   const t = locale === "es"
     ? {
-        label: "Reordenar árbol por defecto",
-        title: "Reordenar árbol",
-        body: "Perderás las posiciones actuales de los nodos y se sustituirán por un árbol ordenado por defecto.",
+        label: "Restablecer disposición del árbol",
+        title: "Restablecer disposición del árbol",
+        body: "Solo cambiará cómo están colocados los nodos en el canvas: volverán al diseño automático. Los datos de cada persona (nombre, fechas, vínculos, recordatorios, etc.) no se borran.",
         continue: "Continuar",
-        finalTitle: "¿Seguro?",
-        finalBody: "Esta acción no se puede deshacer. Todos los nodos volverán a su disposición automática.",
-        confirm: "Sí, reordenar árbol",
+        finalTitle: "¿Restablecer disposición?",
+        finalBody: "Se eliminarán los ajustes manuales de posición que hayas hecho arrastrando nodos. El contenido de tu árbol familiar se mantiene intacto.",
+        confirm: "Sí, restablecer disposición",
         back: "Volver",
         cancel: "Cancelar",
       }
     : {
-        label: "Reset tree to default layout",
+        label: "Reset tree layout",
         title: "Reset tree layout",
-        body: "You will lose the current node positions and they will be replaced with the default ordered tree.",
+        body: "Only the node positions on the canvas will change back to the automatic layout. Each person's data (name, dates, relationships, reminders, etc.) is not deleted.",
         continue: "Continue",
-        finalTitle: "Are you sure?",
-        finalBody: "This cannot be undone. Every node will return to the automatic layout.",
-        confirm: "Yes, reset tree",
+        finalTitle: "Reset layout?",
+        finalBody: "Manual position adjustments from dragging nodes will be cleared. Your family tree content stays exactly the same.",
+        confirm: "Yes, reset layout",
         back: "Go back",
         cancel: "Cancel",
       };

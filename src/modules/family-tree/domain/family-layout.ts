@@ -391,12 +391,12 @@ export function mergeSavedLayoutPositions(
 ) {
   const merged = new Map(autoPositions);
   for (const person of people) {
-    if (person.layoutX == null) continue;
+    if (person.layoutX == null || person.layoutY == null) continue;
     const current = merged.get(person.id);
     if (!current) continue;
     merged.set(person.id, {
       x: person.layoutX,
-      y: current.y,
+      y: person.layoutY,
       generation: current.generation,
     });
   }
