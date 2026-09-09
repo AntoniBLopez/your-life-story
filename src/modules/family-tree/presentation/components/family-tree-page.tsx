@@ -188,7 +188,6 @@ function FamilyNode({ person, label, locale, isYou, sharedView, hideContact }: {
     {baptism && <span className="block text-[10px] font-semibold text-[#8a5a3d]">{baptism}</span>}
     {hasDates && <span className="flex w-full items-center justify-center gap-1.5 text-center text-[10px] font-semibold tabular-nums text-[var(--muted)]"><CalendarDays size={13} className="shrink-0 text-[var(--moss)]" />{formatNodeDate(person.birthDate)} <span className="text-[#b7a99a]">/</span> {formatNodeDate(person.deathDate)}</span>}
     {(person.birthCity || person.birthCountry) && <span className="flex w-full items-center justify-center gap-1.5 truncate text-center text-[10px] font-medium text-[var(--muted)]"><MapPin size={13} className="shrink-0 text-[#b7835f]" />{person.birthCity}{person.birthCity && person.birthCountry ? ", " : ""}{person.birthCountry}</span>}
-    {person.notes && <span className="block px-1 text-[10px] leading-4 text-[var(--muted)]">{person.notes}</span>}
     {!hideContact && person.birthdayReminderEnabled && <span className="flex w-full items-center justify-center gap-1.5 text-[10px] font-semibold text-[var(--moss-deep)]"><Cake size={12} className="shrink-0" />{locale === "es" ? "Aviso de cumpleaños" : "Birthday reminder"}</span>}
     {!hideContact && (person.email || person.canReadTimeline) && (
       <span className="flex w-full items-center justify-center gap-1.5 truncate text-[10px] font-semibold text-[var(--moss-deep)]">
