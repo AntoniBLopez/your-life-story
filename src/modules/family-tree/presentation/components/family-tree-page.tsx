@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useNodesState, type Edge, type Node } from "@xyflow/react";
 import { Cake, CalendarDays, Download, HeartHandshake, Mail, MapPin, Upload, UserPlus, UsersRound } from "lucide-react";
 import { createFamilyPersonAction, importBassolsFamilySeedAction, importGedcomAction, updateFamilyPersonAction } from "@/modules/family-tree/application/family-actions";
-import type { BirthdayReminderPreset } from "@/modules/family-tree/domain/birthday-reminder";
+import { birthdayCelebrationOn, type BirthdayReminderPreset } from "@/modules/family-tree/domain/birthday-reminder";
 import { familyAvatarUrl, hasFamilyAvatar, relationToSubject, resolveParentSlots, type FamilyPerson, type FamilyRelationship } from "@/modules/family-tree/domain/family-graph";
 import { buildFamilyPositions, FAMILY_LAYOUT, filterParentEdgesForDisplay, listPartnerLinks, mergeSavedLayoutPositions, orientPartnerEdge } from "@/modules/family-tree/domain/family-layout";
 import { FamilyTreeCanvas } from "@/modules/family-tree/presentation/components/family-tree-canvas";
@@ -54,7 +54,8 @@ export function FamilyTreePage({ locale, people, relationships, readOnly, embedd
     [people, selectedPerson],
   );
 
-  const graph = useMemo(() => buildGraph(people, relationships, subject?.id, locale, youPersonId, Boolean(readOnly)), [people, relationships, subject?.id, locale, youPersonId, readOnly]);
+  const today = useLocalDateKey();
+  const graph = useMemo(() => buildGraph(people, relationships, subject?.id, locale, youPersonId, Boolean(readOnly), today), [people, relationships, subject?.id, locale, youPersonId, readOnly, today]);
   const [nodes, setNodes, onNodesChange] = useNodesState(graph.nodes);
   const [, startLayoutTransition] = useTransition();
   const manualNodeIds = useRef(new Set<string>());
@@ -107,7 +108,24 @@ export function FamilyTreePage({ locale, people, relationships, readOnly, embedd
   </div>;
 }
 
-function buildGraph(people: FamilyPerson[], relationships: FamilyRelationship[], subjectId: string | undefined, locale: "es" | "en", youPersonId?: string, hideContact?: boolean) {
+/** Undefined until mounted so the server never renders a date that the browser disagrees with. */
+function useLocalDateKey() {
+  const [today, setToday] = useState<string>();
+
+  useEffect(() => {
+    function readToday() {
+      const now = new Date();
+      setToday(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`);
+    }
+    readToday();
+    const timer = setInterval(readToday, 60_000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return today;
+}
+
+function buildGraph(people: FamilyPerson[], relationships: FamilyRelationship[], subjectId: string | undefined, locale: "es" | "en", youPersonId?: string, hideContact?: boolean, today?: string) {
   const { positions: autoPositions } = buildFamilyPositions(people, relationships, subjectId);
   const positions = mergeSavedLayoutPositions(autoPositions, people);
   const relationReferenceId = youPersonId ?? subjectId;
@@ -115,16 +133,18 @@ function buildGraph(people: FamilyPerson[], relationships: FamilyRelationship[],
     const position = positions.get(person.id) ?? { x: 0, y: FAMILY_LAYOUT.paddingY };
     const isYou = youPersonId ? person.id === youPersonId : person.isSubject;
     const relationLabel = relationToSubject(person.id, relationReferenceId, relationships, people, locale);
+    const birthday = today ? birthdayCelebrationOn(person, today) : { celebrating: false, age: null };
     return {
       id: person.id,
       type: "familyPerson",
       position: { x: position.x, y: position.y },
+      className: birthday.celebrating ? "family-node--birthday" : undefined,
       style: {
         width: FAMILY_LAYOUT.nodeWidth,
-        ...(isYou ? { border: "2px solid #3d654c", background: "#eef5ec", boxShadow: "0 0 0 4px #dbe8d8, 0 12px 24px #244a3630" } : {}),
+        ...(isYou && !birthday.celebrating ? { border: "2px solid #3d654c", background: "#eef5ec", boxShadow: "0 0 0 4px #dbe8d8, 0 12px 24px #244a3630" } : {}),
       },
       data: {
-        label: <FamilyNode person={person} label={relationLabel} locale={locale} isYou={isYou} sharedView={Boolean(youPersonId)} hideContact={hideContact} />,
+        label: <FamilyNode person={person} label={relationLabel} locale={locale} isYou={isYou} sharedView={Boolean(youPersonId)} hideContact={hideContact} birthdayAge={birthday.celebrating ? birthday.age : undefined} isBirthday={birthday.celebrating} />,
       },
     };
   });
@@ -170,13 +190,24 @@ function baptizedLabel(person: FamilyPerson, locale: "es" | "en") {
   return null;
 }
 
-function FamilyNode({ person, label, locale, isYou, sharedView, hideContact }: { person: FamilyPerson; label: string; locale: "es" | "en"; isYou: boolean; sharedView?: boolean; hideContact?: boolean }) {
+function birthdayLabel(age: number | null | undefined, locale: "es" | "en") {
+  if (typeof age !== "number") return locale === "es" ? "Hoy es su cumpleaños" : "Birthday today";
+  return locale === "es" ? `Hoy cumple ${age}` : `Turns ${age} today`;
+}
+
+function FamilyNode({ person, label, locale, isYou, sharedView, hideContact, isBirthday, birthdayAge }: { person: FamilyPerson; label: string; locale: "es" | "en"; isYou: boolean; sharedView?: boolean; hideContact?: boolean; isBirthday?: boolean; birthdayAge?: number | null }) {
   const hasDates = person.birthDate || person.deathDate;
   const baptism = baptizedLabel(person, locale);
   const relationStyle = isYou ? "bg-[var(--moss-deep)] text-white" : "bg-[#f4eee5] text-[#765b43]";
   const youBadge = sharedView ? (locale === "es" ? "ERES TÚ" : "YOU") : (locale === "es" ? "TÚ" : "YOU");
   const badge = isYou ? youBadge : person.isSubject && sharedView ? (locale === "es" ? "Protagonista" : "Storyteller") : label;
   return <div className="min-w-52 max-w-56 space-y-2 p-1 text-center">
+    {isBirthday && (
+      <span className="family-node-birthday-badge">
+        <Cake size={11} className="shrink-0" />
+        {birthdayLabel(birthdayAge, locale)}
+      </span>
+    )}
     {hasFamilyAvatar(person) && (
       <img
         src={familyAvatarUrl(person.id)}
@@ -189,7 +220,7 @@ function FamilyNode({ person, label, locale, isYou, sharedView, hideContact }: {
     {baptism && <span className="block text-[10px] font-semibold text-[#8a5a3d]">{baptism}</span>}
     {hasDates && <span className="flex w-full items-center justify-center gap-1.5 text-center text-[10px] font-semibold tabular-nums text-[var(--muted)]"><CalendarDays size={13} className="shrink-0 text-[var(--moss)]" />{formatNodeDate(person.birthDate)} <span className="text-[#b7a99a]">/</span> {formatNodeDate(person.deathDate)}</span>}
     {(person.birthCity || person.birthCountry) && <span className="flex w-full items-center justify-center gap-1.5 truncate text-center text-[10px] font-medium text-[var(--muted)]"><MapPin size={13} className="shrink-0 text-[#b7835f]" />{person.birthCity}{person.birthCity && person.birthCountry ? ", " : ""}{person.birthCountry}</span>}
-    {!hideContact && person.birthdayReminderEnabled && <span className="flex w-full items-center justify-center gap-1.5 text-[10px] font-semibold text-[var(--moss-deep)]"><Cake size={12} className="shrink-0" />{locale === "es" ? "Aviso de cumpleaños" : "Birthday reminder"}</span>}
+    {!hideContact && !isBirthday && person.birthdayReminderEnabled && <span className="flex w-full items-center justify-center gap-1.5 text-[10px] font-semibold text-[var(--moss-deep)]"><Cake size={12} className="shrink-0" />{locale === "es" ? "Aviso de cumpleaños" : "Birthday reminder"}</span>}
     {!hideContact && (person.email || person.canReadTimeline) && (
       <span className="flex w-full items-center justify-center gap-1.5 truncate text-[10px] font-semibold text-[var(--moss-deep)]">
         <Mail size={12} className="shrink-0" />

@@ -93,6 +93,40 @@ export function reminderCivilDate(birthDate: string, offset: BirthdayReminderOff
   return shiftCivilDate(year, month, day, offset);
 }
 
+/** Feb 29 birthdays land on the last day of February on non-leap years. */
+export function birthdayOccurrence(birthDate: string, year: number) {
+  const [, month, day] = birthDate.split("-").map(Number);
+  return civilDate(year, month, day);
+}
+
+export type BirthdayCelebration = {
+  celebrating: boolean;
+  age: number | null;
+};
+
+const NOT_CELEBRATING: BirthdayCelebration = { celebrating: false, age: null };
+
+/** A living person with a known day of birth celebrates on `today` (both dates as YYYY-MM-DD). */
+export function birthdayCelebrationOn(
+  person: {
+    birthDate?: string | null;
+    birthDatePrecision?: "day" | "month" | "year" | null;
+    deathDate?: string | null;
+  },
+  today: string,
+): BirthdayCelebration {
+  const birthDate = person.birthDate ?? "";
+  if (!canRemindBirthday(birthDate) || !canRemindBirthday(today)) return NOT_CELEBRATING;
+  if (person.deathDate) return NOT_CELEBRATING;
+  if (person.birthDatePrecision === "month" || person.birthDatePrecision === "year") return NOT_CELEBRATING;
+
+  const year = Number(today.slice(0, 4));
+  if (birthdayOccurrence(birthDate, year) !== today) return NOT_CELEBRATING;
+
+  const age = year - Number(birthDate.slice(0, 4));
+  return { celebrating: true, age: age > 0 && age < 130 ? age : null };
+}
+
 export function reminderDateTime(birthDate: string, offset: BirthdayReminderOffset, year: number) {
   const date = reminderCivilDate(birthDate, offset, year);
   return `${date}T${padTime(offset.hour)}:${padTime(offset.minute)}:00`;
