@@ -13,13 +13,14 @@ export async function importBassolsFamilySeed(userId: string) {
   }
 
   for (const relationship of BASSOLS_FAMILY_SEED.relationships) {
+    if (relationship.relationshipType !== "parent") continue;
     const sourcePersonId = idByKey.get(relationship.sourceKey);
     const targetPersonId = idByKey.get(relationship.targetKey);
     if (!sourcePersonId || !targetPersonId) continue;
     await repository.addRelationship(userId, {
       sourcePersonId,
       targetPersonId,
-      relationshipType: relationship.relationshipType,
+      relationshipType: "parent",
     });
   }
 }

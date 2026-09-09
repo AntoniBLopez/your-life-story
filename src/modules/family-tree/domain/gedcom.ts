@@ -1,11 +1,11 @@
-import type { FamilyPerson, FamilyRelationship } from "./family-graph";
+import { impliedCoParentPairs, inferGender, type FamilyPerson, type FamilyRelationship } from "./family-graph";
 
 export type GedcomPerson = Omit<FamilyPerson, "id" | "userId" | "isSubject"> & { gedcomId: string };
 
 export type GedcomRelationship = {
   sourceGedcomId: string;
   targetGedcomId: string;
-  relationshipType: "parent" | "partner";
+  relationshipType: "parent";
 };
 
 export type GedcomImport = {
@@ -88,13 +88,36 @@ export function parseGedcom(source: string): GedcomImport {
   const validIds = new Set(validPeople.map((person) => person.gedcomId));
   const relationships: GedcomRelationship[] = [];
   for (const family of families) {
-    if (family.husband && family.wife && validIds.has(family.husband) && validIds.has(family.wife)) relationships.push({ sourceGedcomId: family.husband, targetGedcomId: family.wife, relationshipType: "partner" });
     for (const child of family.children) {
       if (!validIds.has(child)) continue;
-      for (const parent of [family.husband, family.wife]) if (parent && validIds.has(parent)) relationships.push({ sourceGedcomId: parent, targetGedcomId: child, relationshipType: "parent" });
+      for (const parent of [family.husband, family.wife]) {
+        if (parent && validIds.has(parent)) {
+          relationships.push({ sourceGedcomId: parent, targetGedcomId: child, relationshipType: "parent" });
+        }
+      }
     }
   }
   return { people: validPeople, relationships };
+}
+
+function parentsByChild(relationships: FamilyRelationship[]) {
+  const parentsByChild = new Map<string, string[]>();
+  for (const relationship of relationships) {
+    if (relationship.relationshipType !== "parent") continue;
+    parentsByChild.set(relationship.targetPersonId, [...(parentsByChild.get(relationship.targetPersonId) ?? []), relationship.sourcePersonId]);
+  }
+  return parentsByChild;
+}
+
+function spouseRoles(personId: string, otherId: string, peopleById: Map<string, FamilyPerson>) {
+  const person = peopleById.get(personId);
+  const other = peopleById.get(otherId);
+  const personGender = inferGender(person ?? { fullName: "", gender: null });
+  const otherGender = inferGender(other ?? { fullName: "", gender: null });
+  if (personGender === "male") return { husband: personId, wife: otherId };
+  if (otherGender === "male") return { husband: otherId, wife: personId };
+  if (personGender === "female") return { husband: otherId, wife: personId };
+  return { husband: personId, wife: otherId };
 }
 
 export function toGedcom(people: FamilyPerson[], relationships: FamilyRelationship[]) {
@@ -108,8 +131,48 @@ export function toGedcom(people: FamilyPerson[], relationships: FamilyRelationsh
     if (person.baptized === true) lines.push("1 _BAPT Y");
     if (person.baptized === false) lines.push("1 _BAPT N");
   }
-  for (const relationship of relationships.filter((item) => item.relationshipType === "partner")) lines.push(`0 @F${relationship.id}@ FAM`, `1 HUSB @${relationship.sourcePersonId}@`, `1 WIFE @${relationship.targetPersonId}@`);
-  for (const relationship of relationships.filter((item) => item.relationshipType === "parent")) lines.push(`0 @F${relationship.id}@ FAM`, `1 HUSB @${relationship.sourcePersonId}@`, `1 CHIL @${relationship.targetPersonId}@`);
+
+  const peopleById = new Map(people.map((person) => [person.id, person]));
+  const byChild = parentsByChild(relationships);
+  const families = new Map<string, { parentIds: string[]; children: string[] }>();
+
+  for (const [childId, parentIds] of byChild) {
+    const uniqueParents = [...new Set(parentIds)].sort();
+    const key = uniqueParents.join("::");
+    const family = families.get(key) ?? { parentIds: uniqueParents, children: [] };
+    family.children.push(childId);
+    families.set(key, family);
+  }
+
+  let familyIndex = 0;
+  for (const family of families.values()) {
+    const famId = `F${familyIndex += 1}`;
+    lines.push(`0 @${famId}@ FAM`);
+    if (family.parentIds.length === 2) {
+      const { husband, wife } = spouseRoles(family.parentIds[0], family.parentIds[1], peopleById);
+      lines.push(`1 HUSB @${husband}@`, `1 WIFE @${wife}@`);
+    } else if (family.parentIds.length === 1) {
+      const parentId = family.parentIds[0];
+      const gender = inferGender(peopleById.get(parentId) ?? { fullName: "", gender: null });
+      lines.push(gender === "female" ? `1 WIFE @${parentId}@` : `1 HUSB @${parentId}@`);
+    }
+    for (const childId of family.children) lines.push(`1 CHIL @${childId}@`);
+  }
+
+  for (const pair of impliedCoParentPairs(relationships)) {
+    const [left, right] = pair.split("::");
+    const key = [left, right].sort().join("::");
+    const hasFamily = [...families.keys()].some((familyKey) => {
+      const parents = familyKey.split("::");
+      return parents.includes(left) && parents.includes(right);
+    });
+    if (!hasFamily) {
+      const famId = `F${familyIndex += 1}`;
+      const { husband, wife } = spouseRoles(left, right, peopleById);
+      lines.push(`0 @${famId}@ FAM`, `1 HUSB @${husband}@`, `1 WIFE @${wife}@`);
+    }
+  }
+
   lines.push("0 TRLR");
   return `${lines.join("\r\n")}\r\n`;
 }

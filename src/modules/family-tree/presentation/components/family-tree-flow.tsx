@@ -2,15 +2,10 @@
 
 import type { ReactNode } from "react";
 import { BaseEdge, EdgeLabelRenderer, getStraightPath, Handle, Position, type EdgeProps, type NodeProps } from "@xyflow/react";
-import { Heart, HeartHandshake } from "lucide-react";
-import type { PartnerLinkKind } from "@/modules/family-tree/domain/family-layout";
+import { HeartHandshake } from "lucide-react";
 
 type FamilyPersonNodeData = {
   label: ReactNode;
-};
-
-type FamilyPartnerEdgeData = {
-  kind: PartnerLinkKind;
 };
 
 export function FamilyPersonNode({ data }: NodeProps) {
@@ -32,12 +27,8 @@ export function FamilyPartnerEdge({
   sourceY,
   targetX,
   targetY,
-  data,
 }: EdgeProps) {
-  const edgeData = (data ?? {}) as FamilyPartnerEdgeData;
   const [edgePath, labelX, labelY] = getStraightPath({ sourceX, sourceY, targetX, targetY });
-  const isPartner = edgeData.kind === "partner";
-  const Icon = isPartner ? HeartHandshake : Heart;
 
   return (
     <>
@@ -47,7 +38,6 @@ export function FamilyPartnerEdge({
         style={{
           stroke: "#c89f78",
           strokeWidth: 1.5,
-          strokeDasharray: isPartner ? undefined : "6 4",
         }}
       />
       <EdgeLabelRenderer>
@@ -59,7 +49,7 @@ export function FamilyPartnerEdge({
             pointerEvents: "none",
           }}
         >
-          <Icon size={14} strokeWidth={2.25} aria-hidden />
+          <HeartHandshake size={14} strokeWidth={2.25} aria-hidden />
         </div>
       </EdgeLabelRenderer>
     </>

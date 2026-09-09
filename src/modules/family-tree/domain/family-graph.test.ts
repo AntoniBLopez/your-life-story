@@ -34,12 +34,11 @@ const graph: FamilyRelationship[] = [
   { id: "r6", userId: "u", sourcePersonId: "mother", targetPersonId: "sister", relationshipType: "parent" },
   { id: "r7", userId: "u", sourcePersonId: "mother", targetPersonId: "half-brother", relationshipType: "parent" },
   { id: "r8", userId: "u", sourcePersonId: "stepfather", targetPersonId: "half-brother", relationshipType: "parent" },
-  { id: "r9", userId: "u", sourcePersonId: "mother", targetPersonId: "stepfather", relationshipType: "partner" },
   { id: "r10", userId: "u", sourcePersonId: "subject", targetPersonId: "child", relationshipType: "parent" },
   { id: "r11", userId: "u", sourcePersonId: "child", targetPersonId: "grandchild", relationshipType: "parent" },
   { id: "r12", userId: "u", sourcePersonId: "sister", targetPersonId: "nephew", relationshipType: "parent" },
-  { id: "r13", userId: "u", sourcePersonId: "subject", targetPersonId: "partner", relationshipType: "partner" },
-  { id: "r14", userId: "u", sourcePersonId: "mother-in-law", targetPersonId: "partner", relationshipType: "parent" },
+  { id: "r14", userId: "u", sourcePersonId: "partner", targetPersonId: "child", relationshipType: "parent" },
+  { id: "r15", userId: "u", sourcePersonId: "mother-in-law", targetPersonId: "partner", relationshipType: "parent" },
 ];
 
 describe("family graph", () => {

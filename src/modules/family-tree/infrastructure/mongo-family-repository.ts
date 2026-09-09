@@ -128,7 +128,9 @@ export class MongoFamilyRepository implements FamilyRepository {
   async listRelationships(userId: string) {
     const db = await this.db();
     const rows = await db.collection<FamilyRelationshipDbRecord>(COLLECTIONS.familyRelationships).find({ userId }).toArray();
-    return rows.map(mapRelationship);
+    return rows
+      .filter((row) => (row.relationshipType as string) !== "partner")
+      .map(mapRelationship);
   }
 
   async addPerson(userId: string, person: Omit<FamilyPerson, "id" | "userId">) {

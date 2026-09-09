@@ -1,4 +1,4 @@
-import { inferGender, type FamilyPerson, type FamilyRelationship } from "./family-graph";
+import { impliedCoParentPairs, inferGender, type FamilyPerson, type FamilyRelationship } from "./family-graph";
 
 export const FAMILY_LAYOUT = {
   horizontalGap: 290,
@@ -29,12 +29,6 @@ function childrenOf(personId: string, relationships: FamilyRelationship[]) {
   return relationships
     .filter((item) => item.relationshipType === "parent" && item.sourcePersonId === personId)
     .map((item) => item.targetPersonId);
-}
-
-function partnersOf(personId: string, relationships: FamilyRelationship[]) {
-  return relationships
-    .filter((item) => item.relationshipType === "partner" && (item.sourcePersonId === personId || item.targetPersonId === personId))
-    .map((item) => (item.sourcePersonId === personId ? item.targetPersonId : item.sourcePersonId));
 }
 
 export function computeGenerations(
@@ -95,9 +89,6 @@ function coParentsAtLevel(personId: string, level: number, groups: Map<number, F
       if (parentId === personId) continue;
       if (getPersonLevel(parentId, groups) === level) result.add(parentId);
     }
-  }
-  for (const partnerId of partnersOf(personId, relationships)) {
-    if (getPersonLevel(partnerId, groups) === level) result.add(partnerId);
   }
   return [...result];
 }
@@ -254,73 +245,18 @@ export function assignHorizontalPositions(groups: Map<number, FamilyPerson[]>, h
   return assignPyramidPositions(groups, [], people, horizontalGap);
 }
 
-function pairKey(left: string, right: string) {
-  return [left, right].sort().join("::");
-}
-
-export function impliedCoParentPairs(relationships: FamilyRelationship[]) {
-  const parentsByChild = new Map<string, string[]>();
-  for (const relationship of relationships) {
-    if (relationship.relationshipType !== "parent") continue;
-    parentsByChild.set(relationship.targetPersonId, [...(parentsByChild.get(relationship.targetPersonId) ?? []), relationship.sourcePersonId]);
-  }
-
-  const pairs = new Set<string>();
-  for (const parentIds of parentsByChild.values()) {
-    const uniqueParents = [...new Set(parentIds)];
-    for (let index = 0; index < uniqueParents.length; index += 1) {
-      for (let other = index + 1; other < uniqueParents.length; other += 1) {
-        pairs.add(pairKey(uniqueParents[index], uniqueParents[other]));
-      }
-    }
-  }
-  return pairs;
-}
-
-export function listImpliedCoParentEdges(relationships: FamilyRelationship[]) {
-  const explicitPartners = new Set(
-    relationships
-      .filter((relationship) => relationship.relationshipType === "partner")
-      .map((relationship) => pairKey(relationship.sourcePersonId, relationship.targetPersonId)),
-  );
-
-  return [...impliedCoParentPairs(relationships)]
-    .filter((pair) => !explicitPartners.has(pair))
-    .map((pair) => {
-      const [source, target] = pair.split("::");
-      return { source, target };
-    });
-}
-
-export type PartnerLinkKind = "partner" | "co-parent";
-
 export type PartnerLink = {
   id: string;
   source: string;
   target: string;
-  kind: PartnerLinkKind;
 };
 
-/** Partner links for display: explicit couples plus implied co-parents of shared children. */
+/** Partner links for display: inferred when two people are mother and father of the same child. */
 export function listPartnerLinks(relationships: FamilyRelationship[]): PartnerLink[] {
-  const explicitPartners = relationships
-    .filter((relationship) => relationship.relationshipType === "partner")
-    .map((relationship) => ({
-      id: relationship.id,
-      source: relationship.sourcePersonId,
-      target: relationship.targetPersonId,
-      kind: "partner" as const,
-    }));
-
-  const explicitKeys = new Set(explicitPartners.map((link) => pairKey(link.source, link.target)));
-  const implied = listImpliedCoParentEdges(relationships).map((pair, index) => ({
-    id: `co-parent-${index}`,
-    source: pair.source,
-    target: pair.target,
-    kind: "co-parent" as const,
-  }));
-
-  return [...explicitPartners, ...implied.filter((link) => !explicitKeys.has(pairKey(link.source, link.target)))];
+  return [...impliedCoParentPairs(relationships)].map((pair, index) => {
+    const [source, target] = pair.split("::");
+    return { id: `co-parent-${index}`, source, target };
+  });
 }
 
 /** Only mothers connect to children when a mother exists; otherwise keep all parent links. */

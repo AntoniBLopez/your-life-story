@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { relationToSubject, type FamilyPerson, type FamilyRelationship } from "./family-graph";
 import { BASSOLS_FAMILY_SEED } from "./bassols-family-seed";
-import { assignPyramidPositions, buildFamilyPositions, computeGenerations, FAMILY_LAYOUT, filterParentEdgesForDisplay, mergeSavedLayoutPositions } from "./family-layout";
+import { assignPyramidPositions, buildFamilyPositions, computeGenerations, FAMILY_LAYOUT, filterParentEdgesForDisplay, listPartnerLinks, mergeSavedLayoutPositions } from "./family-layout";
 
 function average(values: number[]) {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
@@ -56,6 +56,12 @@ describe("family layout", () => {
     expect(positions.get("father")!.y).toBeLessThan(positions.get("subject")!.y);
     expect(positions.get("mother")!.y).toBeLessThan(positions.get("subject")!.y);
     expect(positions.get("subject")!.y).toBe(positions.get("sister")!.y);
+  });
+
+  it("infers partner links only from shared parents of a child", () => {
+    const links = listPartnerLinks(blendedGraph);
+    const keys = links.map((link) => [link.source, link.target].sort().join("::"));
+    expect(keys).toEqual(["father::mother", "mother::stepfather"]);
   });
 
   it("keeps only mother-to-child parent edges when a mother exists", () => {

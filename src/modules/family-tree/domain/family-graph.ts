@@ -1,4 +1,4 @@
-export const RELATIONSHIP_TYPES = ["parent", "partner", "sibling"] as const;
+export const RELATIONSHIP_TYPES = ["parent", "sibling"] as const;
 export type RelationshipType = (typeof RELATIONSHIP_TYPES)[number];
 
 export type PersonGender = "male" | "female" | null;
@@ -129,10 +129,37 @@ function childrenOf(personId: string, relationships: FamilyRelationship[]) {
     .map((item) => item.targetPersonId);
 }
 
-function partnersOf(personId: string, relationships: FamilyRelationship[]) {
-  return relationships
-    .filter((item) => item.relationshipType === "partner" && (item.sourcePersonId === personId || item.targetPersonId === personId))
-    .map((item) => (item.sourcePersonId === personId ? item.targetPersonId : item.sourcePersonId));
+function pairKey(left: string, right: string) {
+  return [left, right].sort().join("::");
+}
+
+export function impliedCoParentPairs(relationships: FamilyRelationship[]) {
+  const parentsByChild = new Map<string, string[]>();
+  for (const relationship of relationships) {
+    if (relationship.relationshipType !== "parent") continue;
+    parentsByChild.set(relationship.targetPersonId, [...(parentsByChild.get(relationship.targetPersonId) ?? []), relationship.sourcePersonId]);
+  }
+
+  const pairs = new Set<string>();
+  for (const parentIds of parentsByChild.values()) {
+    const uniqueParents = [...new Set(parentIds)];
+    for (let index = 0; index < uniqueParents.length; index += 1) {
+      for (let other = index + 1; other < uniqueParents.length; other += 1) {
+        pairs.add(pairKey(uniqueParents[index], uniqueParents[other]));
+      }
+    }
+  }
+  return pairs;
+}
+
+export function coParentsOf(personId: string, relationships: FamilyRelationship[]) {
+  const result = new Set<string>();
+  for (const childId of childrenOf(personId, relationships)) {
+    for (const parentId of parentsOf(childId, relationships)) {
+      if (parentId !== personId) result.add(parentId);
+    }
+  }
+  return [...result];
 }
 
 function explicitSiblingsOf(personId: string, relationships: FamilyRelationship[]) {
@@ -161,12 +188,6 @@ function stepParentsOf(subjectId: string, relationships: FamilyRelationship[]) {
 
     for (const parentId of siblingParents) {
       if (!subjectParentSet.has(parentId)) result.add(parentId);
-    }
-  }
-
-  for (const parentId of subjectParentSet) {
-    for (const partnerId of partnersOf(parentId, relationships)) {
-      if (!subjectParentSet.has(partnerId)) result.add(partnerId);
     }
   }
 
@@ -273,7 +294,7 @@ export function relationToSubject(
       : { male: "SON", female: "DAUGHTER", neutral: "CHILD" });
   }
 
-  if (partnersOf(subjectId, relationships).includes(personId)) {
+  if (coParentsOf(subjectId, relationships).includes(personId)) {
     return genderedLabel(gender, es
       ? { male: "PAREJA", female: "PAREJA", neutral: "PAREJA" }
       : { male: "PARTNER", female: "PARTNER", neutral: "PARTNER" });
@@ -393,8 +414,8 @@ export function relationToSubject(
       : { male: "SECOND COUSIN", female: "SECOND COUSIN", neutral: "SECOND COUSIN" });
   }
 
-  const subjectPartner = partnersOf(subjectId, relationships);
-  for (const partnerId of subjectPartner) {
+  const subjectCoParents = coParentsOf(subjectId, relationships);
+  for (const partnerId of subjectCoParents) {
     if (parentsOf(partnerId, relationships).includes(personId)) {
       return genderedLabel(gender, es
         ? { male: "SUEGRO", female: "SUEGRA", neutral: "SUEGRO/A" }
@@ -408,7 +429,7 @@ export function relationToSubject(
   }
 
   for (const childId of childrenOf(subjectId, relationships)) {
-    if (partnersOf(childId, relationships).includes(personId)) {
+    if (coParentsOf(childId, relationships).includes(personId)) {
       return genderedLabel(gender, es
         ? { male: "YERNO", female: "NUERA", neutral: "YERNO/NUERA" }
         : { male: "SON-IN-LAW", female: "DAUGHTER-IN-LAW", neutral: "CHILD-IN-LAW" });

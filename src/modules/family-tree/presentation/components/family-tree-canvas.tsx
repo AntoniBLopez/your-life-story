@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition, type MouseEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Background, Controls, MiniMap, ReactFlow, ReactFlowProvider, useReactFlow, type Edge, type Node, type OnNodeDrag, type OnNodesChange, type SelectionDragHandler } from "@xyflow/react";
 import { Check, LoaderCircle, X } from "lucide-react";
@@ -49,6 +49,31 @@ function FamilyTreeInitialViewport({ subjectId, nodes }: { subjectId?: string; n
   }, [nodes, setCenter, subjectId]);
 
   return null;
+}
+
+function FamilyTreeMiniMap() {
+  const { getViewport, setCenter } = useReactFlow();
+
+  const handleClick = useCallback((_event: MouseEvent, position: { x: number; y: number }) => {
+    const { zoom } = getViewport();
+    setCenter(position.x, position.y, { zoom, duration: 200 });
+  }, [getViewport, setCenter]);
+
+  return (
+    <MiniMap
+      zoomable
+      pannable
+      onClick={handleClick}
+      nodeColor="#fffef9"
+      nodeStrokeColor="#b7b0a6"
+      nodeBorderRadius={8}
+      nodeStrokeWidth={1.5}
+      maskColor="rgb(36 49 43 / 0.08)"
+      maskStrokeColor="#c4bdb3"
+      maskStrokeWidth={1.25}
+      bgColor="#e4dfd5"
+    />
+  );
 }
 
 function FamilyTreeCanvasInner({
@@ -234,18 +259,7 @@ function FamilyTreeCanvasInner({
         <Controls />
         {!readOnly && <FamilyTreeResetLayoutControl locale={locale} onReset={handleLayoutsReset} />}
       </div>
-      <MiniMap
-        zoomable
-        pannable
-        nodeColor="#fffef9"
-        nodeStrokeColor="#b7b0a6"
-        nodeBorderRadius={8}
-        nodeStrokeWidth={1.5}
-        maskColor="rgb(36 49 43 / 0.08)"
-        maskStrokeColor="#c4bdb3"
-        maskStrokeWidth={1.25}
-        bgColor="#e4dfd5"
-      />
+      <FamilyTreeMiniMap />
     </ReactFlow>
   );
 }

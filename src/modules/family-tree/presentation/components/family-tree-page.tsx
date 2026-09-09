@@ -147,7 +147,6 @@ function buildGraph(people: FamilyPerson[], relationships: FamilyRelationship[],
       target: oriented.target,
       sourceHandle: oriented.sourceHandle,
       targetHandle: oriented.targetHandle,
-      data: { kind: link.kind },
     };
   });
 
