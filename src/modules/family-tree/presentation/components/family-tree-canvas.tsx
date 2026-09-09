@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Background, Controls, MiniMap, ReactFlow, ReactFlowProvider, useReactFlow, type Edge, type Node, type OnNodeDrag, type OnNodesChange } from "@xyflow/react";
+import { Background, Controls, MiniMap, ReactFlow, ReactFlowProvider, useReactFlow, type Edge, type Node, type OnNodeDrag, type OnNodesChange, type SelectionDragHandler } from "@xyflow/react";
 import { Check, LoaderCircle, X } from "lucide-react";
 import { saveFamilyNodeLayoutsAction } from "@/modules/family-tree/application/family-actions";
 import { FAMILY_LAYOUT } from "@/modules/family-tree/domain/family-layout";
+import { FamilyTreeCanvasToolModeControl, type FamilyTreeCanvasToolMode } from "@/modules/family-tree/presentation/components/family-tree-canvas-tool-mode-control";
 import { familyTreeEdgeTypes, familyTreeNodeTypes } from "@/modules/family-tree/presentation/components/family-tree-flow";
 import { FamilyTreeResetLayoutControl } from "@/modules/family-tree/presentation/components/family-tree-reset-layout-control";
 
@@ -23,6 +24,8 @@ type Props = {
   onNodesChange: OnNodesChange<Node>;
   onNodeDragStart?: (nodeId: string) => void;
   onNodeDragStop?: (nodeId: string) => void;
+  onSelectionDragStart?: (nodeIds: string[]) => void;
+  onSelectionDragStop?: (nodeIds: string[]) => void;
   onLayoutsReset?: () => void;
   onNodeClick: (node: Node) => void;
   onPaneClick: () => void;
@@ -57,11 +60,16 @@ function FamilyTreeCanvasInner({
   onNodesChange,
   onNodeDragStart,
   onNodeDragStop,
+  onSelectionDragStart,
+  onSelectionDragStop,
   onLayoutsReset,
   onNodeClick,
   onPaneClick,
 }: Props) {
   const router = useRouter();
+  const { setNodes } = useReactFlow();
+  const [toolMode, setToolMode] = useState<FamilyTreeCanvasToolMode>("pointer");
+  const selectToolActive = !readOnly && toolMode === "select";
   const pendingLayouts = useRef(new Map<string, { x: number; y: number }>());
   const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const savedHideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -70,10 +78,14 @@ function FamilyTreeCanvasInner({
   const inFlightRef = useRef(false);
   const onNodeDragStartRef = useRef(onNodeDragStart);
   const onNodeDragStopRef = useRef(onNodeDragStop);
+  const onSelectionDragStartRef = useRef(onSelectionDragStart);
+  const onSelectionDragStopRef = useRef(onSelectionDragStop);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [, startSaveTransition] = useTransition();
   onNodeDragStartRef.current = onNodeDragStart;
   onNodeDragStopRef.current = onNodeDragStop;
+  onSelectionDragStartRef.current = onSelectionDragStart;
+  onSelectionDragStopRef.current = onSelectionDragStop;
 
   const copy = locale === "es"
     ? { saving: "Guardando…", saved: "Guardado", error: "No se pudo guardar" }
@@ -144,6 +156,30 @@ function FamilyTreeCanvasInner({
     scheduleLayoutSave(node.id, node.position);
   }, [scheduleLayoutSave]);
 
+  const handleSelectionDragStart = useCallback<SelectionDragHandler<Node>>((_event, draggedNodes) => {
+    draggingRef.current = true;
+    interruptSaveForDrag();
+    const nodeIds = draggedNodes.map((node) => node.id);
+    nodeIds.forEach((nodeId) => onNodeDragStartRef.current?.(nodeId));
+    onSelectionDragStartRef.current?.(nodeIds);
+    setSaveStatus((current) => (current === "saved" || current === "error" ? "idle" : current));
+  }, [interruptSaveForDrag]);
+
+  const handleSelectionDragStop = useCallback<SelectionDragHandler<Node>>((_event, draggedNodes) => {
+    draggingRef.current = false;
+    const nodeIds = draggedNodes.map((node) => node.id);
+    nodeIds.forEach((nodeId) => onNodeDragStopRef.current?.(nodeId));
+    draggedNodes.forEach((node) => scheduleLayoutSave(node.id, node.position));
+    onSelectionDragStopRef.current?.(nodeIds);
+  }, [scheduleLayoutSave]);
+
+  const handleToolModeChange = useCallback((nextMode: FamilyTreeCanvasToolMode) => {
+    setToolMode(nextMode);
+    if (nextMode === "pointer") {
+      setNodes((current) => current.map((node) => ({ ...node, selected: false })));
+    }
+  }, [setNodes]);
+
   function handleLayoutsReset() {
     interruptSaveForDrag();
     pendingLayouts.current.clear();
@@ -154,6 +190,7 @@ function FamilyTreeCanvasInner({
 
   return (
     <ReactFlow
+      className={selectToolActive ? "family-tree-canvas--select-tool" : undefined}
       nodes={nodes}
       edges={edges}
       nodeTypes={familyTreeNodeTypes}
@@ -161,10 +198,23 @@ function FamilyTreeCanvasInner({
       onNodesChange={onNodesChange}
       onNodeDragStart={readOnly ? undefined : handleNodeDragStart}
       onNodeDragStop={readOnly ? undefined : handleNodeDragStop}
-      onPaneClick={onPaneClick}
-      onNodeClick={(_, node) => onNodeClick(node)}
+      onSelectionDragStart={selectToolActive ? handleSelectionDragStart : undefined}
+      onSelectionDragStop={selectToolActive ? handleSelectionDragStop : undefined}
+      onPaneClick={() => {
+        if (selectToolActive) {
+          setNodes((current) => current.map((node) => ({ ...node, selected: false })));
+        }
+        onPaneClick();
+      }}
+      onNodeClick={(_, node) => {
+        if (selectToolActive) return;
+        onNodeClick(node);
+      }}
       nodesDraggable={!readOnly}
       nodesConnectable={false}
+      elementsSelectable={selectToolActive}
+      selectionOnDrag={selectToolActive}
+      panOnDrag={selectToolActive ? [1, 2] : true}
       elevateNodesOnSelect
       minZoom={0.2}
       maxZoom={1.6}
@@ -180,6 +230,7 @@ function FamilyTreeCanvasInner({
         </div>
       )}
       <div className="family-tree-canvas-tools">
+        {!readOnly && <FamilyTreeCanvasToolModeControl locale={locale} mode={toolMode} onChange={handleToolModeChange} />}
         <Controls />
         {!readOnly && <FamilyTreeResetLayoutControl locale={locale} onReset={handleLayoutsReset} />}
       </div>

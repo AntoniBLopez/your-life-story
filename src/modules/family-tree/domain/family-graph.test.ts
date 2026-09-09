@@ -66,6 +66,14 @@ describe("family graph", () => {
     expect(relationToSubject("grandchild", "subject", graph, people, "es")).toBe("NIETO");
   });
 
+  it("derives relations from the viewer in a shared tree", () => {
+    expect(relationToSubject("subject", "sister", graph, people, "es")).toBe("HERMANO");
+    expect(relationToSubject("mother", "sister", graph, people, "es")).toBe("MADRE");
+    expect(relationToSubject("father", "sister", graph, people, "es")).toBe("PADRE");
+    expect(relationToSubject("nephew", "sister", graph, people, "es")).toBe("HIJO");
+    expect(relationToSubject("sister", "sister", graph, people, "es")).toBe("TÚ");
+  });
+
   it("grants timeline access only with an email, the checkbox and a person who is not you", () => {
     expect(grantsTimelineAccess({ email: "sister@example.com", canReadTimeline: true, isSubject: false })).toBe(true);
     expect(grantsTimelineAccess({ email: "sister@example.com", canReadTimeline: false, isSubject: false })).toBe(false);
