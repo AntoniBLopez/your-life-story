@@ -47,7 +47,7 @@ describe("family layout", () => {
     const { xByPerson } = buildFamilyPositions(blendedFamily, blendedGraph, "subject");
     const xs = [...xByPerson.values()];
     const spread = Math.max(...xs) - Math.min(...xs);
-    expect(Math.abs(average(xs))).toBeLessThan(1);
+    expect(Math.abs(Math.min(...xs) + Math.max(...xs))).toBeLessThan(1);
     expect(spread).toBeGreaterThan(200);
   });
 
@@ -66,22 +66,21 @@ describe("family layout", () => {
     expect(sources).not.toContain("stepfather");
   });
 
-  it("restores saved node positions over auto layout", () => {
+  it("restores saved horizontal position but keeps generation row height", () => {
     const { positions: autoPositions } = buildFamilyPositions(blendedFamily, blendedGraph, "subject");
     const peopleWithSavedLayout = blendedFamily.map((person) =>
       person.id === "subject" ? { ...person, layoutX: 420, layoutY: 880 } : person,
     );
     const merged = mergeSavedLayoutPositions(autoPositions, peopleWithSavedLayout);
-    expect(merged.get("subject")).toMatchObject({ x: 420, y: 880 });
+    expect(merged.get("subject")).toMatchObject({ x: 420, y: autoPositions.get("subject")!.y });
   });
 
-  it("uses auto row height when only horizontal position was saved", () => {
-    const { positions: autoPositions } = buildFamilyPositions(blendedFamily, blendedGraph, "subject");
-    const peopleWithSavedLayout = blendedFamily.map((person) =>
-      person.id === "subject" ? { ...person, layoutX: 420, layoutY: null } : person,
-    );
-    const merged = mergeSavedLayoutPositions(autoPositions, peopleWithSavedLayout);
-    expect(merged.get("subject")).toMatchObject({ x: 420, y: autoPositions.get("subject")!.y });
+  it("places the middle child directly below the mother for three siblings", () => {
+    const { xByPerson } = buildFamilyPositions(blendedFamily, blendedGraph, "subject");
+    const motherX = xByPerson.get("mother")!;
+    expect(xByPerson.get("sister")!).toBe(motherX);
+    expect(xByPerson.get("subject")!).toBeLessThan(motherX);
+    expect(xByPerson.get("half-brother")!).toBeGreaterThan(motherX);
   });
 
   it("keeps the Bassols seed tree stacked by generation", () => {

@@ -132,14 +132,14 @@ function StoryLifeTreeInner({
           <MiniMap
             zoomable
             pannable
-            nodeColor="#2f3b35"
-            nodeStrokeColor="#1e2924"
+            nodeColor="#fffef9"
+            nodeStrokeColor="#b7b0a6"
             nodeBorderRadius={8}
-            nodeStrokeWidth={1.25}
-            maskColor="rgb(36 49 43 / 0.14)"
-            maskStrokeColor="#8a7f70"
+            nodeStrokeWidth={1.5}
+            maskColor="rgb(36 49 43 / 0.08)"
+            maskStrokeColor="#c4bdb3"
             maskStrokeWidth={1.25}
-            bgColor="#efe8dc"
+            bgColor="#e4dfd5"
           />
         </ReactFlow>
       </div>

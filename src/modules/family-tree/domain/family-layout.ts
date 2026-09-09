@@ -127,7 +127,37 @@ function placeFamilyUnit(
   }
 }
 
-/** Pyramid layout: generations stacked vertically, each row centered, parents above their children. */
+function placeSiblingRowUnderAnchor(
+  siblingIds: string[],
+  anchorX: number,
+  xByPerson: Map<string, number>,
+  usedInLevel: number[],
+  people: FamilyPerson[],
+  gap: number,
+) {
+  const ordered = sortPeopleByBirthDate(people.filter((person) => siblingIds.includes(person.id)));
+  if (ordered.length === 0) return;
+  const rowWidth = (ordered.length - 1) * gap;
+  let cursor = anchorX - rowWidth / 2;
+  for (const person of ordered) {
+    const slot = nextFreeSlot(usedInLevel, cursor, gap);
+    xByPerson.set(person.id, slot);
+    usedInLevel.push(slot);
+    cursor += gap;
+  }
+}
+
+function primaryParentId(
+  childId: string,
+  relationships: FamilyRelationship[],
+  peopleById: Map<string, FamilyPerson>,
+) {
+  const parentIds = parentsOf(childId, relationships);
+  const motherId = parentIds.find((parentId) => inferGender(peopleById.get(parentId) ?? { fullName: "", gender: null }) === "female");
+  return motherId ?? parentIds[0];
+}
+
+/** Pyramid layout: generations stacked vertically, children centered under their mother. */
 export function assignPyramidPositions(
   groups: Map<number, FamilyPerson[]>,
   relationships: FamilyRelationship[],
@@ -135,28 +165,66 @@ export function assignPyramidPositions(
   gap = FAMILY_LAYOUT.horizontalGap,
 ) {
   const xByPerson = new Map<string, number>();
-  const levels = [...groups.keys()].sort((left, right) => right - left);
+  const peopleById = new Map(people.map((person) => [person.id, person]));
+  const levels = [...groups.keys()].sort((left, right) => left - right);
 
   for (const level of levels) {
     const group = sortPeopleByBirthDate(groups.get(level) ?? []);
     const usedInLevel: number[] = [];
+    const unplacedAtLevel = group.filter((person) => !xByPerson.has(person.id));
+    const claimed = new Set<string>();
 
-    for (const person of group) {
-      if (xByPerson.has(person.id)) continue;
-      const childIds = childrenOf(person.id, relationships).filter((childId) => xByPerson.has(childId));
-      if (childIds.length === 0) continue;
-      const unit = [person.id, ...coParentsAtLevel(person.id, level, groups, relationships)];
-      placeFamilyUnit(unit, childIds, xByPerson, usedInLevel, people, gap);
+    for (const person of unplacedAtLevel) {
+      if (claimed.has(person.id)) continue;
+      const coParents = coParentsAtLevel(person.id, level, groups, relationships)
+        .filter((parentId) => !xByPerson.has(parentId) && unplacedAtLevel.some((item) => item.id === parentId));
+      const unit = [person.id, ...coParents];
+      unit.forEach((memberId) => claimed.add(memberId));
+
+      const placedChildIds = childrenOf(person.id, relationships)
+        .filter((childId) => getPersonLevel(childId, groups) > level && xByPerson.has(childId));
+
+      if (placedChildIds.length > 0) {
+        placeFamilyUnit(unit, placedChildIds, xByPerson, usedInLevel, people, gap);
+        continue;
+      }
+
+      const pendingUnit = unit.filter((memberId) => !xByPerson.has(memberId));
+      const hasParentsAbove = parentsOf(person.id, relationships)
+        .some((parentId) => getPersonLevel(parentId, groups) < level);
+      if (pendingUnit.length < 2 || hasParentsAbove) continue;
+
+      const ordered = sortPeopleByBirthDate(people.filter((item) => pendingUnit.includes(item.id)));
+      const rowWidth = (ordered.length - 1) * gap;
+      let cursor = -rowWidth / 2;
+      for (const member of ordered) {
+        const slot = nextFreeSlot(usedInLevel, cursor, gap);
+        xByPerson.set(member.id, slot);
+        usedInLevel.push(slot);
+        cursor += gap;
+      }
+    }
+
+    const childrenStillUnplaced = group.filter((person) => !xByPerson.has(person.id));
+    const siblingsByParent = new Map<string, string[]>();
+    for (const child of childrenStillUnplaced) {
+      const anchorId = primaryParentId(child.id, relationships, peopleById);
+      if (!anchorId || !xByPerson.has(anchorId)) continue;
+      siblingsByParent.set(anchorId, [...(siblingsByParent.get(anchorId) ?? []), child.id]);
+    }
+    for (const [anchorId, siblingIds] of siblingsByParent) {
+      const pending = siblingIds.filter((childId) => !xByPerson.has(childId));
+      if (pending.length === 0) continue;
+      placeSiblingRowUnderAnchor(pending, xByPerson.get(anchorId)!, xByPerson, usedInLevel, people, gap);
     }
 
     for (const person of group) {
       if (xByPerson.has(person.id)) continue;
       const parentIds = parentsOf(person.id, relationships).filter((parentId) => xByPerson.has(parentId));
-      if (parentIds.length > 0) {
-        const slot = nextFreeSlot(usedInLevel, average(parentIds.map((parentId) => xByPerson.get(parentId)!)), gap);
-        xByPerson.set(person.id, slot);
-        usedInLevel.push(slot);
-      }
+      if (parentIds.length === 0) continue;
+      const slot = nextFreeSlot(usedInLevel, average(parentIds.map((parentId) => xByPerson.get(parentId)!)), gap);
+      xByPerson.set(person.id, slot);
+      usedInLevel.push(slot);
     }
 
     const unplaced = group.filter((person) => !xByPerson.has(person.id));
@@ -328,7 +396,7 @@ export function mergeSavedLayoutPositions(
     if (!current) continue;
     merged.set(person.id, {
       x: person.layoutX,
-      y: person.layoutY ?? current.y,
+      y: current.y,
       generation: current.generation,
     });
   }
