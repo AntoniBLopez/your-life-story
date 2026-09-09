@@ -20,6 +20,9 @@ type FamilyPersonDbRecord = {
   notes: FamilyPerson["notes"];
   email?: string | null;
   canReadTimeline?: boolean;
+  birthdayReminderEnabled?: boolean;
+  birthdayReminderPresetId?: string | null;
+  googleCalendarEventIds?: { offsetKey: string; eventId: string }[];
   isSubject: boolean;
   layoutX?: number | null;
   layoutY?: number | null;
@@ -51,6 +54,9 @@ const mapPerson = (row: FamilyPersonDbRecord): FamilyPerson => ({
   notes: row.notes ?? null,
   email: row.email ?? null,
   canReadTimeline: Boolean(row.canReadTimeline),
+  birthdayReminderEnabled: Boolean(row.birthdayReminderEnabled),
+  birthdayReminderPresetId: row.birthdayReminderPresetId ?? null,
+  googleCalendarEventIds: row.googleCalendarEventIds ?? [],
   isSubject: row.isSubject,
   layoutX: row.layoutX ?? null,
   layoutY: row.layoutY ?? null,
@@ -111,6 +117,9 @@ export class MongoFamilyRepository implements FamilyRepository {
       notes: person.notes ?? null,
       email: normalizePersonEmail(person.email),
       canReadTimeline: Boolean(person.canReadTimeline && normalizePersonEmail(person.email) && !person.isSubject),
+      birthdayReminderEnabled: Boolean(person.birthdayReminderEnabled),
+      birthdayReminderPresetId: person.birthdayReminderPresetId ?? null,
+      googleCalendarEventIds: person.googleCalendarEventIds ?? [],
       isSubject: person.isSubject,
       layoutX: person.layoutX ?? null,
       layoutY: person.layoutY ?? null,
@@ -142,6 +151,8 @@ export class MongoFamilyRepository implements FamilyRepository {
           notes: person.notes ?? null,
           email: normalizePersonEmail(person.email),
           canReadTimeline: Boolean(person.canReadTimeline && normalizePersonEmail(person.email) && !person.isSubject),
+          birthdayReminderEnabled: Boolean(person.birthdayReminderEnabled),
+          birthdayReminderPresetId: person.birthdayReminderPresetId ?? null,
           isSubject: person.isSubject,
           updatedAt: new Date(),
         },
@@ -150,6 +161,33 @@ export class MongoFamilyRepository implements FamilyRepository {
     );
     if (!result) throw new Error("Family person not found.");
     return mapPerson(result);
+  }
+
+  async updatePersonReminderEvents(userId: string, personId: string, events: FamilyPerson["googleCalendarEventIds"]) {
+    const db = await this.db();
+    const result = await db.collection<FamilyPersonDbRecord>(COLLECTIONS.familyPeople).findOneAndUpdate(
+      { _id: toObjectId(personId), userId },
+      { $set: { googleCalendarEventIds: events ?? [], updatedAt: new Date() } },
+      { returnDocument: "after" },
+    );
+    if (!result) throw new Error("Family person not found.");
+    return mapPerson(result);
+  }
+
+  async listPeopleWithBirthdayReminders(userId: string) {
+    const db = await this.db();
+    const rows = await db.collection<FamilyPersonDbRecord>(COLLECTIONS.familyPeople)
+      .find({ userId, birthdayReminderEnabled: true })
+      .toArray();
+    return rows.map(mapPerson);
+  }
+
+  async listPeopleByReminderPreset(userId: string, presetId: string) {
+    const db = await this.db();
+    const rows = await db.collection<FamilyPersonDbRecord>(COLLECTIONS.familyPeople)
+      .find({ userId, birthdayReminderPresetId: presetId })
+      .toArray();
+    return rows.map(mapPerson);
   }
 
   async addRelationship(userId: string, relationship: Omit<FamilyRelationship, "id" | "userId">) {

@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Download, Globe, Hourglass, Landmark, LoaderCircle, Mic, ShieldAlert, Trash2, UsersRound } from "lucide-react";
+import { Download, Globe, Hourglass, Landmark, LoaderCircle, Mic, ShieldAlert, Trash2, UsersRound, CalendarDays } from "lucide-react";
 import { deleteAccountAction, exportAccountDataAction, updateSaveVoiceRecordingsAction } from "@/modules/identity/application/account-actions";
 import { revokeAiConsentAction } from "@/modules/reflection/application/reflection-actions";
 import { setInactivityReleaseAction, setPublicArchiveConsentAction, submitDeathDeclarationAction } from "@/modules/archive/application/archive-actions";
+import { disconnectGoogleCalendarAction } from "@/modules/family-tree/application/birthday-reminder-actions";
 import { INACTIVITY_RELEASE_YEARS, inactivityReleaseDueAt } from "@/modules/archive/domain/archive";
 
 type Props = {
@@ -19,9 +20,10 @@ type Props = {
   displayName: string;
   email: string;
   saveVoiceRecordings: boolean;
+  calendar?: { connected: boolean; email: string | null };
 };
 
-export function AccountSettings({ locale, aiConsented, publicArchiveConsent, archiveSlug, published, deceased, lastSeenAt, inactivityReleaseYears, displayName, email, saveVoiceRecordings: initialSaveVoiceRecordings }: Props) {
+export function AccountSettings({ locale, aiConsented, publicArchiveConsent, archiveSlug, published, deceased, lastSeenAt, inactivityReleaseYears, displayName, email, saveVoiceRecordings: initialSaveVoiceRecordings, calendar }: Props) {
   const [pending, startTransition] = useTransition();
   const [confirmation, setConfirmation] = useState("");
   const [message, setMessage] = useState<string>();
@@ -33,6 +35,7 @@ export function AccountSettings({ locale, aiConsented, publicArchiveConsent, arc
   const [inactivityYears, setInactivityYears] = useState(inactivityReleaseYears ?? 1);
   const [seenAt, setSeenAt] = useState(lastSeenAt);
   const [saveVoiceRecordings, setSaveVoiceRecordings] = useState(initialSaveVoiceRecordings);
+  const [calendarAccount, setCalendarAccount] = useState(calendar ?? { connected: false, email: null });
   const t = locale === "es"
     ? {
         eyebrow: "Control de datos",
@@ -84,6 +87,12 @@ export function AccountSettings({ locale, aiConsented, publicArchiveConsent, arc
         voiceCheckboxHint: "Activado por defecto. Si lo desactivas, el audio solo se usa para transcribir.",
         voiceSavedOn: "Tus grabaciones de voz se guardarán en cada experiencia.",
         voiceSavedOff: "Solo se transcribirá el audio; no se guardará ningún archivo de voz.",
+        calendar: "Google Calendar",
+        calendarBody: "Conéctalo para copiar los recordatorios de cumpleaños del árbol familiar. Puedes reutilizar el mismo conjunto de avisos activando el interruptor en cada persona.",
+        calendarConnect: "Conectar Google Calendar",
+        calendarDisconnect: "Desconectar",
+        calendarConnected: "Conectado como",
+        calendarDisconnected: "Google Calendar se ha desconectado. Los eventos ya creados se quedan en tu calendario.",
       }
     : {
         eyebrow: "Data control",
@@ -135,6 +144,12 @@ export function AccountSettings({ locale, aiConsented, publicArchiveConsent, arc
         voiceCheckboxHint: "On by default. When off, audio is only used to transcribe.",
         voiceSavedOn: "Your voice recordings will be saved in each experience.",
         voiceSavedOff: "Audio will only be transcribed; no voice files will be stored.",
+        calendar: "Google Calendar",
+        calendarBody: "Connect it to copy birthday reminders from the family tree. You can reuse the same reminder set by turning the switch on for each person.",
+        calendarConnect: "Connect Google Calendar",
+        calendarDisconnect: "Disconnect",
+        calendarConnected: "Connected as",
+        calendarDisconnected: "Google Calendar has been disconnected. Events already created stay in your calendar.",
       };
 
   function exportData() {
@@ -205,6 +220,16 @@ export function AccountSettings({ locale, aiConsented, publicArchiveConsent, arc
     });
   }
 
+  function disconnectCalendar() {
+    setError(undefined);
+    startTransition(async () => {
+      const result = await disconnectGoogleCalendarAction(locale);
+      if (!result.ok) { setError(result.error); return; }
+      setCalendarAccount({ connected: false, email: null });
+      setMessage(t.calendarDisconnected);
+    });
+  }
+
   function remove() {
     setError(undefined);
     if (!window.confirm(t.dangerBody)) return;
@@ -242,6 +267,21 @@ export function AccountSettings({ locale, aiConsented, publicArchiveConsent, arc
               {t.archiveLive}{" "}
               <a className="font-bold text-[var(--moss)] underline" href={`/${locale}/archive/${slug}`}>{t.archiveView}</a>
             </p>
+          )}
+        </section>
+        <section className="card p-6">
+          <CalendarDays className="text-[var(--moss)]" size={21} />
+          <h2 className="display mt-3 text-2xl">{t.calendar}</h2>
+          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{t.calendarBody}</p>
+          {calendarAccount.connected ? (
+            <div className="mt-5 flex flex-wrap items-center gap-3">
+              <p className="text-sm">{t.calendarConnected} <strong>{calendarAccount.email}</strong></p>
+              <button disabled={pending} className="btn btn-secondary" onClick={disconnectCalendar}>{t.calendarDisconnect}</button>
+            </div>
+          ) : (
+            <a className="btn btn-primary mt-5 inline-flex" href={`/api/auth/google/calendar?locale=${locale}&next=${encodeURIComponent(`/${locale}/app/settings`)}&timeZone=${encodeURIComponent(typeof Intl === "undefined" ? "UTC" : Intl.DateTimeFormat().resolvedOptions().timeZone)}`}>
+              {t.calendarConnect}
+            </a>
           )}
         </section>
         <section className="card p-6">

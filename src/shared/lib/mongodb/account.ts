@@ -18,6 +18,8 @@ export async function deleteAllUserData(userId: string) {
     db.collection(COLLECTIONS.passwordResetTokens).deleteMany({ userId }),
     db.collection(COLLECTIONS.sessions).deleteMany({ userId }),
     db.collection(COLLECTIONS.archivePublicationRequests).deleteMany({ targetUserId: userId }),
+    db.collection(COLLECTIONS.birthdayReminderPresets).deleteMany({ userId }),
+    db.collection(COLLECTIONS.googleCalendarAccounts).deleteMany({ userId }),
     db.collection(COLLECTIONS.users).deleteMany({ _id: toObjectId(userId) }),
   ]);
   await destroyAllUserSessions(userId);
@@ -34,6 +36,7 @@ export async function exportUserData(userId: string) {
     family_relationships,
     chat_threads,
     chat_messages,
+    birthday_reminder_presets,
   ] = await Promise.all([
     db.collection(COLLECTIONS.profiles).find({ userId }).toArray(),
     db.collection(COLLECTIONS.lifeEntries).find({ userId }).toArray(),
@@ -43,6 +46,7 @@ export async function exportUserData(userId: string) {
     db.collection(COLLECTIONS.familyRelationships).find({ userId }).toArray(),
     db.collection(COLLECTIONS.chatThreads).find({ userId }).toArray(),
     db.collection(COLLECTIONS.chatMessages).find({ userId }).toArray(),
+    db.collection(COLLECTIONS.birthdayReminderPresets).find({ userId }).toArray(),
   ]);
 
   return {
@@ -54,5 +58,6 @@ export async function exportUserData(userId: string) {
     family_relationships,
     chat_threads,
     chat_messages,
+    birthday_reminder_presets,
   };
 }

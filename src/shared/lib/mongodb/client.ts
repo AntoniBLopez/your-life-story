@@ -43,5 +43,7 @@ async function ensureIndexes(db: Db) {
     db.collection(COLLECTIONS.archivePublicationRequests).createIndex({ status: 1, createdAt: -1 }),
     db.collection(COLLECTIONS.archivePublicationRequests).createIndex({ targetEmail: 1 }),
     db.collection(COLLECTIONS.passwordResetTokens).createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
+    db.collection(COLLECTIONS.birthdayReminderPresets).createIndex({ userId: 1, isDefault: 1 }),
+    db.collection(COLLECTIONS.googleCalendarAccounts).createIndex({ userId: 1 }, { unique: true }),
   ]);
 }

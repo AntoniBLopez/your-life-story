@@ -11,6 +11,8 @@ export const COLLECTIONS = {
   chatMessages: "chat_messages",
   passwordResetTokens: "password_reset_tokens",
   archivePublicationRequests: "archive_publication_requests",
+  birthdayReminderPresets: "birthday_reminder_presets",
+  googleCalendarAccounts: "google_calendar_accounts",
 } as const;
 
 export const GRIDFS_BUCKET = "life_attachments";

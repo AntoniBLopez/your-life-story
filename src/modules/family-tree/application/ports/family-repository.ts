@@ -6,6 +6,9 @@ export interface FamilyRepository {
   listPeopleByInviteEmail(email: string): Promise<FamilyPerson[]>;
   addPerson(userId: string, person: Omit<FamilyPerson, "id" | "userId">): Promise<FamilyPerson>;
   updatePerson(userId: string, personId: string, person: Omit<FamilyPerson, "id" | "userId">): Promise<FamilyPerson>;
+  updatePersonReminderEvents(userId: string, personId: string, events: FamilyPerson["googleCalendarEventIds"]): Promise<FamilyPerson>;
+  listPeopleWithBirthdayReminders(userId: string): Promise<FamilyPerson[]>;
+  listPeopleByReminderPreset(userId: string, presetId: string): Promise<FamilyPerson[]>;
   addRelationship(userId: string, relationship: Omit<FamilyRelationship, "id" | "userId">): Promise<void>;
   deleteRelationship(userId: string, relationshipId: string): Promise<void>;
   updatePeopleLayout(userId: string, layouts: { personId: string; layoutX: number; layoutY: number }[]): Promise<void>;

@@ -18,6 +18,9 @@ export type FamilyPerson = {
   notes: string | null;
   email?: string | null;
   canReadTimeline?: boolean;
+  birthdayReminderEnabled?: boolean;
+  birthdayReminderPresetId?: string | null;
+  googleCalendarEventIds?: { offsetKey: string; eventId: string }[];
   isSubject: boolean;
   layoutX?: number | null;
   layoutY?: number | null;
