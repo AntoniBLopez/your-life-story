@@ -24,7 +24,17 @@ export type FamilyPerson = {
   isSubject: boolean;
   layoutX?: number | null;
   layoutY?: number | null;
+  avatarGridFsId?: string | null;
+  avatarMimeType?: string | null;
 };
+
+export function familyAvatarUrl(personId: string) {
+  return `/api/family/people/${personId}/avatar`;
+}
+
+export function hasFamilyAvatar(person: Pick<FamilyPerson, "avatarGridFsId">) {
+  return Boolean(person.avatarGridFsId);
+}
 
 export type FamilyRelationship = {
   id: string;

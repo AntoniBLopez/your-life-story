@@ -1,10 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Mars, Plus, Venus, X } from "lucide-react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { ImagePlus, Mars, Plus, Trash2, Venus, X } from "lucide-react";
+import { deleteFamilyPersonAction } from "@/modules/family-tree/application/family-actions";
+import { ConfirmDialog } from "@/modules/life-story/presentation/components/confirm-dialog";
 import { canRemindBirthday, type BirthdayReminderOffset, type BirthdayReminderPreset } from "@/modules/family-tree/domain/birthday-reminder";
-import { parentCandidatesForRole, type FamilyPerson } from "@/modules/family-tree/domain/family-graph";
+import { familyAvatarUrl, hasFamilyAvatar, parentCandidatesForRole, type FamilyPerson } from "@/modules/family-tree/domain/family-graph";
 import { FamilyPersonReminderEdit, initialReminderOffsets, offsetsEqual } from "@/modules/family-tree/presentation/components/family-person-reminder-edit";
+import { IMAGE_CONTENT_TYPES, resolveAttachmentContentType } from "@/modules/life-story/domain/attachment-content-type";
+import { fileToBase64 } from "@/shared/lib/file-to-base64";
+
+const AVATAR_ACCEPT = "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp";
+const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
 
 type ParentSlots = { motherId: string | null; fatherId: string | null };
 
@@ -80,6 +87,7 @@ export function FamilyPersonForm({
   pending,
   onSubmit,
   onClose,
+  onDeleted,
 }: {
   locale: "es" | "en";
   person?: FamilyPerson;
@@ -91,13 +99,25 @@ export function FamilyPersonForm({
   pending: boolean;
   onSubmit: (formData: FormData) => void;
   onClose: () => void;
+  onDeleted?: () => void;
 }) {
   const initial = useMemo(
     () => buildFormState(person, parentSlots, subject, presets),
     [person, parentSlots, subject, presets],
   );
   const [form, setForm] = useState(initial);
-  const isDirty = useMemo(() => !formStatesEqual(form, initial), [form, initial]);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(
+    person && hasFamilyAvatar(person) ? familyAvatarUrl(person.id) : null,
+  );
+  const [removeAvatar, setRemoveAvatar] = useState(false);
+  const [avatarError, setAvatarError] = useState<string>();
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteStep, setDeleteStep] = useState<1 | 2>(1);
+  const [deleteError, setDeleteError] = useState<string>();
+  const [deletePending, startDeleteTransition] = useTransition();
+  const avatarDirty = Boolean(avatarFile) || (removeAvatar && Boolean(person && hasFamilyAvatar(person)));
+  const isDirty = useMemo(() => avatarDirty || !formStatesEqual(form, initial), [avatarDirty, form, initial]);
   const showMeCheckbox = !subject || person?.isSubject;
   const showReminder = canRemindBirthday(form.birthDate) && !form.isSubject;
   const t = locale === "es"
@@ -128,6 +148,22 @@ export function FamilyPersonForm({
         father: "Padre",
         parentNone: "Sin asignar",
         parentsHelp: "Elige la madre y el padre de esta persona entre las personas ya añadidas al árbol.",
+        photo: "Foto de perfil",
+        addPhoto: "Añadir foto",
+        changePhoto: "Cambiar foto",
+        removePhoto: "Quitar foto",
+        photoHelp: "Opcional. JPG, PNG o WebP, hasta 2 MB.",
+        photoInvalid: "La imagen debe ser JPG, PNG o WebP.",
+        photoTooLarge: "La imagen no puede superar 2 MB.",
+        delete: "Eliminar persona",
+        deleteTitle: "Eliminar persona",
+        deleteBody: (name: string) => `Se eliminará a ${name} del árbol familiar junto con sus vínculos. Esta acción no se puede deshacer.`,
+        deleteContinue: "Continuar",
+        deleteFinalTitle: (name: string) => `¿Eliminar a ${name}?`,
+        deleteFinalBody: "Se borrarán sus datos, vínculos y recordatorios de cumpleaños en Google Calendar si los tenía activos.",
+        deleteConfirm: "Sí, eliminar persona",
+        deleteBack: "Volver",
+        deleteCancel: "Cancelar",
       }
     : {
         person: "Add person",
@@ -156,22 +192,97 @@ export function FamilyPersonForm({
         father: "Father",
         parentNone: "Not assigned",
         parentsHelp: "Choose this person's mother and father from people already in the tree.",
+        photo: "Profile photo",
+        addPhoto: "Add photo",
+        changePhoto: "Change photo",
+        removePhoto: "Remove photo",
+        photoHelp: "Optional. JPG, PNG or WebP, up to 2 MB.",
+        photoInvalid: "The image must be JPG, PNG or WebP.",
+        photoTooLarge: "The image cannot be larger than 2 MB.",
+        delete: "Delete person",
+        deleteTitle: "Delete person",
+        deleteBody: (name: string) => `${name} will be removed from the family tree along with their links. This cannot be undone.`,
+        deleteContinue: "Continue",
+        deleteFinalTitle: (name: string) => `Delete ${name}?`,
+        deleteFinalBody: "Their data, relationships and Google Calendar birthday reminders (if enabled) will be removed.",
+        deleteConfirm: "Yes, delete person",
+        deleteBack: "Go back",
+        deleteCancel: "Cancel",
       };
 
   useEffect(() => {
     setForm(initial);
-  }, [initial]);
+    setAvatarFile(null);
+    setRemoveAvatar(false);
+    setAvatarError(undefined);
+    setAvatarPreview(person && hasFamilyAvatar(person) ? familyAvatarUrl(person.id) : null);
+  }, [initial, person]);
 
   function patch<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((current) => ({ ...current, [key]: value }));
   }
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    onSubmit(new FormData(event.currentTarget));
+    setAvatarError(undefined);
+    const formData = new FormData(event.currentTarget);
+    if (removeAvatar) formData.set("removeAvatar", "true");
+    if (avatarFile) {
+      const contentType = resolveAttachmentContentType(avatarFile.name, avatarFile.type);
+      if (!contentType || !IMAGE_CONTENT_TYPES.includes(contentType as (typeof IMAGE_CONTENT_TYPES)[number])) {
+        setAvatarError(t.photoInvalid);
+        return;
+      }
+      if (avatarFile.size > MAX_AVATAR_BYTES) {
+        setAvatarError(t.photoTooLarge);
+        return;
+      }
+      formData.set("avatarBase64", await fileToBase64(avatarFile));
+      formData.set("avatarFileName", avatarFile.name);
+      formData.set("avatarContentType", contentType);
+      formData.set("avatarSize", String(avatarFile.size));
+    }
+    onSubmit(formData);
+  }
+
+  function handleAvatarSelect(file: File | null) {
+    if (!file) return;
+    setAvatarError(undefined);
+    setRemoveAvatar(false);
+    setAvatarFile(file);
+    setAvatarPreview(URL.createObjectURL(file));
+  }
+
+  function handleAvatarRemove() {
+    setAvatarError(undefined);
+    setAvatarFile(null);
+    setRemoveAvatar(Boolean(person && hasFamilyAvatar(person)));
+    setAvatarPreview(null);
+  }
+
+  function closeDeleteDialog() {
+    if (deletePending) return;
+    setDeleteOpen(false);
+    setDeleteStep(1);
+    setDeleteError(undefined);
+  }
+
+  function confirmDelete() {
+    if (!person) return;
+    setDeleteError(undefined);
+    startDeleteTransition(async () => {
+      const result = await deleteFamilyPersonAction(person.id, locale);
+      if (!result.ok) {
+        setDeleteError(result.error);
+        return;
+      }
+      closeDeleteDialog();
+      onDeleted?.();
+    });
   }
 
   const canSubmit = person ? isDirty : form.fullName.trim().length >= 2;
+  const canDelete = Boolean(person && !person.isSubject);
   const motherCandidates = useMemo(
     () => parentCandidatesForRole(
       parentCandidates.filter((candidate) => candidate.id !== form.fatherId),
@@ -202,6 +313,34 @@ export function FamilyPersonForm({
           <span className="field-label">{t.name}</span>
           <input className="input" name="fullName" required minLength={2} value={form.fullName} onChange={(event) => patch("fullName", event.target.value)} />
         </label>
+        <div className="md:col-span-3">
+          <span className="field-label">{t.photo}</span>
+          <div className="flex flex-wrap items-center gap-3">
+            {avatarPreview && (
+              <img src={avatarPreview} alt="" className="family-person-avatar-preview" />
+            )}
+            <label className="btn btn-secondary cursor-pointer">
+              <ImagePlus size={16} />
+              {avatarPreview ? t.changePhoto : t.addPhoto}
+              <input
+                className="sr-only"
+                type="file"
+                accept={AVATAR_ACCEPT}
+                onChange={(event) => {
+                  handleAvatarSelect(event.target.files?.[0] ?? null);
+                  event.target.value = "";
+                }}
+              />
+            </label>
+            {avatarPreview && (
+              <button type="button" className="btn btn-quiet" onClick={handleAvatarRemove}>
+                {t.removePhoto}
+              </button>
+            )}
+          </div>
+          <p className="mt-2 text-xs leading-5 text-[var(--muted)]">{t.photoHelp}</p>
+          {avatarError && <p className="field-error">{avatarError}</p>}
+        </div>
         <div>
           <span className="field-label">{t.gender}</span>
           <input type="hidden" name="gender" value={form.gender} />
@@ -319,13 +458,44 @@ export function FamilyPersonForm({
             onOffsetsChange={(value) => patch("offsets", value)}
           />
         )}
-        <div className="flex items-end">
-          <button disabled={pending || !canSubmit} className="btn btn-primary w-full" type="submit">
+        <div className={`flex flex-wrap items-end gap-2 ${canDelete ? "md:col-span-3" : ""}`}>
+          <button disabled={pending || !canSubmit} className={`btn btn-primary ${canDelete ? "flex-1" : "w-full"}`} type="submit">
             <Plus size={16} />
             {person ? t.update : t.save}
           </button>
+          {canDelete && (
+            <button
+              type="button"
+              className="btn btn-danger"
+              disabled={pending || deletePending}
+              onClick={() => {
+                setDeleteStep(1);
+                setDeleteError(undefined);
+                setDeleteOpen(true);
+              }}
+            >
+              <Trash2 size={16} />
+              {t.delete}
+            </button>
+          )}
         </div>
       </form>
+      {canDelete && person && (
+        <ConfirmDialog
+          open={deleteOpen}
+          title={deleteStep === 1 ? t.deleteTitle : t.deleteFinalTitle(person.fullName)}
+          body={`${deleteStep === 1 ? t.deleteBody(person.fullName) : t.deleteFinalBody}${deleteError ? `\n\n${deleteError}` : ""}`}
+          cancelLabel={deleteStep === 1 ? t.deleteCancel : t.deleteBack}
+          onClose={() => {
+            if (deletePending) return;
+            if (deleteStep === 2) setDeleteStep(1);
+            else closeDeleteDialog();
+          }}
+          actions={deleteStep === 1
+            ? [{ label: t.deleteContinue, onClick: () => { setDeleteError(undefined); setDeleteStep(2); }, variant: "primary" }]
+            : [{ label: deletePending ? "…" : t.deleteConfirm, onClick: confirmDelete, variant: "danger" }]}
+        />
+      )}
     </section>
   );
 }

@@ -7,6 +7,7 @@ import { assertNoParentCycle, normalizePersonEmail, type FamilyPerson } from "..
 import { parseGedcom } from "../domain/gedcom";
 import { canRemindBirthday, defaultPresetName, normalizeOffsets } from "../domain/birthday-reminder";
 import { MongoFamilyRepository } from "../infrastructure/mongo-family-repository";
+import { processPersonAvatarFromForm } from "./family-avatar-service";
 import { syncPersonParents } from "./family-parent-sync";
 import { familyNodeLayoutSchema, familyPersonSchema, familyRelationshipSchema, parseFamilyPersonForm } from "./family-schemas";
 import { birthdayReminderOffsetsSchema } from "./birthday-reminder-schemas";
@@ -81,8 +82,8 @@ async function assertCalendarForReminder(userId: string, formData: FormData, par
   const calendar = await calendars.findByUser(userId);
   if (calendar) return null;
   return locale === "es"
-    ? "Conecta Google Calendar para activar recordatorios de cumpleaños."
-    : "Connect Google Calendar to enable birthday reminders.";
+    ? "Google Calendar no está conectado. Desactiva «Activar para esta persona» si quieres guardar sin el recordatorio de cumpleaños."
+    : "Google Calendar is not connected. Turn off “Enable for this person” if you want to save without the birthday reminder.";
 }
 
 async function applyBirthdayReminderChanges(
@@ -140,7 +141,16 @@ export async function createFamilyPersonAction(formData: FormData): Promise<Acti
     if (calendarError) return { ok: false, error: calendarError };
     const preset = await saveReminderPresetFromForm(user.id, formData, locale, timeZone);
     const { motherId, fatherId } = parsed.data;
-    let person = await repository.addPerson(user.id, personPayload(parsed.data, formData, undefined, preset?.id ?? null));
+    const payload = personPayload(parsed.data, formData, undefined, preset?.id ?? null);
+    let person = await repository.addPerson(user.id, payload);
+    const avatar = await processPersonAvatarFromForm(user.id, person.id, formData);
+    if (avatar.changed) {
+      person = await repository.updatePerson(user.id, person.id, {
+        ...payload,
+        avatarGridFsId: avatar.avatarGridFsId,
+        avatarMimeType: avatar.avatarMimeType,
+      });
+    }
     if (motherId || fatherId) {
       await syncPersonParents(repository, user.id, person.id, motherId, fatherId);
     }
@@ -163,12 +173,50 @@ export async function updateFamilyPersonAction(formData: FormData): Promise<Acti
     if (calendarError) return { ok: false, error: calendarError };
     const preset = await saveReminderPresetFromForm(user.id, formData, locale, timeZone);
     const { motherId, fatherId } = parsed.data;
-    let person = await repository.updatePerson(user.id, personId, personPayload(parsed.data, formData, existing ?? undefined, preset?.id ?? null));
+    const payload = personPayload(parsed.data, formData, existing ?? undefined, preset?.id ?? null);
+    const avatar = await processPersonAvatarFromForm(user.id, personId, formData, existing);
+    let person = await repository.updatePerson(user.id, personId, {
+      ...payload,
+      avatarGridFsId: avatar.avatarGridFsId,
+      avatarMimeType: avatar.avatarMimeType,
+    });
     await syncPersonParents(repository, user.id, personId, motherId, fatherId);
     await applyBirthdayReminderChanges(user.id, person, existing, locale, timeZone);
     revalidatePath(`/${locale}/app/family`);
     return { ok: true, data: { id: personId } };
   } catch (error) { return { ok: false, error: error instanceof Error ? error.message : "No se pudo actualizar a esta persona." }; }
+}
+
+export async function deleteFamilyPersonAction(personId: string, locale: "es" | "en"): Promise<ActionResult> {
+  if (!personId) return { ok: false, error: locale === "es" ? "No se encontró a esta persona." : "This person could not be found." };
+  try {
+    const user = await requireCurrentUser();
+    const person = await repository.findPersonById(user.id, personId);
+    if (!person) return { ok: false, error: locale === "es" ? "No se encontró a esta persona." : "This person could not be found." };
+    if (person.isSubject) {
+      return {
+        ok: false,
+        error: locale === "es"
+          ? "No puedes eliminar a la persona principal del árbol."
+          : "You cannot delete the main person in the tree.",
+      };
+    }
+    if (person.birthdayReminderEnabled) {
+      await unsyncPersonBirthdayReminders(user.id, person);
+    }
+    await repository.deletePerson(user.id, personId);
+    revalidatePath(`/${locale}/app/family`);
+    return { ok: true, data: undefined };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error
+        ? error.message
+        : locale === "es"
+          ? "No se pudo eliminar a esta persona."
+          : "This person could not be deleted.",
+    };
+  }
 }
 
 export async function createFamilyRelationshipAction(formData: FormData): Promise<ActionResult> {

@@ -1,12 +1,15 @@
 import { getDb } from "@/shared/lib/mongodb/client";
 import { COLLECTIONS } from "@/shared/lib/mongodb/collections";
 import { deleteAllUserAttachments } from "@/shared/lib/mongodb/attachments";
+import { deleteFamilyAvatars } from "@/shared/lib/mongodb/family-avatars";
 import { destroyAllUserSessions } from "@/shared/lib/auth/session";
 import { toObjectId } from "@/shared/lib/mongodb/id";
 
 export async function deleteAllUserData(userId: string) {
   const db = await getDb();
   await deleteAllUserAttachments(userId);
+  const familyPeople = await db.collection(COLLECTIONS.familyPeople).find({ userId }).toArray();
+  await deleteFamilyAvatars(familyPeople.map((person) => person.avatarGridFsId));
   await Promise.all([
     db.collection(COLLECTIONS.lifeEntries).deleteMany({ userId }),
     db.collection(COLLECTIONS.lifeEntryLinks).deleteMany({ userId }),

@@ -3,6 +3,7 @@ import { normalizePersonEmail, type FamilyPerson, type FamilyRelationship } from
 import type { FamilyRepository } from "../application/ports/family-repository";
 import { getDb } from "@/shared/lib/mongodb/client";
 import { COLLECTIONS } from "@/shared/lib/mongodb/collections";
+import { deleteFamilyAvatar, deleteFamilyAvatars } from "@/shared/lib/mongodb/family-avatars";
 import { idFromDocument, toObjectId } from "@/shared/lib/mongodb/id";
 
 type FamilyPersonDbRecord = {
@@ -26,6 +27,8 @@ type FamilyPersonDbRecord = {
   isSubject: boolean;
   layoutX?: number | null;
   layoutY?: number | null;
+  avatarGridFsId?: string | null;
+  avatarMimeType?: string | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -60,6 +63,8 @@ const mapPerson = (row: FamilyPersonDbRecord): FamilyPerson => ({
   isSubject: row.isSubject,
   layoutX: row.layoutX ?? null,
   layoutY: row.layoutY ?? null,
+  avatarGridFsId: row.avatarGridFsId ?? null,
+  avatarMimeType: row.avatarMimeType ?? null,
 });
 
 const mapRelationship = (row: FamilyRelationshipDbRecord): FamilyRelationship => ({
@@ -84,6 +89,12 @@ export class MongoFamilyRepository implements FamilyRepository {
   async findPersonById(userId: string, personId: string) {
     const db = await this.db();
     const row = await db.collection<FamilyPersonDbRecord>(COLLECTIONS.familyPeople).findOne({ _id: toObjectId(personId), userId });
+    return row ? mapPerson(row) : null;
+  }
+
+  async findPersonByPersonId(personId: string) {
+    const db = await this.db();
+    const row = await db.collection<FamilyPersonDbRecord>(COLLECTIONS.familyPeople).findOne({ _id: toObjectId(personId) });
     return row ? mapPerson(row) : null;
   }
 
@@ -146,11 +157,26 @@ export class MongoFamilyRepository implements FamilyRepository {
       isSubject: person.isSubject,
       layoutX: person.layoutX ?? null,
       layoutY: person.layoutY ?? null,
+      avatarGridFsId: person.avatarGridFsId ?? null,
+      avatarMimeType: person.avatarMimeType ?? null,
       createdAt: now,
       updatedAt: now,
     };
     const { insertedId } = await db.collection(COLLECTIONS.familyPeople).insertOne(record);
     return mapPerson({ _id: insertedId, ...record });
+  }
+
+  async deletePerson(userId: string, personId: string) {
+    const person = await this.findPersonById(userId, personId);
+    if (!person) throw new Error("Family person not found.");
+    await deleteFamilyAvatar(person.avatarGridFsId);
+    const db = await this.db();
+    await db.collection(COLLECTIONS.familyRelationships).deleteMany({
+      userId,
+      $or: [{ sourcePersonId: personId }, { targetPersonId: personId }],
+    });
+    const result = await db.collection(COLLECTIONS.familyPeople).deleteOne({ _id: toObjectId(personId), userId });
+    if (result.deletedCount === 0) throw new Error("Family person not found.");
   }
 
   async updatePerson(userId: string, personId: string, person: Omit<FamilyPerson, "id" | "userId">) {
@@ -177,6 +203,8 @@ export class MongoFamilyRepository implements FamilyRepository {
           birthdayReminderEnabled: Boolean(person.birthdayReminderEnabled),
           birthdayReminderPresetId: person.birthdayReminderPresetId ?? null,
           isSubject: person.isSubject,
+          avatarGridFsId: person.avatarGridFsId ?? null,
+          avatarMimeType: person.avatarMimeType ?? null,
           updatedAt: new Date(),
         },
       },
@@ -255,6 +283,8 @@ export class MongoFamilyRepository implements FamilyRepository {
   }
 
   async clearAll(userId: string) {
+    const people = await this.listPeople(userId);
+    await deleteFamilyAvatars(people.map((person) => person.avatarGridFsId));
     const db = await this.db();
     await db.collection(COLLECTIONS.familyRelationships).deleteMany({ userId });
     await db.collection(COLLECTIONS.familyPeople).deleteMany({ userId });

@@ -51,7 +51,7 @@ export function FamilyPersonReminderEdit({
         connect: "Conectar Google Calendar",
         connected: "Avisos en",
         needDate: "Añade la fecha de nacimiento para configurar avisos.",
-        needCalendar: "Conecta Google Calendar para activar el recordatorio.",
+        needCalendar: "Conecta Google Calendar para activar el recordatorio, o desactívalo para guardar sin avisos.",
         expand: "Ver y editar avisos",
         collapse: "Ocultar avisos",
       }
@@ -65,7 +65,7 @@ export function FamilyPersonReminderEdit({
         connect: "Connect Google Calendar",
         connected: "Reminders go to",
         needDate: "Add a date of birth to configure reminders.",
-        needCalendar: "Connect Google Calendar to enable the reminder.",
+        needCalendar: "Connect Google Calendar to enable the reminder, or turn it off to save without reminders.",
         expand: "View and edit reminders",
         collapse: "Hide reminders",
       };
@@ -118,7 +118,7 @@ export function FamilyPersonReminderEdit({
             <input
               type="checkbox"
               checked={enabled}
-              disabled={!hasBirth || !calendar?.connected}
+              disabled={!hasBirth || (!calendar?.connected && !enabled)}
               onChange={(event) => onEnabledChange(event.target.checked)}
             />
             {t.enable}
