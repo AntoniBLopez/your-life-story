@@ -7,6 +7,7 @@ import { useTransition } from "react";
 import { Bot, BookOpen, Landmark, LogOut, Search, Settings, Shield, Sprout, UsersRound } from "lucide-react";
 import { signOutAction } from "@/modules/identity/application/auth-actions";
 import { LanguageSwitcher } from "./language-switcher";
+import { AppNavLink } from "./app-nav-link";
 import { isArchiveAdmin } from "@/modules/archive/domain/archive";
 
 export function AppHeader({ locale, email }: { locale: "es" | "en"; email?: string | null }) {
@@ -53,18 +54,18 @@ export function AppHeader({ locale, email }: { locale: "es" | "en"; email?: stri
         </div>
       </form>
       <div className="flex items-center gap-1">
-        <Link title={t.story} className={`btn btn-quiet !p-2 ${isStory ? "!bg-[#edf3eb]" : ""}`} href={`/${locale}/app`}>
+        <AppNavLink title={t.story} active={isStory} href={`/${locale}/app`}>
           <BookOpen size={17} />
           <span className="hidden md:inline text-xs">{t.story}</span>
-        </Link>
-        <Link title={t.reflect} className={`btn btn-quiet !p-2 ${is(`/${locale}/app/reflect`) ? "!bg-[#edf3eb]" : ""}`} href={`/${locale}/app/reflect`}>
+        </AppNavLink>
+        <AppNavLink title={t.reflect} active={is(`/${locale}/app/reflect`)} href={`/${locale}/app/reflect`}>
           <Bot size={17} />
           <span className="hidden md:inline text-xs">{t.reflect}</span>
-        </Link>
-        <Link title={t.tree} className={`btn btn-quiet !p-2 ${is(`/${locale}/app/family`) ? "!bg-[#edf3eb]" : ""}`} href={`/${locale}/app/family`}>
+        </AppNavLink>
+        <AppNavLink title={t.tree} active={is(`/${locale}/app/family`)} href={`/${locale}/app/family`}>
           <UsersRound size={17} />
           <span className="hidden md:inline text-xs">{t.tree}</span>
-        </Link>
+        </AppNavLink>
         <Link title={t.archive} className="btn btn-quiet !p-2 hidden sm:inline-flex" href={`/${locale}/archive` as Route}>
           <Landmark size={16} />
           <span className="hidden md:inline text-xs">{t.archive}</span>
