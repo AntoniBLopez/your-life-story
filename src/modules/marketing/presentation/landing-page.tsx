@@ -11,7 +11,7 @@ type Copy = {
   privacy: { eyebrow: string; title: string; body: string; points: string[] };
   archive: { eyebrow: string; title: string; emphasis: string; body: string; points: string[]; action: string };
   cta: { title: string; body: string; action: string };
-  footer: { tagline: string; how: string; privacy: string; archive: string; login: string; copyright: string };
+  footer: { tagline: string; how: string; privacy: string; privacyPolicy: string; terms: string; archive: string; login: string; copyright: string };
 };
 
 const copy: Record<"es" | "en", Copy> = {
@@ -22,7 +22,7 @@ const copy: Record<"es" | "en", Copy> = {
     value: { eyebrow: "Un lugar para mirar con calma", title: "Saca tu vida de la cabeza. Encuentra el hilo que la une.", cards: [{ title: "Guarda lo importante", body: "Fechas, situaciones, giros y pequeños detalles que no quieres olvidar." }, { title: "Ve tus patrones", body: "Una línea temporal y un árbol de vida revelan conexiones que antes pasaban desapercibidas." }, { title: "Ponlo en perspectiva", body: "Una reflexión guiada te ayuda a hacer mejores preguntas, a tu ritmo." }] },
     privacy: { eyebrow: "Tu historia te pertenece", title: "Diseñado para la intimidad, no para el ruido.", body: "Cada recuerdo vive aislado en tu cuenta. Tú decides qué guardar, revisar, exportar o borrar.", points: ["Datos aislados por cuenta", "Archivos privados y enlaces seguros", "Consentimiento claro antes de usar la IA"] },
     archive: { eyebrow: "Archivo de vidas", title: "Algunas historias merecen ser", emphasis: "estudiadas, no olvidadas.", body: "Cuando alguien da permiso, su testimonio puede vivir en un archivo público: cómo pensaba, qué decidió, qué aprendió, cuáles fueron sus momentos críticos y cómo los superó. Puedes leerlo y preguntarle a la IA.", points: ["Aprendizajes y decisiones, en sus palabras", "Momentos críticos y cómo salieron adelante", "Pregunta a la IA sobre una vida publicada"], action: "Entrar al archivo" },
-    cta: { title: "Empieza por un momento que recuerdes.", body: "No hace falta contarlo todo hoy. Una fecha, una situación o un aprendizaje es suficiente.", action: "Crear mi espacio privado" }, footer: { tagline: "Una forma más amable de recordar.", how: "Cómo funciona", privacy: "Privacidad", archive: "Archivo de vidas", login: "Entrar", copyright: "Tu historia sigue siendo tuya." },
+    cta: { title: "Empieza por un momento que recuerdes.", body: "No hace falta contarlo todo hoy. Una fecha, una situación o un aprendizaje es suficiente.", action: "Crear mi espacio privado" }, footer: { tagline: "Una forma más amable de recordar.", how: "Cómo funciona", privacy: "Privacidad", privacyPolicy: "Política de privacidad", terms: "Términos de servicio", archive: "Archivo de vidas", login: "Entrar", copyright: "Tu historia sigue siendo tuya." },
   },
   en: {
     nav: { how: "How it works", privacy: "Privacy", archive: "Life archive", login: "Sign in", start: "Start your story" },
@@ -31,7 +31,7 @@ const copy: Record<"es" | "en", Copy> = {
     value: { eyebrow: "A place to look slowly", title: "Take your life out of your head. Find the thread that connects it.", cards: [{ title: "Keep what matters", body: "Dates, situations, turning points and little details you do not want to lose." }, { title: "Notice your patterns", body: "A timeline and life tree reveal connections you had not seen before." }, { title: "Put it in perspective", body: "Guided reflection helps you ask better questions, at your own pace." }] },
     privacy: { eyebrow: "Your story belongs to you", title: "Built for intimacy, not noise.", body: "Every memory stays isolated in your account. You decide what to keep, revisit, export or erase.", points: ["Account-isolated data", "Private files and secure links", "Clear consent before using AI"] },
     archive: { eyebrow: "Life archive", title: "Some stories deserve to be", emphasis: "studied, not forgotten.", body: "When someone gives permission, their testimony can live in a public archive: how they thought, what they decided, what they learnt, which moments were critical and how they overcame them. You can read it and ask the AI.", points: ["Lessons and decisions, in their own words", "Critical moments and how they came through", "Ask the AI about a published life"], action: "Enter the archive" },
-    cta: { title: "Start with one moment you remember.", body: "You do not have to tell it all today. A date, a situation or a lesson is enough.", action: "Create my private space" }, footer: { tagline: "A gentler way to remember.", how: "How it works", privacy: "Privacy", archive: "Life archive", login: "Sign in", copyright: "Your story is still yours." },
+    cta: { title: "Start with one moment you remember.", body: "You do not have to tell it all today. A date, a situation or a lesson is enough.", action: "Create my private space" }, footer: { tagline: "A gentler way to remember.", how: "How it works", privacy: "Privacy", privacyPolicy: "Privacy Policy", terms: "Terms of Service", archive: "Life archive", login: "Sign in", copyright: "Your story is still yours." },
   },
 };
 
@@ -255,6 +255,8 @@ export function LandingPage({ locale }: { locale: "es" | "en" }) {
         <nav className="flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold text-[var(--muted)]">
           <a href="#how">{t.footer.how}</a>
           <a href="#privacy">{t.footer.privacy}</a>
+          <Link href="/legal/privacy">{t.footer.privacyPolicy}</Link>
+          <Link href="/legal/tos">{t.footer.terms}</Link>
           <Link href={`/${activeLocale}/archive` as Route}>{t.footer.archive}</Link>
           <Link href={`/${activeLocale}/login`}>{t.footer.login}</Link>
         </nav>
