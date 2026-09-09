@@ -49,6 +49,39 @@ export function inferGender(person: Pick<FamilyPerson, "fullName" | "gender">): 
   return null;
 }
 
+export function parentCandidatesForRole(
+  people: FamilyPerson[],
+  role: "mother" | "father",
+  selectedId: string | null = null,
+) {
+  return people.filter((person) => {
+    if (selectedId && person.id === selectedId) return true;
+    const gender = inferGender(person);
+    if (role === "mother") return gender !== "male";
+    return gender !== "female";
+  });
+}
+
+export function assertParentRoleGenders(
+  people: FamilyPerson[],
+  motherId: string | null,
+  fatherId: string | null,
+) {
+  const peopleById = new Map(people.map((person) => [person.id, person]));
+  if (motherId) {
+    const mother = peopleById.get(motherId);
+    if (mother && inferGender(mother) === "male") {
+      throw new Error("La madre no puede ser una persona de género masculino.");
+    }
+  }
+  if (fatherId) {
+    const father = peopleById.get(fatherId);
+    if (father && inferGender(father) === "female") {
+      throw new Error("El padre no puede ser una persona de género femenino.");
+    }
+  }
+}
+
 export function parentsOf(personId: string, relationships: FamilyRelationship[]) {
   return relationships
     .filter((item) => item.relationshipType === "parent" && item.targetPersonId === personId)

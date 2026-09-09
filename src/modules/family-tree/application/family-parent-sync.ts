@@ -1,4 +1,4 @@
-import { assertNoParentCycle } from "../domain/family-graph";
+import { assertNoParentCycle, assertParentRoleGenders } from "../domain/family-graph";
 import type { FamilyRepository } from "./ports/family-repository";
 
 export async function syncPersonParents(
@@ -16,7 +16,11 @@ export async function syncPersonParents(
   }
 
   const parentIds = [...new Set([motherId, fatherId].filter((id): id is string => Boolean(id)))];
-  const relationships = await repository.listRelationships(userId);
+  const [people, relationships] = await Promise.all([
+    repository.listPeople(userId),
+    repository.listRelationships(userId),
+  ]);
+  assertParentRoleGenders(people, motherId, fatherId);
 
   for (const parentId of parentIds) {
     assertNoParentCycle(relationships, parentId, childId);

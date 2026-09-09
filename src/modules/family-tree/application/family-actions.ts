@@ -240,8 +240,6 @@ export async function saveFamilyNodeLayoutsAction(input: {
       }));
     if (layouts.length === 0) return { ok: false, error: "No se pudieron guardar las posiciones." };
     await repository.updatePeopleLayout(user.id, layouts);
-    revalidatePath("/es/app/family");
-    revalidatePath("/en/app/family");
     return { ok: true, data: undefined };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "No se pudieron guardar las posiciones." };

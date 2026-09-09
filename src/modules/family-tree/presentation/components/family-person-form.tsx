@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, X } from "lucide-react";
+import { Mars, Plus, Venus, X } from "lucide-react";
 import { canRemindBirthday, type BirthdayReminderOffset, type BirthdayReminderPreset } from "@/modules/family-tree/domain/birthday-reminder";
-import type { FamilyPerson } from "@/modules/family-tree/domain/family-graph";
+import { parentCandidatesForRole, type FamilyPerson } from "@/modules/family-tree/domain/family-graph";
 import { FamilyPersonReminderEdit, initialReminderOffsets, offsetsEqual } from "@/modules/family-tree/presentation/components/family-person-reminder-edit";
 
 type ParentSlots = { motherId: string | null; fatherId: string | null };
@@ -111,7 +111,6 @@ export function FamilyPersonForm({
         country: "País de nacimiento",
         city: "Ciudad de nacimiento",
         gender: "Género",
-        genderUnknown: "No indicado",
         genderMale: "Hombre",
         genderFemale: "Mujer",
         baptized: "Bautismo",
@@ -140,7 +139,6 @@ export function FamilyPersonForm({
         country: "Country of birth",
         city: "City of birth",
         gender: "Gender",
-        genderUnknown: "Not specified",
         genderMale: "Male",
         genderFemale: "Female",
         baptized: "Baptism",
@@ -174,6 +172,22 @@ export function FamilyPersonForm({
   }
 
   const canSubmit = person ? isDirty : form.fullName.trim().length >= 2;
+  const motherCandidates = useMemo(
+    () => parentCandidatesForRole(
+      parentCandidates.filter((candidate) => candidate.id !== form.fatherId),
+      "mother",
+      form.motherId || null,
+    ),
+    [parentCandidates, form.fatherId, form.motherId],
+  );
+  const fatherCandidates = useMemo(
+    () => parentCandidatesForRole(
+      parentCandidates.filter((candidate) => candidate.id !== form.motherId),
+      "father",
+      form.fatherId || null,
+    ),
+    [parentCandidates, form.fatherId, form.motherId],
+  );
 
   return (
     <section className="card mt-6 p-5">
@@ -188,6 +202,32 @@ export function FamilyPersonForm({
           <span className="field-label">{t.name}</span>
           <input className="input" name="fullName" required minLength={2} value={form.fullName} onChange={(event) => patch("fullName", event.target.value)} />
         </label>
+        <div>
+          <span className="field-label">{t.gender}</span>
+          <input type="hidden" name="gender" value={form.gender} />
+          <div className="family-gender-switch" role="group" aria-label={t.gender}>
+            <button
+              type="button"
+              className="family-gender-switch-btn"
+              data-gender="male"
+              aria-pressed={form.gender === "male"}
+              onClick={() => patch("gender", "male")}
+            >
+              <Mars size={16} />
+              {t.genderMale}
+            </button>
+            <button
+              type="button"
+              className="family-gender-switch-btn"
+              data-gender="female"
+              aria-pressed={form.gender === "female"}
+              onClick={() => patch("gender", "female")}
+            >
+              <Venus size={16} />
+              {t.genderFemale}
+            </button>
+          </div>
+        </div>
         {showMeCheckbox && (
           <label className="flex items-end gap-2 pb-3 text-sm font-bold">
             <input type="checkbox" name="isSubject" checked={form.isSubject} onChange={(event) => patch("isSubject", event.target.checked)} />
@@ -211,14 +251,6 @@ export function FamilyPersonForm({
           <input className="input" name="birthCity" value={form.birthCity} onChange={(event) => patch("birthCity", event.target.value)} />
         </label>
         <label>
-          <span className="field-label">{t.gender}</span>
-          <select className="select" name="gender" value={form.gender} onChange={(event) => patch("gender", event.target.value)}>
-            <option value="">{t.genderUnknown}</option>
-            <option value="male">{t.genderMale}</option>
-            <option value="female">{t.genderFemale}</option>
-          </select>
-        </label>
-        <label>
           <span className="field-label">{t.baptized}</span>
           <select className="select" name="baptized" value={form.baptized} onChange={(event) => patch("baptized", event.target.value)}>
             <option value="">{t.baptizedUnknown}</option>
@@ -232,7 +264,7 @@ export function FamilyPersonForm({
               <span className="field-label">{t.mother}</span>
               <select className="select" name="motherId" value={form.motherId} onChange={(event) => patch("motherId", event.target.value)}>
                 <option value="">{t.parentNone}</option>
-                {parentCandidates.map((candidate) => (
+                {motherCandidates.map((candidate) => (
                   <option key={candidate.id} value={candidate.id}>{candidate.fullName}</option>
                 ))}
               </select>
@@ -241,7 +273,7 @@ export function FamilyPersonForm({
               <span className="field-label">{t.father}</span>
               <select className="select" name="fatherId" value={form.fatherId} onChange={(event) => patch("fatherId", event.target.value)}>
                 <option value="">{t.parentNone}</option>
-                {parentCandidates.map((candidate) => (
+                {fatherCandidates.map((candidate) => (
                   <option key={candidate.id} value={candidate.id}>{candidate.fullName}</option>
                 ))}
               </select>

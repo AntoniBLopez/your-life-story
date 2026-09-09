@@ -70,6 +70,14 @@ a { color: inherit; text-decoration: none; }
 .react-flow__controls-button:hover { background: #edf3eb; }
 .react-flow__controls-button:last-child { border-bottom: 0; }
 .react-flow__attribution { display: none !important; }
+.family-gender-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.family-gender-switch-btn { display: inline-flex; align-items: center; justify-content: center; gap: .4rem; min-height: 2.7rem; border: 1px solid #dcd8cf; border-radius: .75rem; background: white; color: var(--muted); font-size: .82rem; font-weight: 750; cursor: pointer; transition: background .2s, border-color .2s, color .2s, box-shadow .2s; }
+.family-gender-switch-btn:hover { border-color: var(--moss); color: var(--moss-deep); }
+.family-gender-switch-btn[aria-pressed="true"] { border-color: var(--moss); background: #edf3eb; color: var(--moss-deep); box-shadow: 0 0 0 3px #3d654c18; }
+.family-gender-switch-btn[data-gender="female"][aria-pressed="true"] { border-color: #c9897a; background: #fff4ee; color: #8a5a3d; box-shadow: 0 0 0 3px #f4c8a828; }
+.family-tree-canvas-save-status { position: absolute; top: 15px; left: 15px; z-index: 5; display: inline-flex; align-items: center; gap: .38rem; pointer-events: none; border: 1px solid var(--line); border-radius: 99px; background: #fffef9; color: var(--moss-deep); box-shadow: 0 8px 22px #244a3614; padding: .32rem .72rem; font-size: .74rem; font-weight: 700; animation: fade-in .2s ease-out both; }
+.family-tree-canvas-save-status[data-state="saved"] { color: var(--moss); }
+.family-tree-canvas-save-status[data-state="error"] { color: var(--danger); background: #fff7f6; }
 .family-tree-canvas-tools { position: absolute; left: 15px; bottom: 15px; z-index: 5; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
 .family-tree-canvas-tools .react-flow__controls { position: relative; left: auto; bottom: auto; margin: 0; }
 .family-tree-canvas-tool-btn { display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; border: 1px solid var(--line); border-radius: .9rem; background: #fffef9; color: var(--moss-deep); box-shadow: 0 8px 22px #244a3614; cursor: pointer; }

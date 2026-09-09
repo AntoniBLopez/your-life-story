@@ -1,14 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Background, Controls, MiniMap, ReactFlow, ReactFlowProvider, useReactFlow, type Edge, type Node, type OnNodeDrag, type OnNodesChange } from "@xyflow/react";
+import { Check, LoaderCircle, X } from "lucide-react";
 import { saveFamilyNodeLayoutsAction } from "@/modules/family-tree/application/family-actions";
 import { FAMILY_LAYOUT } from "@/modules/family-tree/domain/family-layout";
 import { familyTreeEdgeTypes, familyTreeNodeTypes } from "@/modules/family-tree/presentation/components/family-tree-flow";
 import { FamilyTreeResetLayoutControl } from "@/modules/family-tree/presentation/components/family-tree-reset-layout-control";
 
 const LAYOUT_SAVE_DELAY_MS = 450;
+const SAVED_HIDE_MS = 1400;
+
+type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 type Props = {
   locale: "es" | "en";
@@ -17,6 +21,7 @@ type Props = {
   subjectId?: string;
   readOnly?: boolean;
   onNodesChange: OnNodesChange<Node>;
+  onNodeDragStart?: (nodeId: string) => void;
   onNodeDragStop?: (nodeId: string) => void;
   onLayoutsReset?: () => void;
   onNodeClick: (node: Node) => void;
@@ -50,6 +55,7 @@ function FamilyTreeCanvasInner({
   subjectId,
   readOnly,
   onNodesChange,
+  onNodeDragStart,
   onNodeDragStop,
   onLayoutsReset,
   onNodeClick,
@@ -58,8 +64,23 @@ function FamilyTreeCanvasInner({
   const router = useRouter();
   const pendingLayouts = useRef(new Map<string, { x: number; y: number }>());
   const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const savedHideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const saveGeneration = useRef(0);
+  const draggingRef = useRef(false);
+  const inFlightRef = useRef(false);
+  const onNodeDragStartRef = useRef(onNodeDragStart);
+  const onNodeDragStopRef = useRef(onNodeDragStop);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const [, startSaveTransition] = useTransition();
+  onNodeDragStartRef.current = onNodeDragStart;
+  onNodeDragStopRef.current = onNodeDragStop;
+
+  const copy = locale === "es"
+    ? { saving: "Guardando…", saved: "Guardado", error: "No se pudo guardar" }
+    : { saving: "Saving…", saved: "Saved", error: "Could not save" };
 
   const flushLayouts = useCallback(() => {
+    if (draggingRef.current || inFlightRef.current) return;
     const positions = [...pendingLayouts.current.entries()].map(([personId, position]) => ({
       personId,
       x: position.x,
@@ -67,27 +88,66 @@ function FamilyTreeCanvasInner({
     }));
     pendingLayouts.current.clear();
     if (positions.length === 0) return;
-    void saveFamilyNodeLayoutsAction({ positions });
-  }, []);
+
+    const generation = saveGeneration.current;
+    inFlightRef.current = true;
+    startSaveTransition(async () => {
+      const result = await saveFamilyNodeLayoutsAction({ positions });
+      inFlightRef.current = false;
+      const interrupted = generation !== saveGeneration.current || draggingRef.current || pendingLayouts.current.size > 0;
+      if (interrupted) {
+        if (!draggingRef.current && pendingLayouts.current.size > 0) flushLayoutsRef.current();
+        return;
+      }
+      if (!result.ok) {
+        setSaveStatus("error");
+        savedHideTimer.current = setTimeout(() => setSaveStatus("idle"), SAVED_HIDE_MS);
+        return;
+      }
+      setSaveStatus("saved");
+      savedHideTimer.current = setTimeout(() => setSaveStatus("idle"), SAVED_HIDE_MS);
+    });
+  }, [startSaveTransition]);
+  const flushLayoutsRef = useRef(flushLayouts);
+  flushLayoutsRef.current = flushLayouts;
 
   useEffect(() => () => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
-    flushLayouts();
-  }, [flushLayouts]);
+    if (savedHideTimer.current) clearTimeout(savedHideTimer.current);
+    flushLayoutsRef.current();
+  }, []);
 
-  function scheduleLayoutSave(personId: string, position: { x: number; y: number }) {
+  const interruptSaveForDrag = useCallback(() => {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    if (savedHideTimer.current) clearTimeout(savedHideTimer.current);
+    saveGeneration.current += 1;
+  }, []);
+
+  const scheduleLayoutSave = useCallback((personId: string, position: { x: number; y: number }) => {
     if (readOnly) return;
     pendingLayouts.current.set(personId, position);
     if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(flushLayouts, LAYOUT_SAVE_DELAY_MS);
-  }
+    setSaveStatus("saving");
+    saveTimer.current = setTimeout(() => flushLayoutsRef.current(), LAYOUT_SAVE_DELAY_MS);
+  }, [readOnly]);
+
+  const handleNodeDragStart = useCallback<OnNodeDrag<Node>>((_event, node) => {
+    draggingRef.current = true;
+    interruptSaveForDrag();
+    onNodeDragStartRef.current?.(node.id);
+    setSaveStatus((current) => (current === "saved" || current === "error" ? "idle" : current));
+  }, [interruptSaveForDrag]);
 
   const handleNodeDragStop = useCallback<OnNodeDrag<Node>>((_event, node) => {
-    onNodeDragStop?.(node.id);
+    draggingRef.current = false;
+    onNodeDragStopRef.current?.(node.id);
     scheduleLayoutSave(node.id, node.position);
-  }, [onNodeDragStop]);
+  }, [scheduleLayoutSave]);
 
   function handleLayoutsReset() {
+    interruptSaveForDrag();
+    pendingLayouts.current.clear();
+    setSaveStatus("idle");
     onLayoutsReset?.();
     router.refresh();
   }
@@ -99,6 +159,7 @@ function FamilyTreeCanvasInner({
       nodeTypes={familyTreeNodeTypes}
       edgeTypes={familyTreeEdgeTypes}
       onNodesChange={onNodesChange}
+      onNodeDragStart={readOnly ? undefined : handleNodeDragStart}
       onNodeDragStop={readOnly ? undefined : handleNodeDragStop}
       onPaneClick={onPaneClick}
       onNodeClick={(_, node) => onNodeClick(node)}
@@ -112,6 +173,12 @@ function FamilyTreeCanvasInner({
     >
       <FamilyTreeInitialViewport subjectId={subjectId} nodes={nodes} />
       <Background gap={18} size={1} color="#dce5db" />
+      {saveStatus !== "idle" && (
+        <div className="family-tree-canvas-save-status" data-state={saveStatus} role="status" aria-live="polite">
+          {saveStatus === "saving" ? <LoaderCircle className="animate-spin" size={13} /> : saveStatus === "error" ? <X size={13} /> : <Check size={13} />}
+          <span>{saveStatus === "saving" ? copy.saving : saveStatus === "saved" ? copy.saved : copy.error}</span>
+        </div>
+      )}
       <div className="family-tree-canvas-tools">
         <Controls />
         {!readOnly && <FamilyTreeResetLayoutControl locale={locale} onReset={handleLayoutsReset} />}
