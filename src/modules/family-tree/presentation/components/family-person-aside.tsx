@@ -61,28 +61,26 @@ export function FamilyPersonAside({
   const t = locale === "es"
     ? {
         remember: "Recordar cumpleaños",
-        remembering: "Recordando",
         setupTitle: "Avisos de cumpleaños",
         setupBody: "Estos avisos valen para todas las personas del árbol. Después solo tendrás que pulsar el botón en cada una.",
         saveAndRemember: "Guardar y recordar",
         connect: "Conectar Google Calendar",
         connected: "Avisos en",
         needBirth: "Añade la fecha de nacimiento para poder recordar el cumpleaños.",
+        needBirthTooltip: "Añade fecha de nacimiento para poder añadir el recordatorio",
         enabled: "Recordatorio activado en Google Calendar.",
-        disabled: "Recordatorio desactivado.",
         connectHint: "Conecta Google Calendar en Ajustes para recibir los avisos.",
       }
     : {
         remember: "Remember birthday",
-        remembering: "Remembering",
         setupTitle: "Birthday reminders",
         setupBody: "These reminders apply to everyone in the tree. After this, you only need the button on each person.",
         saveAndRemember: "Save and remember",
         connect: "Connect Google Calendar",
         connected: "Reminders go to",
         needBirth: "Add a date of birth to remember this birthday.",
+        needBirthTooltip: "Add date of birth to add the reminder",
         enabled: "Reminder enabled in Google Calendar.",
-        disabled: "Reminder turned off.",
         connectHint: "Connect Google Calendar in Settings to receive reminders.",
       };
 
@@ -126,8 +124,6 @@ export function FamilyPersonAside({
       setSetupOpen(false);
       if (result.data.enabled) {
         setMessage(result.data.needsCalendar ? t.connectHint : t.enabled);
-      } else {
-        setMessage(t.disabled);
       }
       router.refresh();
     });
@@ -136,10 +132,6 @@ export function FamilyPersonAside({
   function onRememberClick() {
     if (!hasBirth) {
       setError(t.needBirth);
-      return;
-    }
-    if (person.birthdayReminderEnabled) {
-      runQuick();
       return;
     }
     if (!hasPreset) {
@@ -206,17 +198,21 @@ export function FamilyPersonAside({
       {!readOnly && (
       <div className="mt-4 flex flex-col gap-2">
         <button className="btn btn-primary w-full" onClick={onEdit}><Pencil size={14} />{labels.edit}</button>
-        <button
-          disabled={pending || !hasBirth}
-          className={`btn w-full !py-2 text-xs ${person.birthdayReminderEnabled ? "btn-secondary" : "btn-quiet border border-[var(--line)]"}`}
-          onClick={onRememberClick}
-        >
-          {pending ? <LoaderCircle className="animate-spin" size={14} /> : <Cake size={14} />}
-          {person.birthdayReminderEnabled ? t.remembering : t.remember}
-        </button>
+        {!person.birthdayReminderEnabled && (
+          <span className="w-full" title={!hasBirth ? t.needBirthTooltip : undefined}>
+            <button
+              disabled={pending || !hasBirth}
+              className="btn btn-quiet w-full border border-[var(--line)] !py-2 text-xs disabled:cursor-not-allowed"
+              onClick={onRememberClick}
+            >
+              {pending ? <LoaderCircle className="animate-spin" size={14} /> : <Cake size={14} />}
+              {t.remember}
+            </button>
+          </span>
+        )}
       </div>
       )}
-      {!readOnly && setupOpen && (
+      {!readOnly && setupOpen && !person.birthdayReminderEnabled && (
         <div className="mt-4 min-w-0 overflow-hidden rounded-xl border border-[var(--line)] bg-[#fbfaf6] p-3">
           <p className="text-sm font-bold text-[var(--ink)]">{t.setupTitle}</p>
           <p className="mt-1 text-xs leading-5 text-[var(--muted)]">{t.setupBody}</p>

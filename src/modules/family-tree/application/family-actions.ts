@@ -13,6 +13,7 @@ import { importBassolsFamilySeed } from "./family-seed-service";
 import { getSharedTimelineForViewer } from "./timeline-share-service";
 import { duplicateLifeStoryForUser } from "@/modules/life-story/application/life-story-service";
 import { syncPersonBirthdayReminders, unsyncAllBirthdayRemindersForUser, unsyncPersonBirthdayReminders } from "./birthday-reminder-service";
+import { ensureDefaultBirthdayPreset } from "./birthday-reminder-actions";
 import { MongoBirthdayReminderPresetRepository } from "../infrastructure/mongo-birthday-reminder-preset-repository";
 
 const repository = new MongoFamilyRepository();
@@ -26,7 +27,10 @@ function personPayload(
   const { motherId: _motherId, fatherId: _fatherId, ...person } = parsed;
   const email = normalizePersonEmail(person.email);
   const canRemind = canRemindBirthday(person.birthDate);
-  const reminderEnabled = Boolean(existing?.birthdayReminderEnabled) && canRemind;
+  const reminderFromForm = formData.get("birthdayReminderField") === "1";
+  const reminderEnabled = reminderFromForm
+    ? formData.get("birthdayReminderEnabled") === "on" && canRemind
+    : Boolean(existing?.birthdayReminderEnabled) && canRemind;
   return {
     ...person,
     email,
@@ -36,17 +40,63 @@ function personPayload(
   };
 }
 
+async function applyBirthdayReminderChanges(
+  userId: string,
+  person: FamilyPerson,
+  existing: FamilyPerson | null | undefined,
+  locale: "es" | "en",
+  timeZone: string,
+) {
+  if (existing?.birthdayReminderEnabled && !person.birthdayReminderEnabled) {
+    await unsyncPersonBirthdayReminders(userId, existing);
+    return person;
+  }
+  if (!canRemindBirthday(person.birthDate)) {
+    if (existing?.birthdayReminderEnabled) await unsyncPersonBirthdayReminders(userId, existing);
+    return person;
+  }
+  if (!person.birthdayReminderEnabled) return person;
+
+  let updated = person;
+  if (!updated.birthdayReminderPresetId) {
+    const presetList = await ensureDefaultBirthdayPreset(userId, locale);
+    const preset = presetList.find((item) => item.isDefault) ?? presetList[0];
+    if (!preset) return updated;
+    updated = await repository.updatePersonBirthdayReminder(userId, updated.id, {
+      birthdayReminderEnabled: true,
+      birthdayReminderPresetId: preset.id,
+    });
+  }
+
+  const preset = await reminderPresets.findById(userId, updated.birthdayReminderPresetId!);
+  if (!preset) return updated;
+  try {
+    await syncPersonBirthdayReminders({
+      userId,
+      person: updated,
+      locale,
+      timeZone,
+      offsets: preset.offsets,
+    });
+  } catch (error) {
+    console.error("Birthday reminder calendar sync failed:", error);
+  }
+  return updated;
+}
+
 export async function createFamilyPersonAction(formData: FormData): Promise<ActionResult<{ id: string }>> {
   const parsed = familyPersonSchema.safeParse({ ...Object.fromEntries(formData.entries()), isSubject: formData.get("isSubject") === "on" });
   if (!parsed.success) return { ok: false, error: "Revisa los datos de esta persona." };
   try {
     const user = await requireCurrentUser();
     const locale = String(formData.get("locale")) === "en" ? "en" : "es";
+    const timeZone = String(formData.get("timeZone") || "UTC");
     const { motherId, fatherId } = parsed.data;
-    const person = await repository.addPerson(user.id, personPayload(parsed.data, formData));
+    let person = await repository.addPerson(user.id, personPayload(parsed.data, formData));
     if (motherId || fatherId) {
       await syncPersonParents(repository, user.id, person.id, motherId, fatherId);
     }
+    person = await applyBirthdayReminderChanges(user.id, person, null, locale, timeZone);
     revalidatePath(`/${locale}/app/family`);
     return { ok: true, data: { id: person.id } };
   } catch (error) { return { ok: false, error: error instanceof Error ? error.message : "No se pudo añadir a esta persona." }; }
@@ -62,26 +112,9 @@ export async function updateFamilyPersonAction(formData: FormData): Promise<Acti
     const timeZone = String(formData.get("timeZone") || "UTC");
     const existing = await repository.findPersonById(user.id, personId);
     const { motherId, fatherId } = parsed.data;
-    const person = await repository.updatePerson(user.id, personId, personPayload(parsed.data, formData, existing ?? undefined));
+    let person = await repository.updatePerson(user.id, personId, personPayload(parsed.data, formData, existing ?? undefined));
     await syncPersonParents(repository, user.id, personId, motherId, fatherId);
-    if (existing?.birthdayReminderEnabled && !canRemindBirthday(person.birthDate)) {
-      await unsyncPersonBirthdayReminders(user.id, existing);
-    } else if (person.birthdayReminderEnabled && person.birthdayReminderPresetId) {
-      const preset = await reminderPresets.findById(user.id, person.birthdayReminderPresetId);
-      if (preset) {
-        try {
-          await syncPersonBirthdayReminders({
-            userId: user.id,
-            person,
-            locale,
-            timeZone,
-            offsets: preset.offsets,
-          });
-        } catch (error) {
-          console.error("Birthday reminder calendar sync failed:", error);
-        }
-      }
-    }
+    await applyBirthdayReminderChanges(user.id, person, existing, locale, timeZone);
     revalidatePath(`/${locale}/app/family`);
     return { ok: true, data: { id: personId } };
   } catch (error) { return { ok: false, error: error instanceof Error ? error.message : "No se pudo actualizar a esta persona." }; }
