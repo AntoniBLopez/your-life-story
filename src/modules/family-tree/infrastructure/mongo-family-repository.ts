@@ -81,6 +81,29 @@ export class MongoFamilyRepository implements FamilyRepository {
     return rows.map(mapPerson);
   }
 
+  async findPersonById(userId: string, personId: string) {
+    const db = await this.db();
+    const row = await db.collection<FamilyPersonDbRecord>(COLLECTIONS.familyPeople).findOne({ _id: toObjectId(personId), userId });
+    return row ? mapPerson(row) : null;
+  }
+
+  async updatePersonBirthdayReminder(userId: string, personId: string, update: { birthdayReminderEnabled: boolean; birthdayReminderPresetId: string | null }) {
+    const db = await this.db();
+    const result = await db.collection<FamilyPersonDbRecord>(COLLECTIONS.familyPeople).findOneAndUpdate(
+      { _id: toObjectId(personId), userId },
+      {
+        $set: {
+          birthdayReminderEnabled: update.birthdayReminderEnabled,
+          birthdayReminderPresetId: update.birthdayReminderPresetId,
+          updatedAt: new Date(),
+        },
+      },
+      { returnDocument: "after" },
+    );
+    if (!result) throw new Error("Family person not found.");
+    return mapPerson(result);
+  }
+
   async listPeopleByInviteEmail(email: string) {
     const normalized = normalizePersonEmail(email);
     if (!normalized) return [];

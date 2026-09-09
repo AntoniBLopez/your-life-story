@@ -3,18 +3,83 @@
 import { revalidatePath } from "next/cache";
 import { requireCurrentUser } from "@/shared/lib/auth";
 import type { ActionResult } from "@/shared/types/action";
-import { DEFAULT_BIRTHDAY_OFFSETS, defaultPresetName, normalizeOffsets } from "../domain/birthday-reminder";
+import { canRemindBirthday, DEFAULT_BIRTHDAY_OFFSETS, defaultPresetName, normalizeOffsets, type BirthdayReminderOffset } from "../domain/birthday-reminder";
 import { MongoBirthdayReminderPresetRepository } from "../infrastructure/mongo-birthday-reminder-preset-repository";
 import { MongoGoogleCalendarAccountRepository } from "../infrastructure/mongo-google-calendar-account-repository";
 import { revokeGoogleToken } from "@/modules/identity/infrastructure/google-oauth";
 import { birthdayReminderOffsetsSchema, birthdayReminderPresetInputSchema } from "./birthday-reminder-schemas";
-import { syncAllBirthdayRemindersForUser, syncPeopleUsingPreset, unsyncAllBirthdayRemindersForUser } from "./birthday-reminder-service";
+import { syncAllBirthdayRemindersForUser, syncPeopleUsingPreset, syncPersonBirthdayReminders, unsyncAllBirthdayRemindersForUser, unsyncPersonBirthdayReminders } from "./birthday-reminder-service";
+import { MongoFamilyRepository } from "../infrastructure/mongo-family-repository";
 
+const people = new MongoFamilyRepository();
 const presets = new MongoBirthdayReminderPresetRepository();
 const calendars = new MongoGoogleCalendarAccountRepository();
 
+function defaultPreset(presetList: Awaited<ReturnType<typeof presets.listByUser>>) {
+  return presetList.find((item) => item.isDefault) ?? presetList[0] ?? null;
+}
+
 function localeFrom(value: unknown): "es" | "en" {
   return String(value) === "en" ? "en" : "es";
+}
+
+export async function quickBirthdayReminderAction(input: {
+  personId: string;
+  locale: "es" | "en";
+  timeZone: string;
+  offsets?: BirthdayReminderOffset[];
+}): Promise<ActionResult<{ enabled: boolean; needsSetup?: boolean; needsCalendar?: boolean }>> {
+  const locale = input.locale;
+  try {
+    const user = await requireCurrentUser();
+    const person = await people.findPersonById(user.id, input.personId);
+    if (!person) return { ok: false, error: locale === "es" ? "No se encontró a esta persona." : "This person was not found." };
+    if (!canRemindBirthday(person.birthDate)) {
+      return { ok: false, error: locale === "es" ? "Añade primero la fecha de nacimiento." : "Add a date of birth first." };
+    }
+
+    if (person.birthdayReminderEnabled) {
+      await unsyncPersonBirthdayReminders(user.id, person);
+      await people.updatePersonBirthdayReminder(user.id, person.id, { birthdayReminderEnabled: false, birthdayReminderPresetId: null });
+      revalidatePath(`/${locale}/app/family`);
+      return { ok: true, data: { enabled: false } };
+    }
+
+    const presetList = await presets.listByUser(user.id);
+    let preset = defaultPreset(presetList);
+    if (!preset) {
+      if (!input.offsets?.length) {
+        return { ok: true, data: { enabled: false, needsSetup: true } };
+      }
+      const saved = await presets.upsert(user.id, {
+        name: defaultPresetName(locale),
+        offsets: normalizeOffsets(birthdayReminderOffsetsSchema.parse(input.offsets)),
+        isDefault: true,
+      });
+      preset = saved.preset;
+    }
+
+    const updated = await people.updatePersonBirthdayReminder(user.id, person.id, {
+      birthdayReminderEnabled: true,
+      birthdayReminderPresetId: preset.id,
+    });
+    try {
+      await syncPersonBirthdayReminders({
+        userId: user.id,
+        person: updated,
+        locale,
+        timeZone: input.timeZone,
+        offsets: preset.offsets,
+      });
+    } catch (error) {
+      console.error("Birthday reminder calendar sync failed:", error);
+    }
+    const calendar = await calendars.findByUser(user.id);
+    revalidatePath(`/${locale}/app/family`);
+    return { ok: true, data: { enabled: true, needsCalendar: !calendar } };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : locale === "es" ? "No se pudo activar el recordatorio." : "The reminder could not be enabled." };
+  }
 }
 
 export async function saveBirthdayReminderPresetAction(formData: FormData): Promise<ActionResult<{ id: string }>> {
