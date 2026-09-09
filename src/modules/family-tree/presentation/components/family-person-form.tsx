@@ -13,6 +13,12 @@ import { fileToBase64 } from "@/shared/lib/file-to-base64";
 const AVATAR_ACCEPT = "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp";
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
 
+function isValidEmail(value: string) {
+  const email = value.trim();
+  if (!email) return false;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
 type ParentSlots = { motherId: string | null; fatherId: string | null };
 
 type FormState = {
@@ -222,6 +228,16 @@ export function FamilyPersonForm({
     setForm((current) => ({ ...current, [key]: value }));
   }
 
+  function handleEmailChange(email: string) {
+    setForm((current) => ({
+      ...current,
+      email,
+      canReadTimeline: isValidEmail(email) ? current.canReadTimeline : false,
+    }));
+  }
+
+  const canShareTimeline = isValidEmail(form.email);
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setAvatarError(undefined);
@@ -417,34 +433,32 @@ export function FamilyPersonForm({
                 ))}
               </select>
             </label>
-            {!form.isSubject && (
-              <label>
-                <span className="field-label">{t.email}</span>
-                <input className="input" name="email" type="email" value={form.email} onChange={(event) => patch("email", event.target.value)} />
-              </label>
-            )}
             <p className="md:col-span-3 text-xs leading-5 text-[var(--muted)]">{t.parentsHelp}</p>
           </>
         )}
-        {!form.isSubject && parentCandidates.length === 0 && (
-          <label className="md:col-span-2">
-            <span className="field-label">{t.email}</span>
-            <input className="input" name="email" type="email" value={form.email} onChange={(event) => patch("email", event.target.value)} />
-          </label>
+        {!form.isSubject && (
+          <div className="md:col-span-2">
+            <label>
+              <span className="field-label">{t.email}</span>
+              <input className="input" name="email" type="email" value={form.email} onChange={(event) => handleEmailChange(event.target.value)} />
+            </label>
+            <label className="mt-3 flex items-center gap-2 text-sm font-bold">
+              <input
+                type="checkbox"
+                name="canReadTimeline"
+                checked={form.canReadTimeline}
+                disabled={!canShareTimeline}
+                onChange={(event) => patch("canReadTimeline", event.target.checked)}
+              />
+              {t.share}
+            </label>
+            <p className="mt-1 text-xs leading-5 text-[var(--muted)]">{t.shareHelp}</p>
+          </div>
         )}
         <label className="md:col-span-3">
           <span className="field-label">{t.notes}</span>
           <textarea className="textarea !min-h-20" name="notes" maxLength={300} value={form.notes} onChange={(event) => patch("notes", event.target.value)} />
         </label>
-        {!form.isSubject && (
-          <>
-            <label className="flex items-end gap-2 pb-3 text-sm font-bold md:col-span-2">
-              <input type="checkbox" name="canReadTimeline" checked={form.canReadTimeline} onChange={(event) => patch("canReadTimeline", event.target.checked)} />
-              {t.share}
-            </label>
-            <p className="md:col-span-3 text-xs leading-5 text-[var(--muted)]">{t.shareHelp}</p>
-          </>
-        )}
         {showReminder && (
           <FamilyPersonReminderEdit
             locale={locale}
