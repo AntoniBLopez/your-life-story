@@ -26,6 +26,33 @@ export const DEFAULT_BIRTHDAY_OFFSETS: BirthdayReminderOffset[] = [
   { unit: "days", amount: 1, hour: 20, minute: 0 },
 ];
 
+export type ReminderTimingOption = {
+  id: string;
+  offset: BirthdayReminderOffset;
+  label: { es: string; en: string };
+};
+
+export const REMINDER_TIMING_OPTIONS: ReminderTimingOption[] = [
+  { id: "days:0", offset: { unit: "days", amount: 0, hour: 9, minute: 0 }, label: { es: "El mismo día", en: "Same day" } },
+  { id: "days:1", offset: { unit: "days", amount: 1, hour: 9, minute: 0 }, label: { es: "El día anterior", en: "The day before" } },
+  { id: "days:2", offset: { unit: "days", amount: 2, hour: 9, minute: 0 }, label: { es: "2 días antes", en: "2 days before" } },
+  { id: "days:3", offset: { unit: "days", amount: 3, hour: 9, minute: 0 }, label: { es: "3 días antes", en: "3 days before" } },
+  { id: "days:4", offset: { unit: "days", amount: 4, hour: 9, minute: 0 }, label: { es: "4 días antes", en: "4 days before" } },
+  { id: "days:5", offset: { unit: "days", amount: 5, hour: 9, minute: 0 }, label: { es: "5 días antes", en: "5 days before" } },
+  { id: "days:6", offset: { unit: "days", amount: 6, hour: 9, minute: 0 }, label: { es: "6 días antes", en: "6 days before" } },
+  { id: "weeks:1", offset: { unit: "weeks", amount: 1, hour: 9, minute: 0 }, label: { es: "1 semana antes", en: "1 week before" } },
+  { id: "weeks:2", offset: { unit: "weeks", amount: 2, hour: 9, minute: 0 }, label: { es: "2 semanas antes", en: "2 weeks before" } },
+  { id: "weeks:3", offset: { unit: "weeks", amount: 3, hour: 9, minute: 0 }, label: { es: "3 semanas antes", en: "3 weeks before" } },
+  { id: "months:1", offset: { unit: "months", amount: 1, hour: 9, minute: 0 }, label: { es: "1 mes antes", en: "1 month before" } },
+  { id: "days:45", offset: { unit: "days", amount: 45, hour: 9, minute: 0 }, label: { es: "1 mes y medio antes", en: "1½ months before" } },
+  { id: "months:2", offset: { unit: "months", amount: 2, hour: 9, minute: 0 }, label: { es: "2 meses antes", en: "2 months before" } },
+  { id: "months:3", offset: { unit: "months", amount: 3, hour: 9, minute: 0 }, label: { es: "3 meses antes", en: "3 months before" } },
+];
+
+export function reminderTimingLabel(option: ReminderTimingOption, locale: "es" | "en") {
+  return option.label[locale];
+}
+
 export function canRemindBirthday(birthDate: string | null | undefined) {
   return /^\d{4}-\d{2}-\d{2}$/.test(birthDate ?? "");
 }
