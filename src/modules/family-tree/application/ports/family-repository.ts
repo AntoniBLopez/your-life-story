@@ -14,5 +14,6 @@ export interface FamilyRepository {
   addRelationship(userId: string, relationship: Omit<FamilyRelationship, "id" | "userId">): Promise<void>;
   deleteRelationship(userId: string, relationshipId: string): Promise<void>;
   updatePeopleLayout(userId: string, layouts: { personId: string; layoutX: number; layoutY: number }[]): Promise<void>;
+  clearPeopleLayouts(userId: string): Promise<void>;
   clearAll(userId: string): Promise<void>;
 }

@@ -323,12 +323,13 @@ export function mergeSavedLayoutPositions(
 ) {
   const merged = new Map(autoPositions);
   for (const person of people) {
-    if (person.layoutX == null || person.layoutY == null) continue;
+    if (person.layoutX == null) continue;
     const current = merged.get(person.id);
+    if (!current) continue;
     merged.set(person.id, {
       x: person.layoutX,
-      y: person.layoutY,
-      generation: current?.generation ?? 0,
+      y: person.layoutY ?? current.y,
+      generation: current.generation,
     });
   }
   return merged;

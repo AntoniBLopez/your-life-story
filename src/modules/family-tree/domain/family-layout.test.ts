@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { relationToSubject, type FamilyPerson, type FamilyRelationship } from "./family-graph";
+import { BASSOLS_FAMILY_SEED } from "./bassols-family-seed";
 import { assignPyramidPositions, buildFamilyPositions, computeGenerations, FAMILY_LAYOUT, filterParentEdgesForDisplay, mergeSavedLayoutPositions } from "./family-layout";
 
 function average(values: number[]) {
@@ -72,6 +73,44 @@ describe("family layout", () => {
     );
     const merged = mergeSavedLayoutPositions(autoPositions, peopleWithSavedLayout);
     expect(merged.get("subject")).toMatchObject({ x: 420, y: 880 });
+  });
+
+  it("uses auto row height when only horizontal position was saved", () => {
+    const { positions: autoPositions } = buildFamilyPositions(blendedFamily, blendedGraph, "subject");
+    const peopleWithSavedLayout = blendedFamily.map((person) =>
+      person.id === "subject" ? { ...person, layoutX: 420, layoutY: null } : person,
+    );
+    const merged = mergeSavedLayoutPositions(autoPositions, peopleWithSavedLayout);
+    expect(merged.get("subject")).toMatchObject({ x: 420, y: autoPositions.get("subject")!.y });
+  });
+
+  it("keeps the Bassols seed tree stacked by generation", () => {
+    const people: FamilyPerson[] = BASSOLS_FAMILY_SEED.people.map((person) => ({
+      ...person,
+      id: person.key,
+      userId: "u",
+      email: null,
+      canReadTimeline: false,
+      birthdayReminderEnabled: false,
+      birthdayReminderPresetId: null,
+      googleCalendarEventIds: [],
+      layoutX: null,
+      layoutY: null,
+    }));
+    const relationships: FamilyRelationship[] = BASSOLS_FAMILY_SEED.relationships.map((relationship, index) => ({
+      id: `r-${index}`,
+      userId: "u",
+      sourcePersonId: relationship.sourceKey,
+      targetPersonId: relationship.targetKey,
+      relationshipType: relationship.relationshipType,
+    }));
+    const subjectId = people.find((person) => person.isSubject)?.id;
+    const { positions } = buildFamilyPositions(people, relationships, subjectId);
+    const ys = [...positions.values()].map((position) => position.y);
+    const uniqueYs = [...new Set(ys)];
+    expect(uniqueYs.length).toBeGreaterThan(2);
+    expect(positions.get("rosario")!.y).toBeLessThan(positions.get("antoni")!.y);
+    expect(positions.get("antoni_padre")!.y).toBeLessThan(positions.get("antoni")!.y);
   });
 });
 

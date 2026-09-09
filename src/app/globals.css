@@ -35,6 +35,7 @@ a { color: inherit; text-decoration: none; }
 .btn-quiet { color: var(--moss-deep); background: transparent; padding-inline: .65rem; }
 .btn-danger { color: white; background: var(--danger); }
 .card { border: 1px solid var(--line); background: var(--paper); box-shadow: 0 15px 40px #26332b0b; border-radius: 1.25rem; }
+.family-tree-canvas-card { box-shadow: 0 2px 6px #244a3610, 0 12px 28px #244a3618, 0 28px 56px #26332b14; }
 .eyebrow { color: var(--moss); font-size: .75rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
 .input, .select, .textarea { width: 100%; border: 1px solid #dcd8cf; border-radius: .75rem; background: white; color: var(--ink); padding: .72rem .8rem; outline: none; transition: border .2s, box-shadow .2s; }
 .textarea { min-height: 9rem; resize: vertical; }
@@ -68,8 +69,14 @@ a { color: inherit; text-decoration: none; }
 .react-flow__controls-button { border-bottom: 1px solid var(--line); background: #fffef9; color: var(--moss-deep); }
 .react-flow__controls-button:hover { background: #edf3eb; }
 .react-flow__controls-button:last-child { border-bottom: 0; }
-.react-flow__minimap { border: 1px solid var(--line); border-radius: 1rem; overflow: hidden; box-shadow: 0 10px 24px #244a3616; background: linear-gradient(165deg, #fffef9 0%, #f3f7ef 55%, #eaf1e6 100%); }
+.react-flow__attribution { display: none !important; }
+.family-tree-canvas-tools { position: absolute; left: 15px; bottom: 15px; z-index: 5; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.family-tree-canvas-tools .react-flow__controls { position: relative; left: auto; bottom: auto; margin: 0; }
+.family-tree-canvas-tool-btn { display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; border: 1px solid var(--line); border-radius: .9rem; background: #fffef9; color: var(--moss-deep); box-shadow: 0 8px 22px #244a3614; cursor: pointer; }
+.family-tree-canvas-tool-btn:hover { background: #edf3eb; }
+.react-flow__minimap { border: 1px solid #8fa88a; border-radius: 1rem; overflow: hidden; box-shadow: 0 10px 24px #244a3620; background: #b8c7b3; }
 .react-flow__minimap svg { display: block; border-radius: 1rem; }
+.react-flow__minimap-mask { fill: rgb(36 74 54 / 0.14); }
 
 @media (max-width: 720px) {
   .container { width: min(100% - 1.5rem, 1160px); }

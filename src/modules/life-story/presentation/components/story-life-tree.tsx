@@ -124,6 +124,7 @@ function StoryLifeTreeInner({
           elementsSelectable={false}
           minZoom={0.25}
           maxZoom={1.4}
+          proOptions={{ hideAttribution: true }}
         >
           <LifeTreeViewport nodeCount={nodes.length} />
           <Background gap={18} size={1} color="#dce5db" />
@@ -131,13 +132,14 @@ function StoryLifeTreeInner({
           <MiniMap
             zoomable
             pannable
-            nodeColor="#eef5ec"
-            nodeStrokeColor="#7fa87f"
+            nodeColor="#fffef9"
+            nodeStrokeColor="#3d654c"
             nodeBorderRadius={10}
-            maskColor="rgb(255 253 249 / 0.58)"
+            nodeStrokeWidth={2}
+            maskColor="rgb(36 74 54 / 0.14)"
             maskStrokeColor="#3d654c"
             maskStrokeWidth={1.5}
-            bgColor="#f4f7f0"
+            bgColor="#b8c7b3"
           />
         </ReactFlow>
       </div>

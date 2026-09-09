@@ -52,12 +52,15 @@ export function FamilyPersonAside({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [setupOpen, setSetupOpen] = useState(false);
+  const [calendarPromptOpen, setCalendarPromptOpen] = useState(false);
   const [offsets, setOffsets] = useState(() => defaultOffsetsFromPresets(presets));
   const [message, setMessage] = useState<string>();
   const [error, setError] = useState<string>();
   const [timeZone, setTimeZone] = useState("UTC");
+  const [reminderEnabled, setReminderEnabled] = useState(Boolean(person.birthdayReminderEnabled));
   const hasBirth = canRemindBirthday(person.birthDate);
   const hasPreset = presets.length > 0;
+  const hasCalendar = Boolean(calendar?.connected);
   const isMe = youPersonId ? person.id === youPersonId : person.isSubject;
   const t = locale === "es"
     ? {
@@ -66,11 +69,13 @@ export function FamilyPersonAside({
         setupBody: "Estos avisos valen para todas las personas del árbol. Después solo tendrás que pulsar el botón en cada una.",
         saveAndRemember: "Guardar y recordar",
         connect: "Conectar Google Calendar",
+        connectTitle: "Conecta Google Calendar",
+        connectBody: "Para recordar cumpleaños necesitas conectar Google Calendar. Después podrás activar el recordatorio aquí.",
         connected: "Avisos en",
         needBirth: "Añade la fecha de nacimiento para poder recordar el cumpleaños.",
         needBirthTooltip: "Añade fecha de nacimiento para poder añadir el recordatorio",
         enabled: "Recordatorio activado en Google Calendar.",
-        connectHint: "Conecta Google Calendar en Ajustes para recibir los avisos.",
+        needCalendarFirst: "Conecta Google Calendar antes de guardar los avisos.",
       }
     : {
         remember: "Remember birthday",
@@ -78,20 +83,24 @@ export function FamilyPersonAside({
         setupBody: "These reminders apply to everyone in the tree. After this, you only need the button on each person.",
         saveAndRemember: "Save and remember",
         connect: "Connect Google Calendar",
+        connectTitle: "Connect Google Calendar",
+        connectBody: "To remember birthdays you need to connect Google Calendar first. Then you can turn the reminder on here.",
         connected: "Reminders go to",
         needBirth: "Add a date of birth to remember this birthday.",
         needBirthTooltip: "Add date of birth to add the reminder",
         enabled: "Reminder enabled in Google Calendar.",
-        connectHint: "Connect Google Calendar in Settings to receive reminders.",
+        needCalendarFirst: "Connect Google Calendar before saving reminders.",
       };
 
   useEffect(() => {
     setTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC");
     setOffsets(defaultOffsetsFromPresets(presets));
     setSetupOpen(false);
+    setCalendarPromptOpen(false);
     setMessage(undefined);
     setError(undefined);
-  }, [person.id, presets]);
+    setReminderEnabled(Boolean(person.birthdayReminderEnabled));
+  }, [person.id, person.birthdayReminderEnabled, presets]);
 
   const calendarHref = useMemo(
     () => `/api/auth/google/calendar?locale=${locale}&next=${encodeURIComponent(`/${locale}/app/family`)}&timeZone=${encodeURIComponent(timeZone)}`,
@@ -118,13 +127,21 @@ export function FamilyPersonAside({
         setError(result.error);
         return;
       }
+      if (result.data.needsCalendar) {
+        setCalendarPromptOpen(true);
+        setSetupOpen(false);
+        return;
+      }
       if (result.data.needsSetup) {
         setSetupOpen(true);
+        setCalendarPromptOpen(!hasCalendar);
         return;
       }
       setSetupOpen(false);
+      setCalendarPromptOpen(false);
       if (result.data.enabled) {
-        setMessage(result.data.needsCalendar ? t.connectHint : t.enabled);
+        setReminderEnabled(true);
+        setMessage(t.enabled);
       }
       router.refresh();
     });
@@ -133,6 +150,11 @@ export function FamilyPersonAside({
   function onRememberClick() {
     if (!hasBirth) {
       setError(t.needBirth);
+      return;
+    }
+    if (!hasCalendar) {
+      setCalendarPromptOpen(true);
+      if (!hasPreset) setSetupOpen(true);
       return;
     }
     if (!hasPreset) {
@@ -189,7 +211,7 @@ export function FamilyPersonAside({
             <dd className="text-right">{labels.shared}</dd>
           </div>
         )}
-        {person.birthdayReminderEnabled && !readOnly && !isMe && (
+        {reminderEnabled && !readOnly && !isMe && (
           <div className="flex justify-between gap-3">
             <dt className="font-bold text-[var(--muted)]">{locale === "es" ? "Recordatorio" : "Reminder"}</dt>
             <dd className="text-right">{locale === "es" ? "Google Calendar" : "Google Calendar"}</dd>
@@ -199,7 +221,7 @@ export function FamilyPersonAside({
       {!readOnly && (
       <div className="mt-4 flex flex-col gap-2">
         <button className="btn btn-primary w-full" onClick={onEdit}><Pencil size={14} />{labels.edit}</button>
-        {!person.birthdayReminderEnabled && !isMe && (
+        {!reminderEnabled && !isMe && (
           <span className="w-full" title={!hasBirth ? t.needBirthTooltip : undefined}>
             <button
               disabled={pending || !hasBirth}
@@ -213,22 +235,37 @@ export function FamilyPersonAside({
         )}
       </div>
       )}
-      {!readOnly && setupOpen && !person.birthdayReminderEnabled && !isMe && (
+      {!readOnly && calendarPromptOpen && !reminderEnabled && !isMe && (
+        <div className="mt-4 min-w-0 overflow-hidden rounded-xl border border-[var(--line)] bg-[#fbfaf6] p-3">
+          <p className="text-sm font-bold text-[var(--ink)]">{t.connectTitle}</p>
+          <p className="mt-1 text-xs leading-5 text-[var(--muted)]">{t.connectBody}</p>
+          <a className="btn btn-primary mt-3 w-full !py-2 text-xs" href={calendarHref}>
+            <CalendarPlus size={14} />
+            {t.connect}
+          </a>
+        </div>
+      )}
+      {!readOnly && setupOpen && !reminderEnabled && !isMe && (
         <div className="mt-4 min-w-0 overflow-hidden rounded-xl border border-[var(--line)] bg-[#fbfaf6] p-3">
           <p className="text-sm font-bold text-[var(--ink)]">{t.setupTitle}</p>
           <p className="mt-1 text-xs leading-5 text-[var(--muted)]">{t.setupBody}</p>
           <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl bg-white p-2.5 text-[11px]">
-            {calendar?.connected ? (
+            {hasCalendar ? (
               <>
                 <CalendarPlus size={14} className="text-[var(--moss)]" />
-                <span>{t.connected} <strong>{calendar.email}</strong></span>
+                <span>{t.connected} <strong>{calendar?.email}</strong></span>
               </>
             ) : (
               <a className="btn btn-secondary !px-2.5 !py-1.5 text-[11px]" href={calendarHref}>{t.connect}</a>
             )}
           </div>
+          {!hasCalendar && <p className="mt-2 text-xs text-[var(--muted)]">{t.needCalendarFirst}</p>}
           <BirthdayReminderOffsetEditor locale={locale} offsets={offsets} onChange={setOffsets} compact />
-          <button disabled={pending || offsets.length === 0} className="btn btn-primary mt-3 w-full !py-2 text-xs" onClick={() => runQuick(offsets)}>
+          <button
+            disabled={pending || offsets.length === 0 || !hasCalendar}
+            className="btn btn-primary mt-3 w-full !py-2 text-xs"
+            onClick={() => runQuick(offsets)}
+          >
             {pending ? <LoaderCircle className="animate-spin" size={14} /> : <Cake size={14} />}
             {t.saveAndRemember}
           </button>

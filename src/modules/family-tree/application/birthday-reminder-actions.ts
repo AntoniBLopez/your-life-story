@@ -49,7 +49,8 @@ export async function quickBirthdayReminderAction(input: {
     let preset = defaultPreset(presetList);
     if (!preset) {
       if (!input.offsets?.length) {
-        return { ok: true, data: { enabled: false, needsSetup: true } };
+        const calendar = await calendars.findByUser(user.id);
+        return { ok: true, data: { enabled: false, needsSetup: true, needsCalendar: !calendar } };
       }
       const saved = await presets.upsert(user.id, {
         name: defaultPresetName(locale),
@@ -57,6 +58,11 @@ export async function quickBirthdayReminderAction(input: {
         isDefault: true,
       });
       preset = saved.preset;
+    }
+
+    const calendar = await calendars.findByUser(user.id);
+    if (!calendar) {
+      return { ok: true, data: { enabled: false, needsCalendar: true } };
     }
 
     const updated = await people.updatePersonBirthdayReminder(user.id, person.id, {
@@ -74,9 +80,8 @@ export async function quickBirthdayReminderAction(input: {
     } catch (error) {
       console.error("Birthday reminder calendar sync failed:", error);
     }
-    const calendar = await calendars.findByUser(user.id);
     revalidatePath(`/${locale}/app/family`);
-    return { ok: true, data: { enabled: true, needsCalendar: !calendar } };
+    return { ok: true, data: { enabled: true } };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : locale === "es" ? "No se pudo activar el recordatorio." : "The reminder could not be enabled." };
   }

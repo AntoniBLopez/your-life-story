@@ -16,9 +16,11 @@ import { duplicateLifeStoryForUser } from "@/modules/life-story/application/life
 import { syncPeopleUsingPreset, syncPersonBirthdayReminders, unsyncAllBirthdayRemindersForUser, unsyncPersonBirthdayReminders } from "./birthday-reminder-service";
 import { ensureDefaultBirthdayPreset } from "./birthday-reminder-actions";
 import { MongoBirthdayReminderPresetRepository } from "../infrastructure/mongo-birthday-reminder-preset-repository";
+import { MongoGoogleCalendarAccountRepository } from "../infrastructure/mongo-google-calendar-account-repository";
 
 const repository = new MongoFamilyRepository();
 const reminderPresets = new MongoBirthdayReminderPresetRepository();
+const calendars = new MongoGoogleCalendarAccountRepository();
 
 function personPayload(
   parsed: ReturnType<typeof familyPersonSchema.parse>,
@@ -65,6 +67,22 @@ async function saveReminderPresetFromForm(userId: string, formData: FormData, lo
     await syncPeopleUsingPreset(userId, preset.id, locale, timeZone);
   }
   return preset;
+}
+
+function reminderEnableRequested(formData: FormData, parsed: ReturnType<typeof familyPersonSchema.parse>) {
+  return formData.get("birthdayReminderField") === "1"
+    && formData.get("birthdayReminderEnabled") === "on"
+    && canRemindBirthday(parsed.birthDate)
+    && !parsed.isSubject;
+}
+
+async function assertCalendarForReminder(userId: string, formData: FormData, parsed: ReturnType<typeof familyPersonSchema.parse>, locale: "es" | "en") {
+  if (!reminderEnableRequested(formData, parsed)) return null;
+  const calendar = await calendars.findByUser(userId);
+  if (calendar) return null;
+  return locale === "es"
+    ? "Conecta Google Calendar para activar recordatorios de cumpleaños."
+    : "Connect Google Calendar to enable birthday reminders.";
 }
 
 async function applyBirthdayReminderChanges(
@@ -118,6 +136,8 @@ export async function createFamilyPersonAction(formData: FormData): Promise<Acti
     const user = await requireCurrentUser();
     const locale = String(formData.get("locale")) === "en" ? "en" : "es";
     const timeZone = String(formData.get("timeZone") || "UTC");
+    const calendarError = await assertCalendarForReminder(user.id, formData, parsed.data, locale);
+    if (calendarError) return { ok: false, error: calendarError };
     const preset = await saveReminderPresetFromForm(user.id, formData, locale, timeZone);
     const { motherId, fatherId } = parsed.data;
     let person = await repository.addPerson(user.id, personPayload(parsed.data, formData, undefined, preset?.id ?? null));
@@ -139,6 +159,8 @@ export async function updateFamilyPersonAction(formData: FormData): Promise<Acti
     const locale = String(formData.get("locale")) === "en" ? "en" : "es";
     const timeZone = String(formData.get("timeZone") || "UTC");
     const existing = await repository.findPersonById(user.id, personId);
+    const calendarError = await assertCalendarForReminder(user.id, formData, parsed.data, locale);
+    if (calendarError) return { ok: false, error: calendarError };
     const preset = await saveReminderPresetFromForm(user.id, formData, locale, timeZone);
     const { motherId, fatherId } = parsed.data;
     let person = await repository.updatePerson(user.id, personId, personPayload(parsed.data, formData, existing ?? undefined, preset?.id ?? null));
@@ -218,9 +240,29 @@ export async function saveFamilyNodeLayoutsAction(input: {
       }));
     if (layouts.length === 0) return { ok: false, error: "No se pudieron guardar las posiciones." };
     await repository.updatePeopleLayout(user.id, layouts);
+    revalidatePath("/es/app/family");
+    revalidatePath("/en/app/family");
     return { ok: true, data: undefined };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "No se pudieron guardar las posiciones." };
+  }
+}
+
+export async function resetFamilyNodeLayoutsAction(locale: "es" | "en"): Promise<ActionResult> {
+  try {
+    const user = await requireCurrentUser();
+    await repository.clearPeopleLayouts(user.id);
+    revalidatePath(`/${locale}/app/family`);
+    return { ok: true, data: undefined };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error
+        ? error.message
+        : locale === "es"
+          ? "No se pudo restablecer el árbol."
+          : "The tree could not be reset.",
+    };
   }
 }
 

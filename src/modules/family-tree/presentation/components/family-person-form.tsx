@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { canRemindBirthday, type BirthdayReminderOffset, type BirthdayReminderPreset } from "@/modules/family-tree/domain/birthday-reminder";
 import type { FamilyPerson } from "@/modules/family-tree/domain/family-graph";
 import { FamilyPersonReminderEdit, initialReminderOffsets, offsetsEqual } from "@/modules/family-tree/presentation/components/family-person-reminder-edit";
@@ -79,6 +79,7 @@ export function FamilyPersonForm({
   calendar,
   pending,
   onSubmit,
+  onClose,
 }: {
   locale: "es" | "en";
   person?: FamilyPerson;
@@ -89,6 +90,7 @@ export function FamilyPersonForm({
   calendar?: { connected: boolean; email: string | null };
   pending: boolean;
   onSubmit: (formData: FormData) => void;
+  onClose: () => void;
 }) {
   const initial = useMemo(
     () => buildFormState(person, parentSlots, subject, presets),
@@ -102,6 +104,7 @@ export function FamilyPersonForm({
     ? {
         person: "Añadir persona",
         edit: "Editar",
+        close: "Cerrar",
         name: "Nombre completo",
         birth: "Nacimiento",
         death: "Fallecimiento",
@@ -130,6 +133,7 @@ export function FamilyPersonForm({
     : {
         person: "Add person",
         edit: "Edit",
+        close: "Close",
         name: "Full name",
         birth: "Birth",
         death: "Death",
@@ -173,7 +177,12 @@ export function FamilyPersonForm({
 
   return (
     <section className="card mt-6 p-5">
-      <h2 className="display text-2xl">{person ? t.edit : t.person}</h2>
+      <div className="flex items-start justify-between gap-3">
+        <h2 className="display text-2xl">{person ? t.edit : t.person}</h2>
+        <button type="button" aria-label={t.close} className="btn btn-quiet shrink-0 !p-1" onClick={onClose}>
+          <X size={16} />
+        </button>
+      </div>
       <form key={person?.id ?? "new"} onSubmit={handleSubmit} className="mt-4 grid gap-4 md:grid-cols-3">
         <label className="md:col-span-2">
           <span className="field-label">{t.name}</span>
@@ -237,13 +246,34 @@ export function FamilyPersonForm({
                 ))}
               </select>
             </label>
+            {!form.isSubject && (
+              <label>
+                <span className="field-label">{t.email}</span>
+                <input className="input" name="email" type="email" value={form.email} onChange={(event) => patch("email", event.target.value)} />
+              </label>
+            )}
             <p className="md:col-span-3 text-xs leading-5 text-[var(--muted)]">{t.parentsHelp}</p>
           </>
+        )}
+        {!form.isSubject && parentCandidates.length === 0 && (
+          <label className="md:col-span-2">
+            <span className="field-label">{t.email}</span>
+            <input className="input" name="email" type="email" value={form.email} onChange={(event) => patch("email", event.target.value)} />
+          </label>
         )}
         <label className="md:col-span-3">
           <span className="field-label">{t.notes}</span>
           <textarea className="textarea !min-h-20" name="notes" maxLength={300} value={form.notes} onChange={(event) => patch("notes", event.target.value)} />
         </label>
+        {!form.isSubject && (
+          <>
+            <label className="flex items-end gap-2 pb-3 text-sm font-bold md:col-span-2">
+              <input type="checkbox" name="canReadTimeline" checked={form.canReadTimeline} onChange={(event) => patch("canReadTimeline", event.target.checked)} />
+              {t.share}
+            </label>
+            <p className="md:col-span-3 text-xs leading-5 text-[var(--muted)]">{t.shareHelp}</p>
+          </>
+        )}
         {showReminder && (
           <FamilyPersonReminderEdit
             locale={locale}
@@ -256,19 +286,6 @@ export function FamilyPersonForm({
             onEnabledChange={(value) => patch("birthdayReminderEnabled", value)}
             onOffsetsChange={(value) => patch("offsets", value)}
           />
-        )}
-        {!form.isSubject && (
-          <>
-            <label className="md:col-span-2">
-              <span className="field-label">{t.email}</span>
-              <input className="input" name="email" type="email" value={form.email} onChange={(event) => patch("email", event.target.value)} />
-            </label>
-            <label className="flex items-end gap-2 pb-3 text-sm font-bold">
-              <input type="checkbox" name="canReadTimeline" checked={form.canReadTimeline} onChange={(event) => patch("canReadTimeline", event.target.checked)} />
-              {t.share}
-            </label>
-            <p className="md:col-span-3 text-xs leading-5 text-[var(--muted)]">{t.shareHelp}</p>
-          </>
         )}
         <div className="flex items-end">
           <button disabled={pending || !canSubmit} className="btn btn-primary w-full" type="submit">

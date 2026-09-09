@@ -246,6 +246,14 @@ export class MongoFamilyRepository implements FamilyRepository {
     );
   }
 
+  async clearPeopleLayouts(userId: string) {
+    const db = await this.db();
+    await db.collection(COLLECTIONS.familyPeople).updateMany(
+      { userId },
+      { $set: { layoutX: null, layoutY: null, updatedAt: new Date() } },
+    );
+  }
+
   async clearAll(userId: string) {
     const db = await this.db();
     await db.collection(COLLECTIONS.familyRelationships).deleteMany({ userId });

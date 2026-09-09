@@ -37,7 +37,7 @@ export function FamilyPersonReminderEdit({
   onOffsetsChange: (offsets: BirthdayReminderOffset[]) => void;
 }) {
   const defaultPreset = presets.find((item) => item.isDefault) ?? presets[0];
-  const [open, setOpen] = useState(Boolean(person?.birthdayReminderEnabled));
+  const [open, setOpen] = useState(false);
   const [timeZone, setTimeZone] = useState("UTC");
   const hasBirth = canRemindBirthday(birthDate);
   const t = locale === "es"
@@ -51,6 +51,7 @@ export function FamilyPersonReminderEdit({
         connect: "Conectar Google Calendar",
         connected: "Avisos en",
         needDate: "Añade la fecha de nacimiento para configurar avisos.",
+        needCalendar: "Conecta Google Calendar para activar el recordatorio.",
         expand: "Ver y editar avisos",
         collapse: "Ocultar avisos",
       }
@@ -64,6 +65,7 @@ export function FamilyPersonReminderEdit({
         connect: "Connect Google Calendar",
         connected: "Reminders go to",
         needDate: "Add a date of birth to configure reminders.",
+        needCalendar: "Connect Google Calendar to enable the reminder.",
         expand: "View and edit reminders",
         collapse: "Hide reminders",
       };
@@ -73,8 +75,8 @@ export function FamilyPersonReminderEdit({
   }, []);
 
   useEffect(() => {
-    setOpen(Boolean(person?.birthdayReminderEnabled));
-  }, [person?.id, person?.birthdayReminderEnabled]);
+    setOpen(false);
+  }, [person?.id]);
 
   const calendarHref = useMemo(
     () => `/api/auth/google/calendar?locale=${locale}&next=${encodeURIComponent(`/${locale}/app/family`)}&timeZone=${encodeURIComponent(timeZone)}`,
@@ -116,11 +118,14 @@ export function FamilyPersonReminderEdit({
             <input
               type="checkbox"
               checked={enabled}
-              disabled={!hasBirth}
+              disabled={!hasBirth || !calendar?.connected}
               onChange={(event) => onEnabledChange(event.target.checked)}
             />
             {t.enable}
           </label>
+          {hasBirth && !calendar?.connected && (
+            <p className="text-xs text-[var(--muted)]">{t.needCalendar}</p>
+          )}
           {hasBirth && (
             <>
               <div className="flex flex-wrap items-center gap-2 rounded-xl bg-white p-2.5 text-[11px]">

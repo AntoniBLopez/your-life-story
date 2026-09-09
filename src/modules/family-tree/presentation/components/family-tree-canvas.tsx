@@ -1,20 +1,24 @@
 "use client";
 
 import { useEffect, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Background, Controls, MiniMap, ReactFlow, ReactFlowProvider, useReactFlow, type Edge, type Node, type OnNodeDrag, type OnNodesChange } from "@xyflow/react";
 import { saveFamilyNodeLayoutsAction } from "@/modules/family-tree/application/family-actions";
 import { FAMILY_LAYOUT } from "@/modules/family-tree/domain/family-layout";
 import { familyTreeEdgeTypes, familyTreeNodeTypes } from "@/modules/family-tree/presentation/components/family-tree-flow";
+import { FamilyTreeResetLayoutControl } from "@/modules/family-tree/presentation/components/family-tree-reset-layout-control";
 
 const LAYOUT_SAVE_DELAY_MS = 450;
 
 type Props = {
+  locale: "es" | "en";
   nodes: Node[];
   edges: Edge[];
   subjectId?: string;
   readOnly?: boolean;
   onNodesChange: OnNodesChange<Node>;
   onNodeDragStop?: (nodeId: string) => void;
+  onLayoutsReset?: () => void;
   onNodeClick: (node: Node) => void;
   onPaneClick: () => void;
 };
@@ -40,15 +44,18 @@ function FamilyTreeInitialViewport({ subjectId, nodes }: { subjectId?: string; n
 }
 
 function FamilyTreeCanvasInner({
+  locale,
   nodes,
   edges,
   subjectId,
   readOnly,
   onNodesChange,
   onNodeDragStop,
+  onLayoutsReset,
   onNodeClick,
   onPaneClick,
 }: Props) {
+  const router = useRouter();
   const pendingLayouts = useRef(new Map<string, { x: number; y: number }>());
   const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
@@ -65,7 +72,8 @@ function FamilyTreeCanvasInner({
 
   useEffect(() => () => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
-  }, []);
+    flushLayouts();
+  }, [flushLayouts]);
 
   function scheduleLayoutSave(personId: string, position: { x: number; y: number }) {
     if (readOnly) return;
@@ -78,6 +86,11 @@ function FamilyTreeCanvasInner({
     onNodeDragStop?.(node.id);
     scheduleLayoutSave(node.id, node.position);
   }, [onNodeDragStop]);
+
+  function handleLayoutsReset() {
+    onLayoutsReset?.();
+    router.refresh();
+  }
 
   return (
     <ReactFlow
@@ -95,20 +108,25 @@ function FamilyTreeCanvasInner({
       minZoom={0.2}
       maxZoom={1.6}
       defaultViewport={{ x: 0, y: 0, zoom: FAMILY_LAYOUT.initialZoom }}
+      proOptions={{ hideAttribution: true }}
     >
       <FamilyTreeInitialViewport subjectId={subjectId} nodes={nodes} />
       <Background gap={18} size={1} color="#dce5db" />
-      <Controls />
+      <div className="family-tree-canvas-tools">
+        <Controls />
+        {!readOnly && <FamilyTreeResetLayoutControl locale={locale} onReset={handleLayoutsReset} />}
+      </div>
       <MiniMap
         zoomable
         pannable
-        nodeColor="#eef5ec"
-        nodeStrokeColor="#7fa87f"
+        nodeColor="#fffef9"
+        nodeStrokeColor="#3d654c"
         nodeBorderRadius={10}
-        maskColor="rgb(255 253 249 / 0.58)"
+        nodeStrokeWidth={2}
+        maskColor="rgb(36 74 54 / 0.14)"
         maskStrokeColor="#3d654c"
         maskStrokeWidth={1.5}
-        bgColor="#f4f7f0"
+        bgColor="#b8c7b3"
       />
     </ReactFlow>
   );
