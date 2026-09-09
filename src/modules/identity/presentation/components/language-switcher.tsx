@@ -14,6 +14,11 @@ export function LanguageSwitcher({ compact = false }: { compact?: boolean }) {
   const title = locale === "es" ? "Cambiar a inglés" : "Switch to Spanish";
 
   function switchLocale() {
+    if (pathname === "/") {
+      router.replace(`/${nextLocale}` as Route);
+      return;
+    }
+
     const nextPath = pathname.replace(/^\/(es|en)(?=\/|$)/, `/${nextLocale}`);
     router.replace((nextPath || `/${nextLocale}`) as Route);
   }
