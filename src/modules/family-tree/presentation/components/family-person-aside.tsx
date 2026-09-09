@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Cake, CalendarPlus, LoaderCircle, Pencil, X } from "lucide-react";
+import { Cake, CalendarPlus, LoaderCircle, PartyPopper, Pencil, X } from "lucide-react";
 import { quickBirthdayReminderAction } from "@/modules/family-tree/application/birthday-reminder-actions";
-import { canRemindBirthday, type BirthdayReminderPreset } from "@/modules/family-tree/domain/birthday-reminder";
+import { birthdayCelebrationOn, canRemindBirthday, type BirthdayReminderPreset } from "@/modules/family-tree/domain/birthday-reminder";
 import type { FamilyPerson } from "@/modules/family-tree/domain/family-graph";
 import { BirthdayReminderOffsetEditor, defaultOffsetsFromPresets } from "@/modules/family-tree/presentation/components/birthday-reminder-offset-editor";
 
@@ -19,6 +19,7 @@ export function FamilyPersonAside({
   calendar,
   labels,
   readOnly,
+  today,
   onClose,
   onEdit,
 }: {
@@ -28,6 +29,7 @@ export function FamilyPersonAside({
   youPersonId?: string;
   presets: BirthdayReminderPreset[];
   calendar?: { connected: boolean; email: string | null };
+  today?: string;
   labels: {
     details: string;
     birth: string;
@@ -62,6 +64,12 @@ export function FamilyPersonAside({
   const hasPreset = presets.length > 0;
   const hasCalendar = Boolean(calendar?.connected);
   const isMe = youPersonId ? person.id === youPersonId : person.isSubject;
+  const birthday = today ? birthdayCelebrationOn(person, today) : { celebrating: false, age: null };
+  const birthdayText = birthday.celebrating
+    ? typeof birthday.age === "number"
+      ? locale === "es" ? `Hoy cumple ${birthday.age}` : `Turns ${birthday.age} today`
+      : locale === "es" ? "Hoy es su cumpleaños" : "Birthday today"
+    : null;
   const t = locale === "es"
     ? {
         remember: "Recordar cumpleaños",
@@ -166,13 +174,19 @@ export function FamilyPersonAside({
 
   return (
     <aside
-      className="absolute top-4 right-4 z-10 w-[min(300px,calc(100%-2rem))] max-h-[calc(100%-2rem)] overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl border border-[var(--moss)]/30 bg-[var(--paper)]/95 p-4 shadow-2xl backdrop-blur"
+      className={`absolute top-4 right-4 z-10 w-[min(300px,calc(100%-2rem))] max-h-[calc(100%-2rem)] overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl border border-[var(--moss)]/30 bg-[var(--paper)]/95 p-4 shadow-2xl backdrop-blur ${birthday.celebrating ? "family-aside--birthday" : ""}`}
       onWheel={(event) => event.stopPropagation()}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="eyebrow">{eyebrow}</p>
           <h2 className="display mt-1 text-xl break-words">{person.fullName}</h2>
+          {birthdayText && (
+            <span className="family-node-birthday-badge mt-2">
+              <PartyPopper size={12} className="shrink-0" />
+              {birthdayText}
+            </span>
+          )}
         </div>
         <button aria-label={labels.close} className="btn btn-quiet shrink-0 !p-1" onClick={onClose}><X size={16} /></button>
       </div>

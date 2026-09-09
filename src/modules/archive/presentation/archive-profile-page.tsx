@@ -25,6 +25,8 @@ type Props = {
   people: FamilyPerson[];
   relationships: FamilyRelationship[];
   attachments: AttachmentRecord[];
+  authenticated?: boolean;
+  email?: string | null;
 };
 
 function copy(locale: "es" | "en") {
@@ -73,7 +75,7 @@ function copy(locale: "es" | "en") {
       };
 }
 
-export function ArchiveProfilePage({ locale, slug, displayName, deceasedAt, publishedAt, entries, links, people, relationships, attachments }: Props) {
+export function ArchiveProfilePage({ locale, slug, displayName, deceasedAt, publishedAt, entries, links, people, relationships, attachments, authenticated = false, email }: Props) {
   const [view, setView] = useState<"timeline" | "tree" | "family">("timeline");
   const attachmentsByEntry = useMemo(() => {
     const map = new Map<string, AttachmentRecord[]>();
@@ -101,7 +103,7 @@ export function ArchiveProfilePage({ locale, slug, displayName, deceasedAt, publ
 
   return (
     <main className="page-shell overflow-hidden">
-      <PublicSiteHeader locale={locale} current="archive" />
+      <PublicSiteHeader locale={locale} current="archive" authenticated={authenticated} email={email} />
       <article className="container relative pb-20 pt-8 sm:pt-12">
         <div className="pointer-events-none absolute right-8 top-4 h-40 w-40 rounded-full bg-[var(--sage)] blur-3xl" />
         <div className="pointer-events-none absolute left-4 top-24 h-28 w-28 rounded-full bg-[var(--peach)]/50 blur-3xl" />
@@ -212,7 +214,7 @@ export function ArchiveProfilePage({ locale, slug, displayName, deceasedAt, publ
         )}
         <ArchiveAiChat locale={locale} slug={slug} displayName={displayName} />
       </article>
-      <PublicSiteFooter locale={locale} />
+      <PublicSiteFooter locale={locale} authenticated={authenticated} />
     </main>
   );
 }

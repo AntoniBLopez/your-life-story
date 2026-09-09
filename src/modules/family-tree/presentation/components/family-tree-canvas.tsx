@@ -51,6 +51,10 @@ function FamilyTreeInitialViewport({ subjectId, nodes }: { subjectId?: string; n
   return null;
 }
 
+function isBirthdayNode(node: Node) {
+  return typeof node.className === "string" && node.className.includes("family-node--birthday");
+}
+
 function FamilyTreeMiniMap() {
   const { getViewport, setCenter } = useReactFlow();
 
@@ -64,8 +68,8 @@ function FamilyTreeMiniMap() {
       zoomable
       pannable
       onClick={handleClick}
-      nodeColor="#fffef9"
-      nodeStrokeColor="#b7b0a6"
+      nodeColor={(node) => (isBirthdayNode(node) ? "#f5a54e" : "#fffef9")}
+      nodeStrokeColor={(node) => (isBirthdayNode(node) ? "#e2739e" : "#b7b0a6")}
       nodeBorderRadius={8}
       nodeStrokeWidth={1.5}
       maskColor="rgb(36 49 43 / 0.08)"

@@ -58,6 +58,11 @@ export async function requirePageUser(locale: string) {
   return user;
 }
 
+export async function redirectAuthenticatedUser(locale: string) {
+  const userId = await getSessionUserId();
+  if (userId) redirect(`/${locale}/app`);
+}
+
 export async function requireAdminUser() {
   const user = await requireCurrentUser();
   if (!isArchiveAdmin(user.email)) throw new AdminRequiredError();

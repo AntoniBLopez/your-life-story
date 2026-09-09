@@ -71,12 +71,81 @@ a { color: inherit; text-decoration: none; }
 .react-flow__controls-button:last-child { border-bottom: 0; }
 .react-flow__attribution { display: none !important; }
 .family-node-avatar { display: block; width: 3.25rem; height: 3.25rem; margin: 0 auto .15rem; border-radius: 50%; object-fit: cover; border: 2px solid #e9e4da; box-shadow: 0 4px 12px #244a3614; }
-.react-flow__node.family-node--birthday { border-color: #dfa878; background: linear-gradient(180deg, #fffaf4 0%, #fff3e7 100%); box-shadow: 0 0 0 4px #f8e4cf, 0 14px 30px #b4763a2b; animation: family-node-birthday-glow 3s ease-in-out infinite; }
-.family-node--birthday .family-node-avatar { border-color: #edc09a; box-shadow: 0 0 0 3px #fdf1e4, 0 4px 12px #b4763a26; }
-.family-node-birthday-badge { display: inline-flex; align-items: center; gap: .3rem; border-radius: 99px; background: linear-gradient(135deg, var(--peach) 0%, var(--rose) 100%); color: #7a4426; padding: .2rem .6rem; font-size: .62rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; box-shadow: 0 2px 7px #b4763a26; }
-@keyframes family-node-birthday-glow {
-  0%, 100% { box-shadow: 0 0 0 4px #f8e4cf, 0 14px 30px #b4763a2b; }
-  50% { box-shadow: 0 0 0 7px #f9e8d7, 0 16px 34px #b4763a38; }
+@property --birthday-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+.react-flow__node.family-node--birthday {
+  border: 2px solid transparent;
+  background:
+    linear-gradient(#fffdf8, #fffdf8) padding-box,
+    linear-gradient(120deg, #f2b35d 0%, #eb8a66 28%, #da6aa0 52%, #8b79d6 76%, #4eb89e 100%) border-box;
+  box-shadow: 0 0 0 6px #fde3c8;
+  animation: family-node-birthday-breathe 3.6s ease-in-out infinite;
+}
+.react-flow__node.family-node--birthday::before {
+  content: none;
+}
+.react-flow__node.family-node--birthday::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: 0 14px 28px #7f5a3526;
+}
+.family-node--birthday .family-node-avatar { border-color: #e8c8a3; box-shadow: 0 0 0 3px #f9efe3, 0 4px 12px #7f5a351f; }
+.family-node-birthday-badge {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  border-radius: 99px;
+  background: linear-gradient(120deg, #f0913e 0%, #e75f74 60%, #d95b93 100%);
+  color: #fff;
+  padding: .28rem .72rem;
+  font-size: .62rem;
+  font-weight: 800;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  box-shadow: 0 3px 10px #e8617040, inset 0 1px 0 #ffffff42;
+}
+.family-node-birthday-badge::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 32%, #ffffff5c 50%, transparent 68%);
+  transform: translateX(-110%);
+  animation: family-node-birthday-shine 3.2s ease-in-out infinite;
+}
+.family-node-birthday-badge--node {
+  background: linear-gradient(120deg, #f0913e 0%, #e75f74 60%, #d95b93 100%);
+  color: #fff;
+  border: 0;
+  box-shadow: 0 3px 10px #e8617038, inset 0 1px 0 #ffffff42;
+}
+.family-node-birthday-badge--node svg { color: #fff; }
+.family-aside--birthday {
+  border-color: transparent !important;
+  background:
+    linear-gradient(180deg, #fffdf8f2 0%, #fff8eff2 100%) padding-box,
+    conic-gradient(from var(--birthday-angle), #f5b64e, #f0875f, #e0709d, #f5b64e) border-box !important;
+  box-shadow: 0 16px 40px #d9853a30 !important;
+  animation: family-node-birthday-spin 5s linear infinite;
+}
+@keyframes family-node-birthday-spin {
+  to { --birthday-angle: 360deg; }
+}
+@keyframes family-node-birthday-breathe {
+  0%, 100% { box-shadow: 0 0 0 6px #fde3c8; }
+  50% { box-shadow: 0 0 0 8px #fbd4a8; }
+}
+@keyframes family-node-birthday-shine {
+  0% { transform: translateX(-110%); }
+  45%, 100% { transform: translateX(110%); }
 }
 .family-person-avatar-preview { width: 4rem; height: 4rem; border-radius: 50%; object-fit: cover; border: 2px solid #e9e4da; box-shadow: 0 4px 12px #244a3614; }
 .family-gender-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
@@ -111,7 +180,11 @@ a { color: inherit; text-decoration: none; }
 
 @media (prefers-reduced-motion: reduce) {
   html, .app-shell { scroll-behavior: auto; }
-  .react-flow__node.family-node--birthday { animation: none; }
+  .react-flow__node.family-node--birthday,
+  .react-flow__node.family-node--birthday::before,
+  .react-flow__node.family-node--birthday::after,
+  .family-aside--birthday,
+  .family-node-birthday-badge::after { animation: none; }
 }
 
 .placeholder-preview { pointer-events: none; user-select: none; opacity: .55; }

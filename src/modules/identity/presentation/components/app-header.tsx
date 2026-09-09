@@ -58,13 +58,13 @@ export function AppHeader({ locale, email }: { locale: "es" | "en"; email?: stri
           <BookOpen size={17} />
           <span className="hidden md:inline text-xs">{t.story}</span>
         </AppNavLink>
-        <AppNavLink title={t.reflect} active={is(`/${locale}/app/reflect`)} href={`/${locale}/app/reflect`}>
-          <Bot size={17} />
-          <span className="hidden md:inline text-xs">{t.reflect}</span>
-        </AppNavLink>
         <AppNavLink title={t.tree} active={is(`/${locale}/app/family`)} href={`/${locale}/app/family`}>
           <UsersRound size={17} />
           <span className="hidden md:inline text-xs">{t.tree}</span>
+        </AppNavLink>
+        <AppNavLink title={t.reflect} active={is(`/${locale}/app/reflect`)} href={`/${locale}/app/reflect`}>
+          <Bot size={17} />
+          <span className="hidden md:inline text-xs">{t.reflect}</span>
         </AppNavLink>
         <Link title={t.archive} className="btn btn-quiet !p-2 hidden sm:inline-flex" href={`/${locale}/archive` as Route}>
           <Landmark size={16} />
