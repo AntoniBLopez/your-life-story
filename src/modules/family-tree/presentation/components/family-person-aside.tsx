@@ -150,15 +150,19 @@ export function FamilyPersonAside({
   }
 
   return (
-    <aside className="absolute right-4 top-4 z-10 w-[min(300px,calc(100%-2rem))] rounded-2xl border border-[var(--moss)]/30 bg-[var(--paper)]/95 p-4 shadow-2xl backdrop-blur">
-      <div className="flex items-start justify-between gap-3">
+    <aside
+      className="absolute inset-y-4 right-4 z-10 flex w-[min(300px,calc(100%-2rem))] flex-col overflow-hidden rounded-2xl border border-[var(--moss)]/30 bg-[var(--paper)]/95 shadow-2xl backdrop-blur"
+      onWheel={(event) => event.stopPropagation()}
+    >
+      <div className="flex shrink-0 items-start justify-between gap-3 p-4 pb-0">
         <div>
           <p className="eyebrow">{eyebrow}</p>
           <h2 className="display mt-1 text-xl">{person.fullName}</h2>
         </div>
         <button aria-label={labels.close} className="btn btn-quiet !p-1" onClick={onClose}><X size={16} /></button>
       </div>
-      <dl className="mt-4 grid gap-2 text-xs">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4">
+      <dl className="grid gap-2 text-xs">
         <div className="flex justify-between gap-3"><dt className="font-bold text-[var(--muted)]">{labels.birth}</dt><dd>{person.birthDate ?? "—"}</dd></div>
         <div className="flex justify-between gap-3"><dt className="font-bold text-[var(--muted)]">{labels.death}</dt><dd>{person.deathDate ?? "—"}</dd></div>
         <div className="flex justify-between gap-3"><dt className="font-bold text-[var(--muted)]">{labels.city}</dt><dd className="text-right">{person.birthCity ?? "—"}</dd></div>
@@ -236,6 +240,7 @@ export function FamilyPersonAside({
       )}
       {error && !readOnly && <p className="field-error mt-3 text-xs">{error}</p>}
       {message && !readOnly && <p className="mt-3 rounded-xl bg-[#edf5ec] p-2.5 text-xs text-[var(--moss-deep)]">{message}</p>}
+      </div>
     </aside>
   );
 }
