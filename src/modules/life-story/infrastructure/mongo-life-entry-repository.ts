@@ -1,5 +1,6 @@
 import type { ObjectId } from "mongodb";
 import type { LifeEntry, LifeEntryLink } from "../domain/life-entry";
+import { resolveTextContainsAi, resolveTextOrigins } from "../domain/life-entry-text-origin";
 import type { LifeEntryInput } from "../application/life-entry-schema";
 import type { LifeEntryRepository } from "../application/ports/life-entry-repository";
 import { getDb } from "@/shared/lib/mongodb/client";
@@ -23,6 +24,9 @@ type LifeEntryDbRecord = {
   learning: string | null;
   transformation: string | null;
   tags: string[];
+  textOrigins?: LifeEntry["textOrigins"];
+  textContainsAi?: LifeEntry["textContainsAi"];
+  aiClassified?: boolean;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -53,6 +57,9 @@ function mapEntry(row: LifeEntryDbRecord): LifeEntry {
     learning: row.learning,
     transformation: row.transformation,
     tags: row.tags ?? [],
+    textOrigins: resolveTextOrigins(row.textOrigins, row),
+    textContainsAi: resolveTextContainsAi(row.textContainsAi),
+    aiClassified: row.aiClassified === true,
     createdAt: row.createdAt.toISOString(),
   };
 }
@@ -95,6 +102,9 @@ export class MongoLifeEntryRepository implements LifeEntryRepository {
       learning: input.learning,
       transformation: input.transformation,
       tags: input.tags,
+      textOrigins: input.textOrigins,
+      textContainsAi: input.textContainsAi,
+      aiClassified: input.aiClassified,
       createdAt: now,
       updatedAt: now,
     };
@@ -122,6 +132,9 @@ export class MongoLifeEntryRepository implements LifeEntryRepository {
           learning: input.learning,
           transformation: input.transformation,
           tags: input.tags,
+          textOrigins: input.textOrigins,
+          textContainsAi: input.textContainsAi,
+          aiClassified: input.aiClassified,
           updatedAt: now,
         },
       },

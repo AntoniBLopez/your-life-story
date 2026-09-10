@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition, type MouseEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Background, Controls, MiniMap, ReactFlow, ReactFlowProvider, useReactFlow, type Edge, type Node, type OnNodeDrag, type OnNodesChange, type SelectionDragHandler } from "@xyflow/react";
+import { Background, Controls, MiniMap, ReactFlow, ReactFlowProvider, useNodesInitialized, useReactFlow, type Edge, type Node, type OnNodeDrag, type OnNodesChange, type SelectionDragHandler } from "@xyflow/react";
 import { Check, LoaderCircle, X } from "lucide-react";
 import { saveFamilyNodeLayoutsAction } from "@/modules/family-tree/application/family-actions";
 import { FAMILY_LAYOUT } from "@/modules/family-tree/domain/family-layout";
@@ -32,21 +32,23 @@ type Props = {
 };
 
 function FamilyTreeInitialViewport({ subjectId, nodes }: { subjectId?: string; nodes: Node[] }) {
-  const { setCenter } = useReactFlow();
+  const { setCenter, getNode } = useReactFlow();
+  const nodesInitialized = useNodesInitialized();
   const focusedRef = useRef(false);
 
   useEffect(() => {
-    if (focusedRef.current) return;
+    if (!nodesInitialized || focusedRef.current) return;
     const focusId = subjectId ?? nodes[0]?.id;
     if (!focusId) return;
     const node = nodes.find((item) => item.id === focusId);
     if (!node) return;
 
     focusedRef.current = true;
-    const centerX = node.position.x + FAMILY_LAYOUT.nodeWidth / 2;
-    const centerY = node.position.y + FAMILY_LAYOUT.nodeFocusHeight / 2;
+    const measured = getNode(focusId)?.measured;
+    const centerX = node.position.x + (measured?.width ?? FAMILY_LAYOUT.nodeWidth) / 2;
+    const centerY = node.position.y + (measured?.height ?? FAMILY_LAYOUT.nodeFocusHeight) / 2;
     setCenter(centerX, centerY, { zoom: FAMILY_LAYOUT.initialZoom, duration: 0 });
-  }, [nodes, setCenter, subjectId]);
+  }, [getNode, nodes, nodesInitialized, setCenter, subjectId]);
 
   return null;
 }

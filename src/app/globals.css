@@ -59,12 +59,18 @@ a { color: inherit; text-decoration: none; }
 .timeline::before { content: ""; position: absolute; left: .55rem; top: .4rem; bottom: .4rem; width: 1px; background: #bfd1bd; }
 .timeline-item { position: relative; padding-bottom: 1rem; }
 .timeline-dot { position: absolute; left: -2.05rem; top: 1.2rem; width: .55rem; height: .55rem; border: 2px solid var(--paper); border-radius: 50%; background: var(--moss); box-shadow: 0 0 0 2px #bfd1bd; }
+.story-spine { position: relative; margin: 0; padding-left: 1.4rem; list-style: none; }
+.story-spine::before { content: ""; position: absolute; left: .35rem; top: .7rem; bottom: .7rem; width: 1px; background: #e2c4a8; }
+.story-spine-item { position: relative; padding-bottom: .9rem; }
+.story-spine-item:last-child { padding-bottom: 0; }
+.story-spine-dot { position: absolute; left: -1.18rem; top: 1.15rem; width: .55rem; height: .55rem; border: 2px solid #fffdf9; border-radius: 50%; box-shadow: 0 0 0 2px #e2c4a8; }
 .tree-canvas { position: relative; min-height: 470px; overflow: auto; border-radius: 1rem; background-image: radial-gradient(#d2ddd1 1px, transparent 1px); background-size: 18px 18px; }
 .tree-lane { min-width: 740px; padding: 2.2rem; display: grid; grid-template-columns: repeat(4, minmax(160px, 1fr)); gap: 2rem; align-items: center; }
 .tree-node { position: relative; min-height: 112px; padding: 1rem; border: 1px solid #cbd9ca; border-radius: 1rem; background: #fffefa; box-shadow: 0 8px 18px #26332b0d; cursor: pointer; }
 .tree-node::after { content: ""; position: absolute; top: 50%; left: 100%; width: 2rem; height: 1px; background: #b5cbb4; }
 .tree-node:nth-child(4n)::after { display: none; }
-.react-flow__node { border-radius: .9rem; border: 1px solid #cbd9ca; background: #fffefa; color: var(--ink); box-shadow: 0 8px 18px #26332b0d; font-size: .78rem; }
+.react-flow__node { width: auto; max-width: none; border-radius: .9rem; border: 1px solid #cbd9ca; background: #fffefa; color: var(--ink); box-shadow: 0 8px 18px #26332b0d; font-size: .78rem; }
+.family-node-card { width: max-content; min-width: 12rem; padding: .25rem .65rem; }
 .react-flow__controls { border: 1px solid var(--line); border-radius: .9rem; overflow: hidden; box-shadow: 0 8px 22px #244a3614; }
 .react-flow__controls-button { border-bottom: 1px solid var(--line); background: #fffef9; color: var(--moss-deep); }
 .react-flow__controls-button:hover { background: #edf3eb; }
@@ -80,23 +86,15 @@ a { color: inherit; text-decoration: none; }
   border: 2px solid transparent;
   background:
     linear-gradient(#fffdf8, #fffdf8) padding-box,
-    linear-gradient(120deg, #f2b35d 0%, #eb8a66 28%, #da6aa0 52%, #8b79d6 76%, #4eb89e 100%) border-box;
-  box-shadow: 0 0 0 6px #fde3c8;
-  animation: family-node-birthday-breathe 3.6s ease-in-out infinite;
+    conic-gradient(from var(--birthday-angle), #f5b64e, #ef8a5a, #e0709d, #8b79d6, #4eb89e, #f5b64e) border-box;
+  box-shadow: 0 0 0 4px rgb(255 168 92 / 0.28), 0 10px 24px rgb(217 133 58 / 0.16);
+  animation: family-node-birthday-spin 6s linear infinite, family-node-birthday-breathe 3.6s ease-in-out infinite;
 }
-.react-flow__node.family-node--birthday::before {
+.react-flow__node.family-node--birthday::before,
+.react-flow__node.family-node--birthday::after {
   content: none;
 }
-.react-flow__node.family-node--birthday::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  border-radius: inherit;
-  pointer-events: none;
-  box-shadow: 0 14px 28px #7f5a3526;
-}
-.family-node--birthday .family-node-avatar { border-color: #e8c8a3; box-shadow: 0 0 0 3px #f9efe3, 0 4px 12px #7f5a351f; }
+.family-node--birthday .family-node-avatar { border-color: #f0c08a; box-shadow: 0 0 0 3px #fff6ea, 0 4px 12px #d9853a22; }
 .family-node-birthday-badge {
   position: relative;
   overflow: hidden;
@@ -140,8 +138,8 @@ a { color: inherit; text-decoration: none; }
   to { --birthday-angle: 360deg; }
 }
 @keyframes family-node-birthday-breathe {
-  0%, 100% { box-shadow: 0 0 0 6px #fde3c8; }
-  50% { box-shadow: 0 0 0 8px #fbd4a8; }
+  0%, 100% { box-shadow: 0 0 0 4px rgb(255 168 92 / 0.28), 0 10px 24px rgb(217 133 58 / 0.16); }
+  50% { box-shadow: 0 0 0 6px rgb(255 168 92 / 0.4), 0 12px 28px rgb(217 133 58 / 0.22); }
 }
 @keyframes family-node-birthday-shine {
   0% { transform: translateX(-110%); }

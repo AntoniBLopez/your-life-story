@@ -30,6 +30,15 @@ const attachmentSchema = z.object({
   transcript: z.string().max(8000).optional(),
 });
 
+function parseJsonField(value: FormDataEntryValue | null) {
+  if (typeof value !== "string" || !value.trim()) return undefined;
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return undefined;
+  }
+}
+
 function toInput(formData: FormData) {
   return {
     startDate: formData.get("startDate"), endDate: formData.get("endDate"), datePrecision: formData.get("datePrecision"),
@@ -37,6 +46,9 @@ function toInput(formData: FormData) {
     changeDirection: formData.get("changeDirection"), momentFlags: formData.getAll("momentFlags"), difficulty: formData.get("difficulty"), learning: formData.get("learning"),
     transformation: formData.get("transformation"), tags: formData.get("tags") ?? "", linkedEntryId: formData.get("linkedEntryId") ?? "",
     linkType: formData.get("linkType") ?? "related",
+    textOrigins: parseJsonField(formData.get("textOrigins")),
+    textContainsAi: parseJsonField(formData.get("textContainsAi")),
+    aiClassified: formData.get("aiClassified") ?? "false",
   };
 }
 
@@ -44,9 +56,17 @@ function localePath(locale: string, suffix = "") {
   return `/${locale === "en" ? "en" : "es"}/app${suffix}`;
 }
 
+function validationFailure(error: z.ZodError, locale?: string | null) {
+  const flattened = error.flatten();
+  const fieldErrors = flattened.fieldErrors as Record<string, string[]>;
+  const firstMessage = Object.values(fieldErrors).flat().find(Boolean) ?? flattened.formErrors[0];
+  const fallback = locale === "en" ? "Review the marked fields." : "Revisa los campos marcados.";
+  return { ok: false as const, error: firstMessage ?? fallback, fieldErrors };
+}
+
 export async function createLifeEntryAction(formData: FormData): Promise<ActionResult<{ id: string }>> {
   const parsed = lifeEntryInputSchema.safeParse(toInput(formData));
-  if (!parsed.success) return { ok: false, error: "Revisa los campos marcados.", fieldErrors: parsed.error.flatten().fieldErrors };
+  if (!parsed.success) return validationFailure(parsed.error, formData.get("locale")?.toString());
 
   try {
     assertValidStoryDates(parsed.data.startDate, parsed.data.endDate);
@@ -62,7 +82,7 @@ export async function createLifeEntryAction(formData: FormData): Promise<ActionR
 
 export async function updateLifeEntryAction(entryId: string, formData: FormData): Promise<ActionResult<{ id: string }>> {
   const parsed = lifeEntryInputSchema.safeParse(toInput(formData));
-  if (!parsed.success) return { ok: false, error: "Revisa los campos marcados.", fieldErrors: parsed.error.flatten().fieldErrors };
+  if (!parsed.success) return validationFailure(parsed.error, formData.get("locale")?.toString());
   try {
     assertValidStoryDates(parsed.data.startDate, parsed.data.endDate);
     const user = await requireCurrentUser();

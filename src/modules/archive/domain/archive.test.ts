@@ -51,6 +51,18 @@ describe("archive identity", () => {
     expect(pickLifeHighlight([
       { title: "Leaving home", learning: null, transformation: null, difficulty: null, momentFlags: ["turning_point"] },
     ])).toEqual({ highlight: "Leaving home", highlightKind: "moment" });
+    expect(pickLifeHighlight([
+      {
+        title: "Generated lesson",
+        learning: "A polished AI sentence.",
+        transformation: null,
+        difficulty: null,
+        momentFlags: [],
+        textOrigins: { title: "written", narrative: null, difficulty: null, learning: null, transformation: null },
+        textContainsAi: { title: false, narrative: false, difficulty: false, learning: true, transformation: false },
+      },
+      { title: "Leaving home", learning: null, transformation: null, difficulty: null, momentFlags: ["turning_point"] },
+    ])).toEqual({ highlight: "Leaving home", highlightKind: "moment" });
   });
 });
 

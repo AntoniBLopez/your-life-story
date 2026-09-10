@@ -1,10 +1,10 @@
 import { z } from "zod";
-import { CHANGE_DIRECTIONS, LIFE_AREAS, MOMENT_FLAGS } from "./life-entry";
+import { CHANGE_DIRECTIONS, LIFE_AREAS, LIFE_ENTRY_TEXT_MAX, MOMENT_FLAGS } from "./life-entry";
 
 export const entryReflectionOutputSchema = z.object({
-  difficulty: z.string().trim().max(4000),
-  learning: z.string().trim().max(4000),
-  transformation: z.string().trim().max(4000),
+  difficulty: z.string().trim().max(LIFE_ENTRY_TEXT_MAX),
+  learning: z.string().trim().max(LIFE_ENTRY_TEXT_MAX),
+  transformation: z.string().trim().max(LIFE_ENTRY_TEXT_MAX),
   changeDirection: z.enum(CHANGE_DIRECTIONS),
   lifeAreas: z.array(z.enum(LIFE_AREAS)).min(1).max(5),
   momentFlags: z.array(z.enum(MOMENT_FLAGS)).max(3),

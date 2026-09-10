@@ -1,23 +1,29 @@
 import { describe, expect, it } from "vitest";
 import { buildLifeEntryGraph } from "./life-entry-graph";
-import type { LifeEntry, LifeEntryLink } from "./life-entry";
+import { defaultLifeEntryProvenance, type LifeEntry, type LifeEntryLink } from "./life-entry";
 
-const baseEntry = (overrides: Partial<LifeEntry> & Pick<LifeEntry, "id" | "startDate" | "title">): LifeEntry => ({
-  userId: "u",
-  endDate: null,
-  datePrecision: "day",
-  narrative: null,
-  lifeArea: "general",
-  lifeAreas: ["general"],
-  changeDirection: "neutral",
-  momentFlags: [],
-  difficulty: null,
-  learning: null,
-  transformation: null,
-  tags: [],
-  createdAt: "2024-01-01T00:00:00.000Z",
-  ...overrides,
-});
+const baseEntry = (overrides: Partial<LifeEntry> & Pick<LifeEntry, "id" | "startDate" | "title">): LifeEntry => {
+  const merged = {
+    userId: "u",
+    endDate: null,
+    datePrecision: "day" as const,
+    narrative: null,
+    lifeArea: "general" as const,
+    lifeAreas: ["general" as const],
+    changeDirection: "neutral" as const,
+    momentFlags: [],
+    difficulty: null,
+    learning: null,
+    transformation: null,
+    tags: [],
+    createdAt: "2024-01-01T00:00:00.000Z",
+    ...overrides,
+  };
+  return {
+    ...defaultLifeEntryProvenance(merged),
+    ...merged,
+  };
+};
 
 describe("life entry graph", () => {
   it("positions entries chronologically and keeps consequence chains in columns", () => {

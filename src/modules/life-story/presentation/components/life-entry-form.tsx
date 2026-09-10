@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { ArrowLeft, LoaderCircle, Paperclip, Sparkles } from "lucide-react";
 import {
   CHANGE_DIRECTIONS,
@@ -13,9 +13,19 @@ import {
   type LifeEntryLink,
   type ChangeDirection,
   type DatePrecision,
+  LIFE_ENTRY_TEXT_MAX,
+  LIFE_ENTRY_TITLE_MAX,
   type LifeArea,
   type MomentFlag,
 } from "@/modules/life-story/domain/life-entry";
+import type { HumanTextOrigin, LifeEntryProseField } from "@/modules/life-story/domain/life-entry-text-origin";
+import {
+  emptyTextContainsAi,
+  emptyTextOrigins,
+  nextProvenanceAfterAiReplace,
+  nextProvenanceAfterSpoken,
+  nextProvenanceAfterTyped,
+} from "@/modules/life-story/domain/life-entry-text-origin";
 import {
   createLifeEntryAction,
   updateLifeEntryAction,
@@ -32,12 +42,19 @@ import { FileAttachmentsList } from "@/modules/life-story/presentation/component
 import { appendFieldTranscript, VoiceFieldRecorder } from "@/modules/life-story/presentation/components/voice-field-recorder";
 import { VoiceAttachmentsList } from "@/modules/life-story/presentation/components/voice-attachments-list";
 import { PendingVoiceNotesList } from "@/modules/life-story/presentation/components/pending-voice-notes-list";
+import { TextOriginBadge } from "@/modules/life-story/presentation/components/text-origin-badge";
 import {
   clearLifeEntryDraft,
   getLifeEntryDraftKey,
   loadLifeEntryDraft,
   saveLifeEntryDraft,
 } from "@/modules/life-story/domain/life-entry-draft";
+import {
+  buildLifeEntryFormSnapshot,
+  currentLifeEntryFormSnapshot,
+  lifeEntryFormSnapshotsEqual,
+  snapshotFromDraft,
+} from "@/modules/life-story/domain/life-entry-form-state";
 
 const ATTACHMENT_ACCEPT = "image/jpeg,image/png,image/webp,application/pdf,audio/webm,audio/mp4,audio/mpeg,audio/wav,audio/ogg,audio/x-m4a,.pdf,.jpg,.jpeg,.png,.webp";
 
@@ -81,6 +98,18 @@ const PRECISION_LABELS = {
   en: { day: "Exact day", month: "Month", year: "Year" },
 } as const;
 
+function fieldErrorMessage(fieldErrors: Record<string, string[]> | undefined, field: string) {
+  return fieldErrors?.[field]?.[0];
+}
+
+function hasFieldError(fieldErrors: Record<string, string[]> | undefined, field: string) {
+  return Boolean(fieldErrorMessage(fieldErrors, field));
+}
+
+function fieldControlClass(fieldErrors: Record<string, string[]> | undefined, field: string, base = "input") {
+  return hasFieldError(fieldErrors, field) ? `${base} !border-[var(--danger)] !shadow-[0_0_0_3px_#a6424218]` : base;
+}
+
 function fileToBase64(file: File) {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -95,6 +124,8 @@ function fileToBase64(file: File) {
 
 function FieldLabelWithVoice({
   label,
+  origin,
+  containsAi,
   locale,
   fieldKey,
   entryId,
@@ -109,6 +140,8 @@ function FieldLabelWithVoice({
   onWarning,
 }: {
   label: string;
+  origin: HumanTextOrigin | null;
+  containsAi: boolean;
   locale: "es" | "en";
   fieldKey: VoiceFieldKey;
   entryId?: string;
@@ -124,7 +157,10 @@ function FieldLabelWithVoice({
 }) {
   return (
     <div className="mb-1.5 flex items-center justify-between gap-2">
-      <span className={`field-label !mb-0 ${emphasized ? "!font-bold !text-base !text-[var(--ink)]" : ""}`}>{label}</span>
+      <span className="flex min-w-0 flex-wrap items-center gap-2">
+        <span className={`field-label !mb-0 ${emphasized ? "!font-bold !text-base !text-[var(--ink)]" : ""}`}>{label}</span>
+        <TextOriginBadge origin={origin} containsAi={containsAi} locale={locale} />
+      </span>
       <VoiceFieldRecorder
         locale={locale}
         fieldKey={fieldKey}
@@ -169,28 +205,81 @@ export function LifeEntryForm({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>();
   const [uploadMessage, setUploadMessage] = useState<string>();
   const [voiceMessage, setVoiceMessage] = useState<string>();
-  const [title, setTitle] = useState(entry?.title ?? "");
-  const [narrative, setNarrative] = useState(entry?.narrative ?? "");
-  const [difficulty, setDifficulty] = useState(entry?.difficulty ?? "");
-  const [learning, setLearning] = useState(entry?.learning ?? "");
-  const [transformation, setTransformation] = useState(entry?.transformation ?? "");
-  const [lifeAreas, setLifeAreas] = useState<LifeArea[]>(
-    entry?.lifeAreas?.length ? entry.lifeAreas : entry?.lifeArea ? [entry.lifeArea] : [],
-  );
-  const [changeDirection, setChangeDirection] = useState<ChangeDirection>(entry?.changeDirection ?? "neutral");
-  const [momentFlags, setMomentFlags] = useState<MomentFlag[]>(entry?.momentFlags ?? []);
-  const [tags, setTags] = useState(entry?.tags.join(", ") ?? "");
-  const [startDate, setStartDate] = useState(entry?.startDate ?? "");
-  const [endDate, setEndDate] = useState(entry?.endDate ?? "");
-  const [datePrecision, setDatePrecision] = useState<DatePrecision>(entry?.datePrecision ?? "day");
-  const [linkedEntryId, setLinkedEntryId] = useState(link?.targetEntryId ?? "");
-  const [linkType, setLinkType] = useState<"related" | "consequence">(link?.relation ?? "related");
+  const initialSnapshot = entry ? buildLifeEntryFormSnapshot(entry, link) : null;
+  const [title, setTitle] = useState(initialSnapshot?.title ?? "");
+  const [narrative, setNarrative] = useState(initialSnapshot?.narrative ?? "");
+  const [difficulty, setDifficulty] = useState(initialSnapshot?.difficulty ?? "");
+  const [learning, setLearning] = useState(initialSnapshot?.learning ?? "");
+  const [transformation, setTransformation] = useState(initialSnapshot?.transformation ?? "");
+  const [lifeAreas, setLifeAreas] = useState<LifeArea[]>(initialSnapshot?.lifeAreas ?? []);
+  const [changeDirection, setChangeDirection] = useState<ChangeDirection>(initialSnapshot?.changeDirection ?? "neutral");
+  const [momentFlags, setMomentFlags] = useState<MomentFlag[]>(initialSnapshot?.momentFlags ?? []);
+  const [tags, setTags] = useState(initialSnapshot?.tags ?? "");
+  const [startDate, setStartDate] = useState(initialSnapshot?.startDate ?? "");
+  const [endDate, setEndDate] = useState(initialSnapshot?.endDate ?? "");
+  const [datePrecision, setDatePrecision] = useState<DatePrecision>(initialSnapshot?.datePrecision ?? "day");
+  const [linkedEntryId, setLinkedEntryId] = useState(initialSnapshot?.linkedEntryId ?? "");
+  const [linkType, setLinkType] = useState<"related" | "consequence">(initialSnapshot?.linkType ?? "related");
+  const [textOrigins, setTextOrigins] = useState(initialSnapshot?.textOrigins ?? emptyTextOrigins());
+  const [textContainsAi, setTextContainsAi] = useState(initialSnapshot?.textContainsAi ?? emptyTextContainsAi());
+  const [aiClassified, setAiClassified] = useState(initialSnapshot?.aiClassified ?? false);
   const [pendingVoiceNotes, setPendingVoiceNotes] = useState<PendingVoiceNote[]>([]);
   const [fullDictationPrompt, setFullDictationPrompt] = useState<{ resolve: (value: FullDictationMode | null) => void } | null>(null);
   const [generateAiPrompt, setGenerateAiPrompt] = useState<{ resolve: (value: boolean) => void } | null>(null);
+  const [discardPrompt, setDiscardPrompt] = useState(false);
   const draftKey = getLifeEntryDraftKey(entry?.id);
   const [draftReady, setDraftReady] = useState(false);
   const isEdit = Boolean(entry);
+  const savedSnapshot = useMemo(
+    () => (entry ? buildLifeEntryFormSnapshot(entry, link) : null),
+    [entry, link],
+  );
+  const currentSnapshot = useMemo(
+    () => currentLifeEntryFormSnapshot({
+      title,
+      narrative,
+      difficulty,
+      learning,
+      transformation,
+      lifeAreas,
+      changeDirection,
+      momentFlags,
+      tags,
+      startDate,
+      endDate,
+      datePrecision,
+      linkedEntryId,
+      linkType,
+      textOrigins,
+      textContainsAi,
+      aiClassified,
+    }),
+    [
+      title,
+      narrative,
+      difficulty,
+      learning,
+      transformation,
+      lifeAreas,
+      changeDirection,
+      momentFlags,
+      tags,
+      startDate,
+      endDate,
+      datePrecision,
+      linkedEntryId,
+      linkType,
+      textOrigins,
+      textContainsAi,
+      aiClassified,
+    ],
+  );
+  const isDirty = useMemo(() => {
+    if (!isEdit) return true;
+    if (!savedSnapshot) return false;
+    if (pendingVoiceNotes.length > 0) return true;
+    return !lifeEntryFormSnapshotsEqual(currentSnapshot, savedSnapshot);
+  }, [isEdit, savedSnapshot, pendingVoiceNotes.length, currentSnapshot]);
   const otherEntries = entries.filter((item) => item.id !== entry?.id);
   const savedVoiceNotes = attachments.filter((item) => AUDIO_CONTENT_TYPES.includes(item.mimeType as (typeof AUDIO_CONTENT_TYPES)[number]));
   const hasVoiceSection = savedVoiceNotes.length > 0 || pendingVoiceNotes.length > 0;
@@ -225,7 +314,7 @@ export function LifeEntryForm({
         save: isEdit ? "Guardar cambios" : "Guardar experiencia",
         cancel: "Volver a mi historia",
         generateAi: "Generar con IA",
-        generateAiHelp: "A partir de «Qué ocurrió», rellena automáticamente las áreas de vida, cómo lo sentiste, tipos de momento, reflexiones, etiquetas y qué cambió.",
+        generateAiHelp: "Cuéntalo en «Qué ocurrió» y la IA completará todos los campos de abajo de una vez — áreas, emociones, reflexiones, etiquetas y el resto. No hace falta rellenarlos uno a uno.",
         generateAiLoading: "Generando…",
         generateError: "No se pudo generar la reflexión.",
         consentRequired: "Activa el consentimiento de IA en Reflexionar o Ajustes para usar esta función.",
@@ -242,6 +331,11 @@ export function LifeEntryForm({
         generateAiConfirm: "Sí, generar",
         uploadInvalidType: (name: string) => `No se pudo adjuntar «${name}»: formato no compatible.`,
         uploading: "Subiendo archivos…",
+        reviewFields: "Revisa los campos marcados.",
+        discard: "Cancelar cambios",
+        discardTitle: "¿Descartar los cambios?",
+        discardBody: "Volverás a la última versión guardada. Lo que hayas escrito ahora se perderá.",
+        discardConfirm: "Sí, descartar",
       }
     : {
         eyebrow: isEdit ? "Edit" : "New experience",
@@ -273,7 +367,7 @@ export function LifeEntryForm({
         save: isEdit ? "Save changes" : "Save experience",
         cancel: "Back to my story",
         generateAi: "Generate with AI",
-        generateAiHelp: "From «What happened», automatically fill life areas, how it felt, moment types, reflections, tags and what changed.",
+        generateAiHelp: "Tell it in «What happened» and AI will complete every field below at once — areas, emotions, reflections, tags and more. No need to fill them in one by one.",
         generateAiLoading: "Generating…",
         generateError: "Could not generate the reflection.",
         consentRequired: "Enable AI consent in Reflect or Settings to use this feature.",
@@ -290,30 +384,51 @@ export function LifeEntryForm({
         generateAiConfirm: "Yes, generate",
         uploadInvalidType: (name: string) => `Could not attach «${name}»: unsupported format.`,
         uploading: "Uploading files…",
+        reviewFields: "Review the marked fields.",
+        discard: "Cancel changes",
+        discardTitle: "Discard changes?",
+        discardBody: "You will go back to the last saved version. What you have written now will be lost.",
+        discardConfirm: "Yes, discard",
       };
+
+  function applySnapshot(snapshot: ReturnType<typeof buildLifeEntryFormSnapshot>, voiceNotes: PendingVoiceNote[] = []) {
+    setTitle(snapshot.title);
+    setNarrative(snapshot.narrative);
+    setDifficulty(snapshot.difficulty);
+    setLearning(snapshot.learning);
+    setTransformation(snapshot.transformation);
+    setLifeAreas(snapshot.lifeAreas);
+    setChangeDirection(snapshot.changeDirection);
+    setMomentFlags(snapshot.momentFlags);
+    setTags(snapshot.tags);
+    setStartDate(snapshot.startDate);
+    setEndDate(snapshot.endDate);
+    setDatePrecision(snapshot.datePrecision);
+    setLinkedEntryId(snapshot.linkedEntryId);
+    setLinkType(snapshot.linkType);
+    setTextOrigins(snapshot.textOrigins);
+    setTextContainsAi(snapshot.textContainsAi);
+    setAiClassified(snapshot.aiClassified);
+    setPendingVoiceNotes(voiceNotes);
+  }
 
   useEffect(() => {
     setDraftReady(false);
     const draft = loadLifeEntryDraft(draftKey);
-    if (draft) {
-      setTitle(draft.title);
-      setNarrative(draft.narrative);
-      setDifficulty(draft.difficulty);
-      setLearning(draft.learning);
-      setTransformation(draft.transformation);
-      setLifeAreas(draft.lifeAreas);
-      setChangeDirection(draft.changeDirection);
-      setMomentFlags(draft.momentFlags);
-      setTags(draft.tags);
-      setStartDate(draft.startDate);
-      setEndDate(draft.endDate);
-      setDatePrecision(draft.datePrecision);
-      setLinkedEntryId(draft.linkedEntryId);
-      setLinkType(draft.linkType);
-      setPendingVoiceNotes(draft.pendingVoiceNotes);
+
+    if (!entry) {
+      if (draft) applySnapshot(snapshotFromDraft(draft), draft.pendingVoiceNotes ?? []);
+      setDraftReady(true);
+      return;
+    }
+
+    const serverSnapshot = buildLifeEntryFormSnapshot(entry, link);
+    applySnapshot(serverSnapshot);
+    if (draft && lifeEntryFormSnapshotsEqual(snapshotFromDraft(draft), serverSnapshot) && (draft.pendingVoiceNotes?.length ?? 0) === 0) {
+      clearLifeEntryDraft(draftKey);
     }
     setDraftReady(true);
-  }, [draftKey]);
+  }, [draftKey, entry, link]);
 
   useEffect(() => {
     if (!draftReady) return;
@@ -332,12 +447,12 @@ export function LifeEntryForm({
       datePrecision,
       linkedEntryId,
       linkType,
+      textOrigins,
+      textContainsAi,
+      aiClassified,
       pendingVoiceNotes,
     });
-  }, [
-    draftReady,
-    draftKey,
-    title,
+  }, [draftReady, draftKey, title,
     narrative,
     difficulty,
     learning,
@@ -351,8 +466,18 @@ export function LifeEntryForm({
     datePrecision,
     linkedEntryId,
     linkType,
+    textOrigins,
+    textContainsAi,
+    aiClassified,
     pendingVoiceNotes,
   ]);
+
+  useEffect(() => {
+    if (!fieldErrors) return;
+    const firstField = Object.keys(fieldErrors).find((field) => fieldErrors[field]?.length);
+    if (!firstField) return;
+    document.querySelector(`[data-field="${firstField}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [fieldErrors]);
 
   function hasDictationText() {
     return [title, narrative, difficulty, learning, transformation].some((value) => value.trim().length > 0);
@@ -384,11 +509,60 @@ export function LifeEntryForm({
     });
   }
 
+  function discardChanges() {
+    if (!savedSnapshot) return;
+    applySnapshot(savedSnapshot);
+    clearLifeEntryDraft(draftKey);
+    setError(undefined);
+    setFieldErrors(undefined);
+    setDiscardPrompt(false);
+  }
+
   function appendInlineTranscript(current: string, transcript: string) {
     const next = transcript.trim();
     if (!next) return current;
     const base = current.trim();
     return base ? `${base} ${next}` : next;
+  }
+
+  function applyFieldProvenance(field: LifeEntryProseField, origin: HumanTextOrigin | null, containsAi: boolean) {
+    setTextOrigins((current) => ({ ...current, [field]: origin }));
+    setTextContainsAi((current) => ({ ...current, [field]: containsAi }));
+  }
+
+  function setProseTyped(field: LifeEntryProseField, value: string) {
+    const setters = {
+      title: setTitle,
+      narrative: setNarrative,
+      difficulty: setDifficulty,
+      learning: setLearning,
+      transformation: setTransformation,
+    };
+    setters[field](value);
+    const next = nextProvenanceAfterTyped(textOrigins[field], textContainsAi[field], value);
+    applyFieldProvenance(field, next.origin, next.containsAi);
+  }
+
+  function appendSpokenToField(field: LifeEntryProseField, transcript: string) {
+    const currentValue = { title, narrative, difficulty, learning, transformation }[field];
+    const nextValue = field === "title"
+      ? appendInlineTranscript(currentValue, transcript)
+      : appendFieldTranscript(currentValue, transcript);
+    if (nextValue === currentValue) return;
+    const setters = {
+      title: setTitle,
+      narrative: setNarrative,
+      difficulty: setDifficulty,
+      learning: setLearning,
+      transformation: setTransformation,
+    };
+    setters[field](nextValue);
+    const next = nextProvenanceAfterSpoken(textOrigins[field], textContainsAi[field], nextValue);
+    applyFieldProvenance(field, next.origin, next.containsAi);
+  }
+
+  function markClassificationEdited() {
+    setAiClassified(false);
   }
 
   function queueVoiceNote(note: PendingVoiceNote) {
@@ -407,15 +581,46 @@ export function LifeEntryForm({
   }
 
   function applyDictation(fields: EntryDictationOutput) {
-    if (fields.title) setTitle(fields.title);
-    if (fields.narrative) setNarrative(fields.narrative);
-    if (fields.difficulty) setDifficulty(fields.difficulty);
-    if (fields.learning) setLearning(fields.learning);
-    if (fields.transformation) setTransformation(fields.transformation);
+    const filled: LifeEntryProseField[] = [];
+    if (fields.title) {
+      setTitle(fields.title);
+      filled.push("title");
+    }
+    if (fields.narrative) {
+      setNarrative(fields.narrative);
+      filled.push("narrative");
+    }
+    if (fields.difficulty) {
+      setDifficulty(fields.difficulty);
+      filled.push("difficulty");
+    }
+    if (fields.learning) {
+      setLearning(fields.learning);
+      filled.push("learning");
+    }
+    if (fields.transformation) {
+      setTransformation(fields.transformation);
+      filled.push("transformation");
+    }
+    if (filled.length === 0) return;
+    setTextOrigins((current) => {
+      const next = { ...current };
+      for (const field of filled) {
+        next[field] = nextProvenanceAfterAiReplace(fields[field] ?? "").origin;
+      }
+      return next;
+    });
+    setTextContainsAi((current) => {
+      const next = { ...current };
+      for (const field of filled) {
+        next[field] = nextProvenanceAfterAiReplace(fields[field] ?? "").containsAi;
+      }
+      return next;
+    });
   }
 
   function appendDictationTranscript(transcript: string) {
-    setNarrative((current) => appendFieldTranscript(current, transcript));
+    appendSpokenToField("narrative", transcript);
   }
 
   function applyReflection(fields: EntryReflectionOutput) {
@@ -426,15 +631,36 @@ export function LifeEntryForm({
     setLifeAreas(fields.lifeAreas);
     setMomentFlags(fields.momentFlags);
     setTags(fields.tags.join(", "));
+    setAiClassified(true);
+    const replaced = {
+      difficulty: fields.difficulty ? nextProvenanceAfterAiReplace(fields.difficulty) : null,
+      learning: fields.learning ? nextProvenanceAfterAiReplace(fields.learning) : null,
+      transformation: fields.transformation ? nextProvenanceAfterAiReplace(fields.transformation) : null,
+    };
+    if (!replaced.difficulty && !replaced.learning && !replaced.transformation) return;
+    setTextOrigins((current) => ({
+      ...current,
+      difficulty: replaced.difficulty?.origin ?? current.difficulty,
+      learning: replaced.learning?.origin ?? current.learning,
+      transformation: replaced.transformation?.origin ?? current.transformation,
+    }));
+    setTextContainsAi((current) => ({
+      ...current,
+      difficulty: replaced.difficulty?.containsAi ?? current.difficulty,
+      learning: replaced.learning?.containsAi ?? current.learning,
+      transformation: replaced.transformation?.containsAi ?? current.transformation,
+    }));
   }
 
   function toggleLifeArea(area: LifeArea) {
+    markClassificationEdited();
     setLifeAreas((current) => (
       current.includes(area) ? current.filter((value) => value !== area) : [...current, area]
     ));
   }
 
   function toggleMomentFlag(flag: MomentFlag) {
+    markClassificationEdited();
     setMomentFlags((current) => (
       current.includes(flag) ? current.filter((value) => value !== flag) : [...current, flag]
     ));
@@ -444,19 +670,34 @@ export function LifeEntryForm({
     setError(undefined);
     setFieldErrors(undefined);
     formData.set("locale", locale);
+    formData.set("title", title);
+    formData.set("startDate", startDate);
+    formData.set("endDate", endDate);
+    formData.set("datePrecision", datePrecision);
+    formData.set("narrative", narrative);
+    formData.set("difficulty", difficulty);
+    formData.set("learning", learning);
+    formData.set("transformation", transformation);
+    formData.set("linkedEntryId", linkedEntryId);
+    formData.set("linkType", linkType);
     formData.delete("lifeAreas");
     lifeAreas.forEach((area) => formData.append("lifeAreas", area));
     formData.delete("momentFlags");
     momentFlags.forEach((flag) => formData.append("momentFlags", flag));
     formData.set("changeDirection", changeDirection);
     formData.set("tags", tags);
+    formData.set("textOrigins", JSON.stringify(textOrigins));
+    formData.set("textContainsAi", JSON.stringify(textContainsAi));
+    formData.set("aiClassified", aiClassified ? "true" : "false");
     startTransition(async () => {
       const result = entry
         ? await updateLifeEntryAction(entry.id, formData)
         : await createLifeEntryAction(formData);
       if (!result.ok) {
-        setError(result.error);
-        setFieldErrors(result.fieldErrors);
+        const errors = result.fieldErrors ?? {};
+        const hasVisibleFieldErrors = Object.values(errors).some((messages) => messages?.length);
+        setFieldErrors(errors);
+        setError(hasVisibleFieldErrors ? t.reviewFields : result.error);
         return;
       }
 
@@ -570,10 +811,12 @@ export function LifeEntryForm({
       <h1 className="display mt-2 text-4xl sm:text-5xl">{t.title}</h1>
       <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--muted)]">{t.body}</p>
 
-      <form action={submit} className="card mt-8 space-y-5 p-5 sm:p-7">
-        <label>
+      <form action={submit} className="card mt-8 flex flex-col gap-8 p-5 sm:p-7">
+        <label data-field="title" className="flex flex-col gap-2">
           <FieldLabelWithVoice
             label={t.name}
+            origin={textOrigins.title}
+            containsAi={textContainsAi.title}
             locale={locale}
             fieldKey="title"
             entryId={entry?.id}
@@ -581,36 +824,37 @@ export function LifeEntryForm({
             disabled={pending || generating}
             emphasized
             saveVoiceRecordings={saveVoiceRecordings}
-            onTranscript={(text) => setTitle((current) => appendInlineTranscript(current, text))}
+            onTranscript={(text) => appendSpokenToField("title", text)}
             onPendingVoiceNote={queueVoiceNote}
             onVoiceSaved={handleVoiceSaved}
             onError={setError}
             onWarning={setVoiceMessage}
           />
-          <input className="input font-semibold text-lg" name="title" required minLength={2} maxLength={160} value={title} onChange={(event) => setTitle(event.target.value)} />
-          {fieldErrors?.title && <p className="field-error">{fieldErrors.title[0]}</p>}
+          <input className={`${fieldControlClass(fieldErrors, "title")} font-semibold text-lg`} name="title" required minLength={2} maxLength={LIFE_ENTRY_TITLE_MAX} value={title} onChange={(event) => setProseTyped("title", event.target.value)} />
+          {fieldErrorMessage(fieldErrors, "title") && <p className="field-error">{fieldErrorMessage(fieldErrors, "title")}</p>}
         </label>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <label>
-            <span className="field-label">{t.start}</span>
-            <input className="input" type="date" name="startDate" required value={startDate} onChange={(event) => setStartDate(event.target.value)} />
-            {fieldErrors?.startDate && <p className="field-error">{fieldErrors.startDate[0]}</p>}
+        <div className="grid gap-5 sm:grid-cols-2">
+          <label data-field="startDate" className="flex flex-col gap-2">
+            <span className="field-label !mb-0">{t.start}</span>
+            <input className={fieldControlClass(fieldErrors, "startDate")} type="date" name="startDate" required value={startDate} onChange={(event) => setStartDate(event.target.value)} />
+            {fieldErrorMessage(fieldErrors, "startDate") && <p className="field-error">{fieldErrorMessage(fieldErrors, "startDate")}</p>}
           </label>
-          <label>
-            <span className="field-label">{t.end}</span>
-            <input className="input" type="date" name="endDate" value={endDate} onChange={(event) => setEndDate(event.target.value)} />
-            {fieldErrors?.endDate && <p className="field-error">{fieldErrors.endDate[0]}</p>}
+          <label data-field="endDate" className="flex flex-col gap-2">
+            <span className="field-label !mb-0">{t.end}</span>
+            <input className={fieldControlClass(fieldErrors, "endDate")} type="date" name="endDate" value={endDate} onChange={(event) => setEndDate(event.target.value)} />
+            {fieldErrorMessage(fieldErrors, "endDate") && <p className="field-error">{fieldErrorMessage(fieldErrors, "endDate")}</p>}
           </label>
         </div>
 
-        <label>
-          <span className="field-label">{t.precision}</span>
-          <select className="select" name="datePrecision" value={datePrecision} onChange={(event) => setDatePrecision(event.target.value as DatePrecision)}>
+        <label data-field="datePrecision" className="flex flex-col gap-2">
+          <span className="field-label !mb-0">{t.precision}</span>
+          <select className={fieldControlClass(fieldErrors, "datePrecision", "select")} name="datePrecision" value={datePrecision} onChange={(event) => setDatePrecision(event.target.value as DatePrecision)}>
             {DATE_PRECISIONS.map((value) => (
               <option key={value} value={value}>{PRECISION_LABELS[locale][value]}</option>
             ))}
           </select>
+          {fieldErrorMessage(fieldErrors, "datePrecision") && <p className="field-error">{fieldErrorMessage(fieldErrors, "datePrecision")}</p>}
         </label>
 
         <ExperienceDictationCard
@@ -628,22 +872,25 @@ export function LifeEntryForm({
           saveVoiceRecordings={saveVoiceRecordings}
         />
 
-        <label>
+        <label data-field="narrative" className="flex flex-col gap-2">
           <FieldLabelWithVoice
             label={t.narrative}
+            origin={textOrigins.narrative}
+            containsAi={textContainsAi.narrative}
             locale={locale}
             fieldKey="narrative"
             entryId={entry?.id}
             aiConsented={aiConsented}
             disabled={pending || generating}
             saveVoiceRecordings={saveVoiceRecordings}
-            onTranscript={(text) => setNarrative((current) => appendFieldTranscript(current, text))}
+            onTranscript={(text) => appendSpokenToField("narrative", text)}
             onPendingVoiceNote={queueVoiceNote}
             onVoiceSaved={handleVoiceSaved}
             onError={setError}
             onWarning={setVoiceMessage}
           />
-          <textarea className="textarea" name="narrative" maxLength={4000} value={narrative} onChange={(event) => setNarrative(event.target.value)} />
+          <textarea className={fieldControlClass(fieldErrors, "narrative", "textarea")} name="narrative" maxLength={LIFE_ENTRY_TEXT_MAX} value={narrative} onChange={(event) => setProseTyped("narrative", event.target.value)} />
+          {fieldErrorMessage(fieldErrors, "narrative") && <p className="field-error">{fieldErrorMessage(fieldErrors, "narrative")}</p>}
         </label>
 
         <div className="rounded-2xl border border-[var(--line)] bg-[#fcfdf9] p-4">
@@ -661,9 +908,9 @@ export function LifeEntryForm({
           </div>
         </div>
 
-        <fieldset>
-          <legend className="field-label">{t.areas}</legend>
-          <div className="mt-2 flex flex-wrap gap-2">
+        <fieldset data-field="lifeAreas" className={`m-0 flex min-w-0 flex-col gap-3 border-0 p-0 ${hasFieldError(fieldErrors, "lifeAreas") ? "rounded-xl border border-[var(--danger)] p-3" : ""}`}>
+          <legend className="field-label !mb-0">{t.areas}</legend>
+          <div className="flex flex-wrap gap-2">
             {LIFE_AREAS.map((value) => (
               <label key={value} className="pill cursor-pointer gap-2 !px-3 !py-2">
                 <input
@@ -677,26 +924,30 @@ export function LifeEntryForm({
               </label>
             ))}
           </div>
-          {fieldErrors?.lifeAreas && <p className="field-error">{fieldErrors.lifeAreas[0]}</p>}
+          {fieldErrorMessage(fieldErrors, "lifeAreas") && <p className="field-error">{fieldErrorMessage(fieldErrors, "lifeAreas")}</p>}
         </fieldset>
 
-        <label>
-          <span className="field-label">{t.direction}</span>
+        <label data-field="changeDirection" className="flex flex-col gap-2">
+          <span className="field-label !mb-0">{t.direction}</span>
           <select
-            className="select"
+            className={fieldControlClass(fieldErrors, "changeDirection", "select")}
             name="changeDirection"
             value={changeDirection}
-            onChange={(event) => setChangeDirection(event.target.value as ChangeDirection)}
+            onChange={(event) => {
+              markClassificationEdited();
+              setChangeDirection(event.target.value as ChangeDirection);
+            }}
           >
             {CHANGE_DIRECTIONS.map((value) => (
               <option key={value} value={value}>{DIRECTION_LABELS[locale][value]}</option>
             ))}
           </select>
+          {fieldErrorMessage(fieldErrors, "changeDirection") && <p className="field-error">{fieldErrorMessage(fieldErrors, "changeDirection")}</p>}
         </label>
 
-        <fieldset>
-          <legend className="field-label">{t.moments}</legend>
-          <div className="mt-2 flex flex-wrap gap-2">
+        <fieldset data-field="momentFlags" className={`m-0 flex min-w-0 flex-col gap-3 border-0 p-0 ${hasFieldError(fieldErrors, "momentFlags") ? "rounded-xl border border-[var(--danger)] p-3" : ""}`}>
+          <legend className="field-label !mb-0">{t.moments}</legend>
+          <div className="flex flex-wrap gap-2">
             {MOMENT_FLAGS.map((value) => (
               <label key={value} className="pill cursor-pointer gap-2 !px-3 !py-2">
                 <input
@@ -710,82 +961,95 @@ export function LifeEntryForm({
               </label>
             ))}
           </div>
+          {fieldErrorMessage(fieldErrors, "momentFlags") && <p className="field-error">{fieldErrorMessage(fieldErrors, "momentFlags")}</p>}
         </fieldset>
 
-        <label>
+        <label data-field="difficulty" className="flex flex-col gap-2">
           <FieldLabelWithVoice
             label={t.difficulty}
+            origin={textOrigins.difficulty}
+            containsAi={textContainsAi.difficulty}
             locale={locale}
             fieldKey="difficulty"
             entryId={entry?.id}
             aiConsented={aiConsented}
             disabled={pending || generating}
             saveVoiceRecordings={saveVoiceRecordings}
-            onTranscript={(text) => setDifficulty((current) => appendFieldTranscript(current, text))}
+            onTranscript={(text) => appendSpokenToField("difficulty", text)}
             onPendingVoiceNote={queueVoiceNote}
             onVoiceSaved={handleVoiceSaved}
             onError={setError}
             onWarning={setVoiceMessage}
           />
-          <textarea className="textarea !min-h-24" name="difficulty" maxLength={4000} value={difficulty} onChange={(event) => setDifficulty(event.target.value)} />
+          <textarea className={`${fieldControlClass(fieldErrors, "difficulty", "textarea")} !min-h-24`} name="difficulty" maxLength={LIFE_ENTRY_TEXT_MAX} value={difficulty} onChange={(event) => setProseTyped("difficulty", event.target.value)} />
+          {fieldErrorMessage(fieldErrors, "difficulty") && <p className="field-error">{fieldErrorMessage(fieldErrors, "difficulty")}</p>}
         </label>
-        <label>
+        <label data-field="learning" className="flex flex-col gap-2">
           <FieldLabelWithVoice
             label={t.learning}
+            origin={textOrigins.learning}
+            containsAi={textContainsAi.learning}
             locale={locale}
             fieldKey="learning"
             entryId={entry?.id}
             aiConsented={aiConsented}
             disabled={pending || generating}
             saveVoiceRecordings={saveVoiceRecordings}
-            onTranscript={(text) => setLearning((current) => appendFieldTranscript(current, text))}
+            onTranscript={(text) => appendSpokenToField("learning", text)}
             onPendingVoiceNote={queueVoiceNote}
             onVoiceSaved={handleVoiceSaved}
             onError={setError}
             onWarning={setVoiceMessage}
           />
-          <textarea className="textarea !min-h-24" name="learning" maxLength={4000} value={learning} onChange={(event) => setLearning(event.target.value)} />
+          <textarea className={`${fieldControlClass(fieldErrors, "learning", "textarea")} !min-h-24`} name="learning" maxLength={LIFE_ENTRY_TEXT_MAX} value={learning} onChange={(event) => setProseTyped("learning", event.target.value)} />
+          {fieldErrorMessage(fieldErrors, "learning") && <p className="field-error">{fieldErrorMessage(fieldErrors, "learning")}</p>}
         </label>
-        <label>
+        <label data-field="transformation" className="flex flex-col gap-2">
           <FieldLabelWithVoice
             label={t.transformation}
+            origin={textOrigins.transformation}
+            containsAi={textContainsAi.transformation}
             locale={locale}
             fieldKey="transformation"
             entryId={entry?.id}
             aiConsented={aiConsented}
             disabled={pending || generating}
             saveVoiceRecordings={saveVoiceRecordings}
-            onTranscript={(text) => setTransformation((current) => appendFieldTranscript(current, text))}
+            onTranscript={(text) => appendSpokenToField("transformation", text)}
             onPendingVoiceNote={queueVoiceNote}
             onVoiceSaved={handleVoiceSaved}
             onError={setError}
             onWarning={setVoiceMessage}
           />
-          <textarea className="textarea !min-h-24" name="transformation" maxLength={4000} value={transformation} onChange={(event) => setTransformation(event.target.value)} />
+          <textarea className={`${fieldControlClass(fieldErrors, "transformation", "textarea")} !min-h-24`} name="transformation" maxLength={LIFE_ENTRY_TEXT_MAX} value={transformation} onChange={(event) => setProseTyped("transformation", event.target.value)} />
+          {fieldErrorMessage(fieldErrors, "transformation") && <p className="field-error">{fieldErrorMessage(fieldErrors, "transformation")}</p>}
         </label>
 
-        <label>
-          <span className="field-label">{t.tags}</span>
-          <input className="input" name="tags" maxLength={400} value={tags} onChange={(event) => setTags(event.target.value)} placeholder={t.tagsHint} />
+        <label data-field="tags" className="flex flex-col gap-2">
+          <span className="field-label !mb-0">{t.tags}</span>
+          <input className={fieldControlClass(fieldErrors, "tags")} name="tags" maxLength={400} value={tags} onChange={(event) => { markClassificationEdited(); setTags(event.target.value); }} placeholder={t.tagsHint} />
+          {fieldErrorMessage(fieldErrors, "tags") && <p className="field-error">{fieldErrorMessage(fieldErrors, "tags")}</p>}
         </label>
 
         {otherEntries.length > 0 && (
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label>
-              <span className="field-label">{t.link}</span>
-              <select className="select" name="linkedEntryId" value={linkedEntryId} onChange={(event) => setLinkedEntryId(event.target.value)}>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <label data-field="linkedEntryId" className="flex flex-col gap-2">
+              <span className="field-label !mb-0">{t.link}</span>
+              <select className={fieldControlClass(fieldErrors, "linkedEntryId", "select")} name="linkedEntryId" value={linkedEntryId} onChange={(event) => setLinkedEntryId(event.target.value)}>
                 <option value="">{t.none}</option>
                 {otherEntries.map((item) => (
                   <option key={item.id} value={item.id}>{item.title}</option>
                 ))}
               </select>
+              {fieldErrorMessage(fieldErrors, "linkedEntryId") && <p className="field-error">{fieldErrorMessage(fieldErrors, "linkedEntryId")}</p>}
             </label>
-            <label>
-              <span className="field-label">{t.linkType}</span>
-              <select className="select" name="linkType" value={linkType} onChange={(event) => setLinkType(event.target.value as "related" | "consequence")}>
+            <label data-field="linkType" className="flex flex-col gap-2">
+              <span className="field-label !mb-0">{t.linkType}</span>
+              <select className={fieldControlClass(fieldErrors, "linkType", "select")} name="linkType" value={linkType} onChange={(event) => setLinkType(event.target.value as "related" | "consequence")}>
                 <option value="related">{t.related}</option>
                 <option value="consequence">{t.consequence}</option>
               </select>
+              {fieldErrorMessage(fieldErrors, "linkType") && <p className="field-error">{fieldErrorMessage(fieldErrors, "linkType")}</p>}
             </label>
           </div>
         )}
@@ -793,11 +1057,21 @@ export function LifeEntryForm({
         {error && <p role="alert" className="field-error">{error}</p>}
 
         <div className="flex flex-wrap items-center gap-3 pt-2">
-          <button disabled={pending || generating} className="btn btn-primary" type="submit">
+          <button disabled={pending || generating || !isDirty} className="btn btn-primary" type="submit">
             {pending ? <LoaderCircle className="animate-spin" size={16} /> : null}
             {t.save}
           </button>
-          <Link className="btn btn-quiet" href={`/${locale}/app`}>{t.cancel}</Link>
+          {isEdit && isDirty && (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              disabled={pending || generating}
+              onClick={() => setDiscardPrompt(true)}
+            >
+              {t.discard}
+            </button>
+          )}
+          {!isEdit && <Link className="btn btn-quiet" href={`/${locale}/app`}>{t.cancel}</Link>}
         </div>
       </form>
 
@@ -911,6 +1185,20 @@ export function LifeEntryForm({
             generateAiPrompt?.resolve(true);
             setGenerateAiPrompt(null);
           },
+        },
+      ]}
+    />
+    <ConfirmDialog
+      open={discardPrompt}
+      title={t.discardTitle}
+      body={t.discardBody}
+      cancelLabel={t.dialogCancel}
+      onClose={() => setDiscardPrompt(false)}
+      actions={[
+        {
+          label: t.discardConfirm,
+          variant: "danger",
+          onClick: discardChanges,
         },
       ]}
     />

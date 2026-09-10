@@ -1,3 +1,20 @@
+import type { LifeEntryTextContainsAi, LifeEntryTextOrigins } from "./life-entry-text-origin";
+
+export type {
+  HumanTextOrigin,
+  LifeEntryProseField,
+  LifeEntryTextContainsAi,
+  LifeEntryTextOrigins,
+} from "./life-entry-text-origin";
+export {
+  defaultLifeEntryProvenance,
+  defaultTextOriginsFromContent,
+  emptyTextContainsAi,
+  emptyTextOrigins,
+  isOwnVoiceField,
+  LIFE_ENTRY_PROSE_FIELDS,
+} from "./life-entry-text-origin";
+
 export const LIFE_AREAS = [
   "general",
   "health",
@@ -13,6 +30,10 @@ export const LIFE_AREAS = [
 export const CHANGE_DIRECTIONS = ["improved", "difficult", "mixed", "neutral"] as const;
 export const DATE_PRECISIONS = ["day", "month", "year"] as const;
 export const MOMENT_FLAGS = ["critical", "inflection", "turning_point"] as const;
+
+/** Long-form text per experience field (narrative, difficulty, learning, transformation). */
+export const LIFE_ENTRY_TEXT_MAX = 50_000;
+export const LIFE_ENTRY_TITLE_MAX = 160;
 
 export type LifeArea = (typeof LIFE_AREAS)[number];
 export type ChangeDirection = (typeof CHANGE_DIRECTIONS)[number];
@@ -35,6 +56,9 @@ export type LifeEntry = {
   learning: string | null;
   transformation: string | null;
   tags: string[];
+  textOrigins: LifeEntryTextOrigins;
+  textContainsAi: LifeEntryTextContainsAi;
+  aiClassified: boolean;
   createdAt: string;
 };
 
@@ -67,4 +91,32 @@ export function momentFlagLabel(flag: MomentFlag, locale: "es" | "en") {
     en: { critical: "Critical moment", inflection: "Inflection point", turning_point: "Turning point" },
   };
   return labels[locale][flag];
+}
+
+export function lifeAreaLabel(area: LifeArea, locale: "es" | "en") {
+  const labels = {
+    es: {
+      general: "En general",
+      health: "Salud",
+      relationships: "Relaciones",
+      work: "Trabajo",
+      education: "Educación",
+      home: "Hogar",
+      identity: "Identidad",
+      finances: "Finanzas",
+      other: "Otra",
+    },
+    en: {
+      general: "General",
+      health: "Health",
+      relationships: "Relationships",
+      work: "Work",
+      education: "Education",
+      home: "Home",
+      identity: "Identity",
+      finances: "Finances",
+      other: "Other",
+    },
+  };
+  return labels[locale][area];
 }

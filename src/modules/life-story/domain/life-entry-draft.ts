@@ -1,4 +1,5 @@
 import type { ChangeDirection, DatePrecision, LifeArea, MomentFlag } from "@/modules/life-story/domain/life-entry";
+import type { LifeEntryTextContainsAi, LifeEntryTextOrigins } from "@/modules/life-story/domain/life-entry-text-origin";
 import type { PendingVoiceNote } from "@/modules/life-story/domain/voice-note";
 
 export type LifeEntryDraft = {
@@ -16,6 +17,9 @@ export type LifeEntryDraft = {
   datePrecision: DatePrecision;
   linkedEntryId: string;
   linkType: "related" | "consequence";
+  textOrigins?: LifeEntryTextOrigins;
+  textContainsAi?: LifeEntryTextContainsAi;
+  aiClassified?: boolean;
   pendingVoiceNotes: PendingVoiceNote[];
 };
 

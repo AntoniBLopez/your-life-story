@@ -4,6 +4,7 @@ import {
   entryReflectionInstructions,
   parseEntryReflectionResponse,
 } from "@/modules/life-story/domain/entry-reflection-prompt";
+import { LIFE_ENTRY_TEXT_MAX } from "@/modules/life-story/domain/life-entry";
 import { getReflectionState } from "@/modules/reflection/application/reflection-service";
 import { crisisSupportMessage, requiresImmediateSupport } from "@/modules/reflection/domain/reflection-policy";
 import { getCurrentUser } from "@/shared/lib/auth";
@@ -34,8 +35,12 @@ export async function POST(request: NextRequest) {
         : "Write at least a few lines in «What happened» before generating.",
     }, { status: 400 });
   }
-  if (narrative.length > 4000) {
-    return Response.json({ error: "Invalid narrative" }, { status: 400 });
+  if (narrative.length > LIFE_ENTRY_TEXT_MAX) {
+    return Response.json({
+      error: locale === "es"
+        ? `«Qué ocurrió» puede tener hasta ${LIFE_ENTRY_TEXT_MAX.toLocaleString("es-ES")} caracteres.`
+        : `«What happened» can be up to ${LIFE_ENTRY_TEXT_MAX.toLocaleString("en-US")} characters.`,
+    }, { status: 400 });
   }
 
   const reflection = await getReflectionState(user.id);

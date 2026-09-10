@@ -140,7 +140,6 @@ function buildGraph(people: FamilyPerson[], relationships: FamilyRelationship[],
       position: { x: position.x, y: position.y },
       className: birthday.celebrating ? "family-node--birthday" : undefined,
       style: {
-        width: FAMILY_LAYOUT.nodeWidth,
         ...(isYou && !birthday.celebrating ? { border: "2px solid #3d654c", background: "#eef5ec", boxShadow: "0 0 0 4px #dbe8d8, 0 12px 24px #244a3630" } : {}),
       },
       data: {
@@ -201,7 +200,7 @@ function FamilyNode({ person, label, locale, isYou, sharedView, hideContact, isB
   const relationStyle = isYou ? "bg-[var(--moss-deep)] text-white" : "bg-[#f4eee5] text-[#765b43]";
   const youBadge = sharedView ? (locale === "es" ? "ERES TÚ" : "YOU") : (locale === "es" ? "TÚ" : "YOU");
   const badge = isYou ? youBadge : person.isSubject && sharedView ? (locale === "es" ? "Protagonista" : "Storyteller") : label;
-  return <div className="min-w-52 max-w-56 space-y-2 p-1 text-center">
+  return <div className="family-node-card space-y-2 text-center">
     {isBirthday && (
       <span className="family-node-birthday-badge family-node-birthday-badge--node">
         <PartyPopper size={12} className="shrink-0" />
@@ -215,7 +214,7 @@ function FamilyNode({ person, label, locale, isYou, sharedView, hideContact, isB
         className="family-node-avatar"
       />
     )}
-    <strong className="block truncate text-center text-base font-extrabold leading-tight tracking-normal text-[var(--ink)]" title={person.fullName}>{person.fullName}</strong>
+    <strong className="block text-center text-base font-extrabold leading-tight tracking-normal text-[var(--ink)]">{person.fullName}</strong>
     {(isYou || person.isSubject || label) && <span className={`inline-flex items-center justify-center rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-[.08em] ${relationStyle}`}>{badge}</span>}
     {baptism && <span className="block text-[10px] font-semibold text-[#8a5a3d]">{baptism}</span>}
     {hasDates && <span className="flex w-full items-center justify-center gap-1.5 text-center text-[10px] font-semibold tabular-nums text-[var(--muted)]"><CalendarDays size={13} className="shrink-0 text-[var(--moss)]" />{formatNodeDate(person.birthDate)} <span className="text-[#b7a99a]">/</span> {formatNodeDate(person.deathDate)}</span>}

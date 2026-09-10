@@ -1,11 +1,12 @@
 import { z } from "zod";
+import { LIFE_ENTRY_TEXT_MAX, LIFE_ENTRY_TITLE_MAX } from "./life-entry";
 
 export const entryDictationOutputSchema = z.object({
-  title: z.string().trim().max(160).optional().or(z.literal("")),
-  narrative: z.string().trim().max(4000).optional().or(z.literal("")),
-  difficulty: z.string().trim().max(4000).optional().or(z.literal("")),
-  learning: z.string().trim().max(4000).optional().or(z.literal("")),
-  transformation: z.string().trim().max(4000).optional().or(z.literal("")),
+  title: z.string().trim().max(LIFE_ENTRY_TITLE_MAX).optional().or(z.literal("")),
+  narrative: z.string().trim().max(LIFE_ENTRY_TEXT_MAX).optional().or(z.literal("")),
+  difficulty: z.string().trim().max(LIFE_ENTRY_TEXT_MAX).optional().or(z.literal("")),
+  learning: z.string().trim().max(LIFE_ENTRY_TEXT_MAX).optional().or(z.literal("")),
+  transformation: z.string().trim().max(LIFE_ENTRY_TEXT_MAX).optional().or(z.literal("")),
 });
 
 export type EntryDictationOutput = z.infer<typeof entryDictationOutputSchema>;

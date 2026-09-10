@@ -11,8 +11,10 @@ import type { FamilyPerson, FamilyRelationship } from "@/modules/family-tree/dom
 import type { AttachmentRecord } from "@/shared/lib/mongodb/attachments";
 import { formatStoryDate, titleCase } from "@/shared/lib/utils";
 import { AUDIO_CONTENT_TYPES } from "@/modules/life-story/domain/voice-note";
+import { isOwnVoiceField } from "@/modules/life-story/domain/life-entry-text-origin";
 import { ArchiveAiChat } from "./archive-ai-chat";
 import { ArchivePageLayout } from "./archive-page-layout";
+import { EntryFieldOriginBadge } from "@/modules/life-story/presentation/components/text-origin-badge";
 
 type Props = {
   locale: "es" | "en";
@@ -93,9 +95,9 @@ export function ArchiveProfilePage({ locale, slug, displayName, deceasedAt, publ
   const highlights: Array<{ kind: "lesson" | "moment"; text: string }> = [];
   for (const entry of entries) {
     if (highlights.length >= 2) break;
-    if (entry.learning?.trim()) highlights.push({ kind: "lesson", text: entry.learning.trim() });
-    else if (entry.momentFlags.length > 0) highlights.push({ kind: "moment", text: entry.title });
-    else if (entry.transformation?.trim()) highlights.push({ kind: "moment", text: entry.transformation.trim() });
+    if (entry.learning?.trim() && isOwnVoiceField(entry, "learning", entry.learning)) highlights.push({ kind: "lesson", text: entry.learning.trim() });
+    else if (entry.momentFlags.length > 0 && isOwnVoiceField(entry, "title", entry.title)) highlights.push({ kind: "moment", text: entry.title });
+    else if (entry.transformation?.trim() && isOwnVoiceField(entry, "transformation", entry.transformation)) highlights.push({ kind: "moment", text: entry.transformation.trim() });
   }
   const span = years[0]
     ? `${years[0]}${years.at(-1) && years.at(-1) !== years[0] ? ` – ${years.at(-1)}` : ""}`
@@ -162,7 +164,7 @@ export function ArchiveProfilePage({ locale, slug, displayName, deceasedAt, publ
                   <span className="timeline-dot" style={{ background: entryTone(entry.changeDirection) }} />
                   <div className="card p-5">
                     <p className="eyebrow !text-[.66rem]">{formatStoryDate(entry.startDate, entry.datePrecision, locale)}{entry.endDate ? ` → ${formatStoryDate(entry.endDate, entry.datePrecision, locale)}` : ""}</p>
-                    <h2 className="display mt-2 text-2xl">{entry.title}</h2>
+                    <h2 className="display mt-2 flex flex-wrap items-center gap-2 text-2xl">{entry.title}<EntryFieldOriginBadge entry={entry} field="title" locale={locale} /></h2>
                     {entry.momentFlags.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-1">
                         {entry.momentFlags.map((flag) => (
@@ -173,15 +175,20 @@ export function ArchiveProfilePage({ locale, slug, displayName, deceasedAt, publ
                         ))}
                       </div>
                     )}
-                    {entry.narrative && <p className="mt-3 text-sm leading-6 text-[var(--muted)] whitespace-pre-wrap">{entry.narrative}</p>}
+                    {entry.narrative && (
+                      <div className="mt-3">
+                        <EntryFieldOriginBadge entry={entry} field="narrative" locale={locale} />
+                        <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-[var(--muted)]">{entry.narrative}</p>
+                      </div>
+                    )}
                     <div className="mt-4 flex flex-wrap gap-2">
                       <span className="pill" style={{ color: entryTone(entry.changeDirection), background: `${entryTone(entry.changeDirection)}18` }}>{titleCase(entry.changeDirection)}</span>
                       {(entry.lifeAreas ?? [entry.lifeArea]).map((area) => <span className="pill" key={area}>{LIFE_AREAS.includes(area) ? titleCase(area) : area}</span>)}
                       {entry.tags.map((item) => <span className="pill" key={item}>#{item}</span>)}
                     </div>
-                    {entry.difficulty && <div className="mt-4 rounded-xl bg-[#fff6f1] p-3 text-sm"><span className="font-bold text-[#8a5a3d]">{t.difficulty}: </span>{entry.difficulty}</div>}
-                    {entry.learning && <div className="mt-3 rounded-xl bg-[#f1f6ee] p-3 text-sm"><span className="font-bold text-[var(--moss-deep)]">{t.learning}: </span>{entry.learning}</div>}
-                    {entry.transformation && <div className="mt-3 rounded-xl bg-[#edf3eb] p-3 text-sm"><span className="font-bold text-[var(--moss-deep)]">{t.transformation}: </span>{entry.transformation}</div>}
+                    {entry.difficulty && <div className="mt-4 rounded-xl bg-[#fff6f1] p-3 text-sm"><span className="mb-1 flex flex-wrap items-center gap-2"><span className="font-bold text-[#8a5a3d]">{t.difficulty}</span><EntryFieldOriginBadge entry={entry} field="difficulty" locale={locale} /></span><p className="mt-1">{entry.difficulty}</p></div>}
+                    {entry.learning && <div className="mt-3 rounded-xl bg-[#f1f6ee] p-3 text-sm"><span className="mb-1 flex flex-wrap items-center gap-2"><span className="font-bold text-[var(--moss-deep)]">{t.learning}</span><EntryFieldOriginBadge entry={entry} field="learning" locale={locale} /></span><p className="mt-1">{entry.learning}</p></div>}
+                    {entry.transformation && <div className="mt-3 rounded-xl bg-[#edf3eb] p-3 text-sm"><span className="mb-1 flex flex-wrap items-center gap-2"><span className="font-bold text-[var(--moss-deep)]">{t.transformation}</span><EntryFieldOriginBadge entry={entry} field="transformation" locale={locale} /></span><p className="mt-1">{entry.transformation}</p></div>}
                     {files.length > 0 && (
                       <div className="mt-4 space-y-3">
                         <p className="text-xs font-bold uppercase tracking-wide text-[var(--muted)]">{t.files}</p>

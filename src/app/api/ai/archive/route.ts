@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "No AI API keys are configured" }, { status: 503 });
   }
 
-  const history = buildReflectionContext(life.entries, locale);
+  const history = buildReflectionContext(life.entries, locale, { includeTextProvenance: true });
   const familyLines = life.family.people.map((person) => {
     return `- ${person.fullName}${person.isSubject ? " (subject)" : ""}${person.birthDate ? ` b.${person.birthDate}` : ""}${person.deathDate ? ` d.${person.deathDate}` : ""}${person.notes ? ` | ${person.notes}` : ""}`;
   });

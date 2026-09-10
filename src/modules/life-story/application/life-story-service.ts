@@ -37,6 +37,9 @@ export async function duplicateLifeStoryForUser(sourceUserId: string, targetUser
       tags: entry.tags,
       linkedEntryId: null,
       linkType: "related",
+      textOrigins: entry.textOrigins,
+      textContainsAi: entry.textContainsAi,
+      aiClassified: entry.aiClassified,
     });
     idBySource.set(entry.id, copied.id);
   }

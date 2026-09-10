@@ -1,3 +1,6 @@
+import { isOwnVoiceField } from "@/modules/life-story/domain/life-entry-text-origin";
+import type { LifeEntryTextContainsAi, LifeEntryTextOrigins } from "@/modules/life-story/domain/life-entry-text-origin";
+
 export const ARCHIVE_ADMIN_EMAIL = "toniblopez1@gmail.com";
 
 export type ArchiveRequestStatus = "pending" | "approved" | "rejected";
@@ -62,19 +65,30 @@ export function pickLifeHighlight(entries: Array<{
   transformation: string | null;
   difficulty: string | null;
   momentFlags: string[];
+  textOrigins?: Partial<LifeEntryTextOrigins> | null;
+  textContainsAi?: Partial<LifeEntryTextContainsAi> | null;
 }>) {
-  const withLearning = entries.find((entry) => entry.learning?.trim());
+  const withLearning = entries.find((entry) => entry.learning?.trim() && isOwnVoiceField(entry, "learning", entry.learning));
   if (withLearning?.learning) {
     return { highlight: withLearning.learning.trim().slice(0, 180), highlightKind: "lesson" as const };
   }
-  const turning = entries.find((entry) => entry.momentFlags.length > 0);
+  const turning = entries.find((entry) => entry.momentFlags.length > 0 && isOwnVoiceField(entry, "title", entry.title));
   if (turning) {
     return { highlight: turning.title.trim(), highlightKind: "moment" as const };
   }
-  const withChange = entries.find((entry) => entry.transformation?.trim() || entry.difficulty?.trim());
+  const withChange = entries.find((entry) =>
+    (entry.transformation?.trim() && isOwnVoiceField(entry, "transformation", entry.transformation))
+    || (entry.difficulty?.trim() && isOwnVoiceField(entry, "difficulty", entry.difficulty)),
+  );
   if (withChange) {
+    const text = (
+      withChange.transformation?.trim() && isOwnVoiceField(withChange, "transformation", withChange.transformation)
+        ? withChange.transformation
+        : withChange.difficulty
+      || ""
+    ).trim();
     return {
-      highlight: (withChange.transformation || withChange.difficulty || "").trim().slice(0, 180),
+      highlight: text.slice(0, 180),
       highlightKind: "moment" as const,
     };
   }

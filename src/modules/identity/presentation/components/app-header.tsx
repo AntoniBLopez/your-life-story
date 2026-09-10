@@ -83,9 +83,9 @@ export function AppHeader({ locale, email, showSearch = true }: { locale: "es" |
             <span className="hidden md:inline text-xs">{t.admin}</span>
           </Link>
         )}
-        <Link title={t.settings} className="btn btn-quiet !p-2 hidden sm:inline-flex" href={`/${locale}/app/settings`}>
+        <AppNavLink title={t.settings} active={is(`/${locale}/app/settings`)} href={`/${locale}/app/settings`} className="hidden sm:inline-flex">
           <Settings size={16} />
-        </Link>
+        </AppNavLink>
         <LanguageSwitcher compact />
         <button disabled={pending} title={t.out} onClick={signOut} className="btn btn-quiet !p-2">
           <LogOut size={16} />

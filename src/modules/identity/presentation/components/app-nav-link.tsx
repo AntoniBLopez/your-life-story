@@ -7,11 +7,13 @@ export function AppNavLink({
   href,
   title,
   active,
+  className = "",
   children,
 }: {
   href: string;
   title: string;
   active: boolean;
+  className?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -19,7 +21,7 @@ export function AppNavLink({
       prefetch
       title={title}
       href={href as Route}
-      className={`btn btn-quiet !p-2 ${active ? "!bg-[#edf3eb]" : ""}`}
+      className={`btn btn-quiet !p-2 ${active ? "!bg-[#edf3eb]" : ""} ${className}`}
     >
       <AppNavLinkContent>{children}</AppNavLinkContent>
     </Link>
