@@ -32,8 +32,8 @@ export function AdminPanel({
   const [query, setQuery] = useState("");
   const users = initialUsers;
   const t = locale === "es"
-    ? { eyebrow: "Administración", title: "Archivo público y fallecimientos", intro: "Revisa peticiones de fallecimiento. Solo se publica una vida si esa persona dio permiso en vida para hacerlo.", pending: "Pendientes", none: "No hay peticiones pendientes.", approve: "Confirmar y publicar", reject: "Rechazar", search: "Buscar cuenta por nombre o email", consent: "Dio permiso en vida", published: "En archivo", deceased: "Fallecida", moments: "momentos", publish: "Publicar", publishDead: "Publicar como fallecida", unpublish: "Retirar", inactivity: "Silencio automático", noConsent: "Sin permiso de publicación en vida" }
-    : { eyebrow: "Administration", title: "Public archive and deaths", intro: "Review death requests. A life is only published if that person gave permission while they were alive.", pending: "Pending", none: "There are no pending requests.", approve: "Confirm and publish", reject: "Reject", search: "Search an account by name or email", consent: "Gave permission in life", published: "In archive", deceased: "Deceased", moments: "moments", publish: "Publish", publishDead: "Publish as deceased", unpublish: "Remove", inactivity: "Automatic silence", noConsent: "No publication permission in life" };
+    ? { eyebrow: "Administración", title: "Archivo público y fallecimientos", intro: "Revisa peticiones de fallecimiento. Solo se publica una vida si esa persona dio permiso en vida para hacerlo.", pending: "Pendientes", none: "No hay peticiones pendientes.", approve: "Confirmar y publicar", reject: "Rechazar", search: "Buscar cuenta por nombre o email", consent: "Dio permiso en vida", published: "En archivo", deceased: "Fallecida", experienceCount: (n: number) => (n === 1 ? "1 experiencia" : `${n} experiencias`), publish: "Publicar", publishDead: "Publicar como fallecida", unpublish: "Retirar", inactivity: "Silencio automático", noConsent: "Sin permiso de publicación en vida" }
+    : { eyebrow: "Administration", title: "Public archive and deaths", intro: "Review death requests. A life is only published if that person gave permission while they were alive.", pending: "Pending", none: "There are no pending requests.", approve: "Confirm and publish", reject: "Reject", search: "Search an account by name or email", consent: "Gave permission in life", published: "In archive", deceased: "Deceased", experienceCount: (n: number) => (n === 1 ? "1 experience" : `${n} experiences`), publish: "Publish", publishDead: "Publish as deceased", unpublish: "Remove", inactivity: "Automatic silence", noConsent: "No publication permission in life" };
 
   function review(id: string, decision: "approved" | "rejected") {
     setError(undefined);
@@ -117,7 +117,7 @@ export function AdminPanel({
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <h3 className="display text-xl">{user.displayName || user.email}</h3>
-                  <p className="mt-1 text-sm text-[var(--muted)]">{user.email} · {user.entryCount} {t.moments}</p>
+                  <p className="mt-1 text-sm text-[var(--muted)]">{user.email} · {t.experienceCount(user.entryCount)}</p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {user.publicArchiveConsent && <span className="pill">{t.consent}</span>}
                     {user.publishedAt && <span className="pill">{t.published}</span>}

@@ -10,7 +10,7 @@ import { LanguageSwitcher } from "./language-switcher";
 import { AppNavLink } from "./app-nav-link";
 import { isArchiveAdmin } from "@/modules/archive/domain/archive";
 
-export function AppHeader({ locale, email }: { locale: "es" | "en"; email?: string | null }) {
+export function AppHeader({ locale, email, showSearch = true }: { locale: "es" | "en"; email?: string | null; showSearch?: boolean }) {
   const pathname = usePathname();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -23,8 +23,11 @@ export function AppHeader({ locale, email }: { locale: "es" | "en"; email?: stri
     !is(`/${locale}/app/search`) &&
     !is(`/${locale}/app/admin`) &&
     !is(`/${locale}/app/shared`);
+  const isArchive = is(`/${locale}/archive`);
   const admin = isArchiveAdmin(email);
-  const t = locale === "es" ? { story: "Mi historia", reflect: "Reflexiona", tree: "Árbol", settings: "Ajustes", out: "Cerrar sesión", archive: "Archivo", admin: "Admin" } : { story: "My story", reflect: "Reflect", tree: "Tree", settings: "Settings", out: "Sign out", archive: "Archive", admin: "Admin" };
+  const t = locale === "es"
+    ? { story: "Mi historia", reflect: "Reflexiona", tree: "Árbol", settings: "Ajustes", out: "Cerrar sesión", archive: "Archivo", admin: "Admin", search: "Buscar experiencias, personas o fechas" }
+    : { story: "My story", reflect: "Reflect", tree: "Tree", settings: "Settings", out: "Sign out", archive: "Archive", admin: "Admin", search: "Search experiences, people or dates" };
 
   function handleBrandClick(event: React.MouseEvent<HTMLAnchorElement>) {
     if (window.scrollY > 0) {
@@ -47,12 +50,16 @@ export function AppHeader({ locale, email }: { locale: "es" | "en"; email?: stri
         <span className="brand-mark"><Sprout size={16} /></span>
         <span>Your Life Story</span>
       </Link>
-      <form className="hidden min-w-40 flex-1 max-w-xs md:flex" action={`/${locale}/app/search`}>
-        <div className="relative w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" size={15} />
-          <input aria-label={locale === "es" ? "Buscar" : "Search"} className="input !rounded-full !py-2 !pl-9 !text-sm" name="q" placeholder={locale === "es" ? "Buscar" : "Search"} />
-        </div>
-      </form>
+      {showSearch ? (
+        <form className="hidden min-w-40 flex-1 max-w-xs md:flex" action={`/${locale}/app/search`}>
+          <div className="relative w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" size={15} />
+            <input aria-label={t.search} className="input !rounded-full !py-2 !pl-9 !text-sm" name="q" placeholder={t.search} />
+          </div>
+        </form>
+      ) : (
+        <div className="hidden flex-1 md:block" />
+      )}
       <div className="flex items-center gap-1">
         <AppNavLink title={t.story} active={isStory} href={`/${locale}/app`}>
           <BookOpen size={17} />
@@ -66,7 +73,7 @@ export function AppHeader({ locale, email }: { locale: "es" | "en"; email?: stri
           <Bot size={17} />
           <span className="hidden md:inline text-xs">{t.reflect}</span>
         </AppNavLink>
-        <Link title={t.archive} className="btn btn-quiet !p-2 hidden sm:inline-flex" href={`/${locale}/archive` as Route}>
+        <Link title={t.archive} className={`btn btn-quiet !p-2 hidden sm:inline-flex ${isArchive ? "!bg-[#edf3eb]" : ""}`} href={`/${locale}/archive` as Route}>
           <Landmark size={16} />
           <span className="hidden md:inline text-xs">{t.archive}</span>
         </Link>

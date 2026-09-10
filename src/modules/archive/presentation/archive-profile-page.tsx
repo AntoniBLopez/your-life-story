@@ -12,7 +12,7 @@ import type { AttachmentRecord } from "@/shared/lib/mongodb/attachments";
 import { formatStoryDate, titleCase } from "@/shared/lib/utils";
 import { AUDIO_CONTENT_TYPES } from "@/modules/life-story/domain/voice-note";
 import { ArchiveAiChat } from "./archive-ai-chat";
-import { PublicSiteFooter, PublicSiteHeader } from "./public-site-chrome";
+import { ArchivePageLayout } from "./archive-page-layout";
 
 type Props = {
   locale: "es" | "en";
@@ -102,9 +102,8 @@ export function ArchiveProfilePage({ locale, slug, displayName, deceasedAt, publ
     : String(new Date(publishedAt).getFullYear());
 
   return (
-    <main className="page-shell overflow-hidden">
-      <PublicSiteHeader locale={locale} current="archive" authenticated={authenticated} email={email} />
-      <article className="container relative pb-20 pt-8 sm:pt-12">
+    <ArchivePageLayout locale={locale} authenticated={authenticated} email={email}>
+      <article className="relative overflow-hidden pb-20 pt-2 sm:pt-4">
         <div className="pointer-events-none absolute right-8 top-4 h-40 w-40 rounded-full bg-[var(--sage)] blur-3xl" />
         <div className="pointer-events-none absolute left-4 top-24 h-28 w-28 rounded-full bg-[var(--peach)]/50 blur-3xl" />
         <Link className="relative inline-flex items-center gap-2 text-sm font-bold text-[var(--moss-deep)]" href={`/${locale}/archive` as Route}>
@@ -214,7 +213,6 @@ export function ArchiveProfilePage({ locale, slug, displayName, deceasedAt, publ
         )}
         <ArchiveAiChat locale={locale} slug={slug} displayName={displayName} />
       </article>
-      <PublicSiteFooter locale={locale} authenticated={authenticated} />
-    </main>
+    </ArchivePageLayout>
   );
 }

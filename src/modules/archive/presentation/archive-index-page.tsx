@@ -6,7 +6,7 @@ import type { Route } from "next";
 import { ArrowRight, ChevronDown, Landmark, LoaderCircle, Search, Send, Sparkles } from "lucide-react";
 import type { PublicLifeSummary } from "@/modules/archive/domain/archive";
 import { submitPublicPublicationRequestAction } from "@/modules/archive/application/archive-actions";
-import { PublicSiteFooter, PublicSiteHeader } from "./public-site-chrome";
+import { ArchivePageLayout } from "./archive-page-layout";
 
 function copy(locale: "es" | "en") {
   return locale === "es"
@@ -115,10 +115,8 @@ export function ArchiveIndexPage({ locale, lives, authenticated = false, email }
   ];
 
   return (
-    <main className="page-shell">
-      <PublicSiteHeader locale={locale} current="archive" authenticated={authenticated} email={email} />
-
-      <section className="container fade-in pb-8 pt-8 sm:pt-12">
+    <ArchivePageLayout locale={locale} authenticated={authenticated} email={email}>
+      <section className="fade-in pb-8 pt-2 sm:pt-4">
         <div className="mx-auto max-w-2xl text-center">
           <h1 className="display text-3xl text-[var(--ink)] sm:text-4xl">{t.title}</h1>
           <p className="mt-3 text-base leading-7 text-[var(--muted)]">{t.intro}</p>
@@ -162,7 +160,7 @@ export function ArchiveIndexPage({ locale, lives, authenticated = false, email }
         </div>
       </section>
 
-      <section className="container pb-16">
+      <section className="pb-16">
         {filtered.length === 0 ? (
           <div className="mx-auto max-w-md py-14 text-center">
             <Landmark className="mx-auto text-[var(--moss)]" size={26} />
@@ -213,7 +211,7 @@ export function ArchiveIndexPage({ locale, lives, authenticated = false, email }
         )}
       </section>
 
-      <section className="container pb-16">
+      <section className="pb-16">
         <details className="card group mx-auto max-w-2xl overflow-hidden">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-5 marker:hidden sm:p-6 [&::-webkit-details-marker]:hidden">
             <div>
@@ -244,7 +242,6 @@ export function ArchiveIndexPage({ locale, lives, authenticated = false, email }
         </details>
       </section>
 
-      <PublicSiteFooter locale={locale} authenticated={authenticated} />
-    </main>
+    </ArchivePageLayout>
   );
 }
