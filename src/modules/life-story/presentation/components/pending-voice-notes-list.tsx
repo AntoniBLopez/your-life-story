@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useRef } from "react";
 import { Trash2 } from "lucide-react";
 import { base64ToBlobUrl, type PendingVoiceNote } from "@/modules/life-story/domain/voice-note";
 
@@ -31,16 +31,41 @@ type Props = {
   onRemove: (index: number) => void;
 };
 
-export function PendingVoiceNotesList({ locale, notes, onRemove }: Props) {
-  const labels = FIELD_LABELS[locale];
-  const urls = useMemo(
-    () => notes.map((note) => base64ToBlobUrl(note.fileBase64, note.contentType)),
-    [notes],
-  );
+function pendingNoteKey(note: PendingVoiceNote) {
+  return `${note.fieldKey}:${note.fileName}:${note.size}`;
+}
+
+function useStableBlobUrls(notes: PendingVoiceNote[]) {
+  const urlsRef = useRef(new Map<string, string>());
+
+  for (const note of notes) {
+    const key = pendingNoteKey(note);
+    if (!urlsRef.current.has(key)) {
+      urlsRef.current.set(key, base64ToBlobUrl(note.fileBase64, note.contentType));
+    }
+  }
+
+  useEffect(() => {
+    const activeKeys = new Set(notes.map(pendingNoteKey));
+    for (const [key, url] of [...urlsRef.current.entries()]) {
+      if (!activeKeys.has(key)) {
+        URL.revokeObjectURL(url);
+        urlsRef.current.delete(key);
+      }
+    }
+  }, [notes]);
 
   useEffect(() => () => {
-    urls.forEach((url) => URL.revokeObjectURL(url));
-  }, [urls]);
+    urlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    urlsRef.current.clear();
+  }, []);
+
+  return (note: PendingVoiceNote) => urlsRef.current.get(pendingNoteKey(note)) ?? "";
+}
+
+export function PendingVoiceNotesList({ locale, notes, onRemove }: Props) {
+  const labels = FIELD_LABELS[locale];
+  const getBlobUrl = useStableBlobUrls(notes);
 
   if (notes.length === 0) return null;
 
@@ -83,7 +108,7 @@ export function PendingVoiceNotesList({ locale, notes, onRemove }: Props) {
                   <Trash2 size={15} />
                 </button>
               </div>
-              <audio className="mt-3 w-full" controls preload="metadata" src={urls[index]} />
+              <audio className="mt-3 w-full" controls preload="metadata" src={getBlobUrl(note)} />
               {note.transcript && (
                 <p className="mt-2 text-sm leading-6 text-[var(--ink)]">{note.transcript}</p>
               )}

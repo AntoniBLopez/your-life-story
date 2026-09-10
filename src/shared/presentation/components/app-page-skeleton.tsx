@@ -216,7 +216,13 @@ function EntrySkeleton() {
       <div className="mt-6">
         <PageHeaderSkeleton introLines={2} />
       </div>
-      <div className="card mt-8 flex flex-col gap-8 p-5 sm:p-7">
+      <div className="mt-8 rounded-2xl border border-[var(--line)] bg-[#fcfdf9] p-4 sm:p-5">
+        <Block className="h-4 w-52" />
+        <Block className="mt-2 h-4 w-full" />
+        <Block className="mt-2 h-4 w-4/5" />
+        <Block className="mt-4 h-11 w-44 rounded-full" />
+      </div>
+      <div className="card mt-6 flex flex-col gap-8 p-5 sm:p-7">
         {[0, 1, 2, 3].map((item) => (
           <div key={item} className="space-y-2">
             <Block className="h-3 w-28" />

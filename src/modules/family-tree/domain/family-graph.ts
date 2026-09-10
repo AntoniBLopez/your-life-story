@@ -123,10 +123,23 @@ export function resolveParentSlots(
   return { motherId, fatherId };
 }
 
-function childrenOf(personId: string, relationships: FamilyRelationship[]) {
-  return relationships
-    .filter((item) => item.relationshipType === "parent" && item.sourcePersonId === personId)
-    .map((item) => item.targetPersonId);
+export function childrenOf(personId: string, relationships: FamilyRelationship[]) {
+  return [...new Set(
+    relationships
+      .filter((item) => item.relationshipType === "parent" && item.sourcePersonId === personId)
+      .map((item) => item.targetPersonId),
+  )];
+}
+
+export function formatPersonChildCount(count: number, deceased: boolean, locale: "es" | "en") {
+  if (locale === "es") {
+    const noun = count === 1 ? "hijo" : "hijos";
+    const verb = deceased ? "tuvo" : "tiene";
+    return { label: "Hijos", value: `${verb} ${count} ${noun}` };
+  }
+  const noun = count === 1 ? "child" : "children";
+  const verb = deceased ? "had" : "has";
+  return { label: "Children", value: `${verb} ${count} ${noun}` };
 }
 
 function pairKey(left: string, right: string) {

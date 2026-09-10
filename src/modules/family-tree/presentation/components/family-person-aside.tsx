@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Cake, CalendarPlus, LoaderCircle, PartyPopper, Pencil, X } from "lucide-react";
 import { quickBirthdayReminderAction } from "@/modules/family-tree/application/birthday-reminder-actions";
 import { birthdayCelebrationOn, canRemindBirthday, type BirthdayReminderPreset } from "@/modules/family-tree/domain/birthday-reminder";
-import type { FamilyPerson } from "@/modules/family-tree/domain/family-graph";
+import { formatPersonChildCount, type FamilyPerson } from "@/modules/family-tree/domain/family-graph";
 import { BirthdayReminderOffsetEditor, defaultOffsetsFromPresets } from "@/modules/family-tree/presentation/components/birthday-reminder-offset-editor";
 
 type Parents = { mother?: FamilyPerson; father?: FamilyPerson };
@@ -14,6 +14,7 @@ export function FamilyPersonAside({
   locale,
   person,
   parents,
+  childCount,
   youPersonId,
   presets,
   calendar,
@@ -26,6 +27,7 @@ export function FamilyPersonAside({
   locale: "es" | "en";
   person: FamilyPerson;
   parents: Parents;
+  childCount: number;
   youPersonId?: string;
   presets: BirthdayReminderPreset[];
   calendar?: { connected: boolean; email: string | null };
@@ -64,6 +66,7 @@ export function FamilyPersonAside({
   const hasPreset = presets.length > 0;
   const hasCalendar = Boolean(calendar?.connected);
   const isMe = youPersonId ? person.id === youPersonId : person.isSubject;
+  const childSummary = formatPersonChildCount(childCount, Boolean(person.deathDate), locale);
   const birthday = today ? birthdayCelebrationOn(person, today) : { celebrating: false, age: null };
   const birthdayText = birthday.celebrating
     ? typeof birthday.age === "number"
@@ -201,6 +204,10 @@ export function FamilyPersonAside({
             <dd className="text-right">{[parents.mother?.fullName, parents.father?.fullName].filter(Boolean).join(" · ") || "—"}</dd>
           </div>
         )}
+        <div className="flex justify-between gap-3">
+          <dt className="font-bold text-[var(--muted)]">{childSummary.label}</dt>
+          <dd className="text-right">{childSummary.value}</dd>
+        </div>
         {person.baptized !== null && (
           <div className="flex justify-between gap-3">
             <dt className="font-bold text-[var(--muted)]">{labels.baptized}</dt>

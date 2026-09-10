@@ -131,3 +131,25 @@ export function lifeEntryFormSnapshotsEqual(left: LifeEntryFormSnapshot, right: 
 export function currentLifeEntryFormSnapshot(state: LifeEntryFormSnapshot): LifeEntryFormSnapshot {
   return normalizeLifeEntryFormSnapshot(state);
 }
+
+export function emptyLifeEntryFormSnapshot(): LifeEntryFormSnapshot {
+  return normalizeLifeEntryFormSnapshot({
+    title: "",
+    narrative: "",
+    difficulty: "",
+    learning: "",
+    transformation: "",
+    lifeAreas: [],
+    changeDirection: "neutral",
+    momentFlags: [],
+    tags: "",
+    startDate: "",
+    endDate: "",
+    datePrecision: "day",
+    linkedEntryId: "",
+    linkType: "related",
+    textOrigins: emptyTextOrigins(),
+    textContainsAi: emptyTextContainsAi(),
+    aiClassified: false,
+  });
+}

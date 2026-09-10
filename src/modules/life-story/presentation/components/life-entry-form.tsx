@@ -1,9 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { ArrowLeft, LoaderCircle, Paperclip, Sparkles } from "lucide-react";
+import { LoaderCircle, Paperclip, Sparkles } from "lucide-react";
 import {
   CHANGE_DIRECTIONS,
   DATE_PRECISIONS,
@@ -31,7 +30,7 @@ import {
   updateLifeEntryAction,
   uploadAttachmentAction,
 } from "@/modules/life-story/application/life-entry-actions";
-import type { EntryDictationOutput } from "@/modules/life-story/domain/entry-dictation-prompt";
+import { resolveDictationDates, type EntryDictationOutput } from "@/modules/life-story/domain/entry-dictation-prompt";
 import type { EntryReflectionOutput } from "@/modules/life-story/domain/entry-reflection-prompt";
 import { AUDIO_CONTENT_TYPES, type PendingVoiceNote, type VoiceFieldKey } from "@/modules/life-story/domain/voice-note";
 import { resolveAttachmentContentType } from "@/modules/life-story/domain/attachment-content-type";
@@ -52,6 +51,7 @@ import {
 import {
   buildLifeEntryFormSnapshot,
   currentLifeEntryFormSnapshot,
+  emptyLifeEntryFormSnapshot,
   lifeEntryFormSnapshotsEqual,
   snapshotFromDraft,
 } from "@/modules/life-story/domain/life-entry-form-state";
@@ -124,6 +124,7 @@ function fileToBase64(file: File) {
 
 function FieldLabelWithVoice({
   label,
+  htmlFor,
   origin,
   containsAi,
   locale,
@@ -140,6 +141,7 @@ function FieldLabelWithVoice({
   onWarning,
 }: {
   label: string;
+  htmlFor: string;
   origin: HumanTextOrigin | null;
   containsAi: boolean;
   locale: "es" | "en";
@@ -158,7 +160,12 @@ function FieldLabelWithVoice({
   return (
     <div className="mb-1.5 flex items-center justify-between gap-2">
       <span className="flex min-w-0 flex-wrap items-center gap-2">
-        <span className={`field-label !mb-0 ${emphasized ? "!font-bold !text-base !text-[var(--ink)]" : ""}`}>{label}</span>
+        <label
+          htmlFor={htmlFor}
+          className={`field-label !mb-0 cursor-pointer ${emphasized ? "!font-bold !text-base !text-[var(--ink)]" : ""}`}
+        >
+          {label}
+        </label>
         <TextOriginBadge origin={origin} containsAi={containsAi} locale={locale} />
       </span>
       <VoiceFieldRecorder
@@ -230,6 +237,7 @@ export function LifeEntryForm({
   const draftKey = getLifeEntryDraftKey(entry?.id);
   const [draftReady, setDraftReady] = useState(false);
   const isEdit = Boolean(entry);
+  const fieldInputId = (name: string) => `life-entry-${entry?.id ?? "new"}-${name}`;
   const savedSnapshot = useMemo(
     () => (entry ? buildLifeEntryFormSnapshot(entry, link) : null),
     [entry, link],
@@ -274,12 +282,15 @@ export function LifeEntryForm({
       aiClassified,
     ],
   );
+  const baselineSnapshot = useMemo(
+    () => (isEdit ? savedSnapshot : emptyLifeEntryFormSnapshot()),
+    [isEdit, savedSnapshot],
+  );
   const isDirty = useMemo(() => {
-    if (!isEdit) return true;
-    if (!savedSnapshot) return false;
+    if (!baselineSnapshot) return false;
     if (pendingVoiceNotes.length > 0) return true;
-    return !lifeEntryFormSnapshotsEqual(currentSnapshot, savedSnapshot);
-  }, [isEdit, savedSnapshot, pendingVoiceNotes.length, currentSnapshot]);
+    return !lifeEntryFormSnapshotsEqual(currentSnapshot, baselineSnapshot);
+  }, [baselineSnapshot, pendingVoiceNotes.length, currentSnapshot]);
   const otherEntries = entries.filter((item) => item.id !== entry?.id);
   const savedVoiceNotes = attachments.filter((item) => AUDIO_CONTENT_TYPES.includes(item.mimeType as (typeof AUDIO_CONTENT_TYPES)[number]));
   const hasVoiceSection = savedVoiceNotes.length > 0 || pendingVoiceNotes.length > 0;
@@ -312,9 +323,8 @@ export function LifeEntryForm({
         uploaded: "Archivo guardado.",
         uploadedMany: (count: number) => `${count} archivos guardados.`,
         save: isEdit ? "Guardar cambios" : "Guardar experiencia",
-        cancel: "Volver a mi historia",
         generateAi: "Generar con IA",
-        generateAiHelp: "Cuéntalo en «Qué ocurrió» y la IA completará todos los campos de abajo de una vez — áreas, emociones, reflexiones, etiquetas y el resto. No hace falta rellenarlos uno a uno.",
+        generateAiHelp: "La IA completará los campos de abajo a partir de lo que hayas escrito en «Qué ocurrió».",
         generateAiLoading: "Generando…",
         generateError: "No se pudo generar la reflexión.",
         consentRequired: "Activa el consentimiento de IA en Reflexionar o Ajustes para usar esta función.",
@@ -365,9 +375,8 @@ export function LifeEntryForm({
         uploaded: "File saved.",
         uploadedMany: (count: number) => `${count} files saved.`,
         save: isEdit ? "Save changes" : "Save experience",
-        cancel: "Back to my story",
         generateAi: "Generate with AI",
-        generateAiHelp: "Tell it in «What happened» and AI will complete every field below at once — areas, emotions, reflections, tags and more. No need to fill them in one by one.",
+        generateAiHelp: "AI will complete the fields below based on what you wrote in «What happened».",
         generateAiLoading: "Generating…",
         generateError: "Could not generate the reflection.",
         consentRequired: "Enable AI consent in Reflect or Settings to use this feature.",
@@ -581,6 +590,16 @@ export function LifeEntryForm({
   }
 
   function applyDictation(fields: EntryDictationOutput) {
+    const dates = resolveDictationDates(fields);
+    setStartDate(dates.startDate);
+    setEndDate(dates.endDate);
+    setDatePrecision(dates.datePrecision);
+    setChangeDirection(fields.changeDirection);
+    setLifeAreas(fields.lifeAreas);
+    setMomentFlags(fields.momentFlags);
+    setTags(fields.tags.join(", "));
+    setAiClassified(true);
+
     const filled: LifeEntryProseField[] = [];
     if (fields.title) {
       setTitle(fields.title);
@@ -803,18 +822,32 @@ export function LifeEntryForm({
   return (
     <>
     <div className="mx-auto max-w-3xl fade-in">
-      <Link href={`/${locale}/app`} className="btn btn-quiet !px-0 text-sm">
-        <ArrowLeft size={15} />
-        {t.cancel}
-      </Link>
-      <p className="eyebrow mt-6">{t.eyebrow}</p>
+      <p className="eyebrow">{t.eyebrow}</p>
       <h1 className="display mt-2 text-4xl sm:text-5xl">{t.title}</h1>
       <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--muted)]">{t.body}</p>
 
-      <form action={submit} className="card mt-8 flex flex-col gap-8 p-5 sm:p-7">
-        <label data-field="title" className="flex flex-col gap-2">
+      <div className="mt-8">
+        <ExperienceDictationCard
+          locale={locale}
+          entryId={entry?.id}
+          aiConsented={aiConsented}
+          disabled={pending || generating}
+          onRequestStart={requestFullDictationStart}
+          onFields={applyDictation}
+          onAppendTranscript={appendDictationTranscript}
+          onPendingVoiceNote={queueVoiceNote}
+          onVoiceSaved={handleVoiceSaved}
+          onError={setError}
+          onWarning={setVoiceMessage}
+          saveVoiceRecordings={saveVoiceRecordings}
+        />
+      </div>
+
+      <form action={submit} className="card mt-6 flex flex-col gap-8 p-5 sm:p-7">
+        <div data-field="title" className="flex flex-col gap-2">
           <FieldLabelWithVoice
             label={t.name}
+            htmlFor={fieldInputId("title")}
             origin={textOrigins.title}
             containsAi={textContainsAi.title}
             locale={locale}
@@ -830,9 +863,9 @@ export function LifeEntryForm({
             onError={setError}
             onWarning={setVoiceMessage}
           />
-          <input className={`${fieldControlClass(fieldErrors, "title")} font-semibold text-lg`} name="title" required minLength={2} maxLength={LIFE_ENTRY_TITLE_MAX} value={title} onChange={(event) => setProseTyped("title", event.target.value)} />
+          <input id={fieldInputId("title")} className={`${fieldControlClass(fieldErrors, "title")} font-semibold text-lg`} name="title" required minLength={2} maxLength={LIFE_ENTRY_TITLE_MAX} value={title} onChange={(event) => setProseTyped("title", event.target.value)} />
           {fieldErrorMessage(fieldErrors, "title") && <p className="field-error">{fieldErrorMessage(fieldErrors, "title")}</p>}
-        </label>
+        </div>
 
         <div className="grid gap-5 sm:grid-cols-2">
           <label data-field="startDate" className="flex flex-col gap-2">
@@ -857,24 +890,10 @@ export function LifeEntryForm({
           {fieldErrorMessage(fieldErrors, "datePrecision") && <p className="field-error">{fieldErrorMessage(fieldErrors, "datePrecision")}</p>}
         </label>
 
-        <ExperienceDictationCard
-          locale={locale}
-          entryId={entry?.id}
-          aiConsented={aiConsented}
-          disabled={pending || generating}
-          onRequestStart={requestFullDictationStart}
-          onFields={applyDictation}
-          onAppendTranscript={appendDictationTranscript}
-          onPendingVoiceNote={queueVoiceNote}
-          onVoiceSaved={handleVoiceSaved}
-          onError={setError}
-          onWarning={setVoiceMessage}
-          saveVoiceRecordings={saveVoiceRecordings}
-        />
-
-        <label data-field="narrative" className="flex flex-col gap-2">
+        <div data-field="narrative" className="flex flex-col gap-2">
           <FieldLabelWithVoice
             label={t.narrative}
+            htmlFor={fieldInputId("narrative")}
             origin={textOrigins.narrative}
             containsAi={textContainsAi.narrative}
             locale={locale}
@@ -889,9 +908,9 @@ export function LifeEntryForm({
             onError={setError}
             onWarning={setVoiceMessage}
           />
-          <textarea className={fieldControlClass(fieldErrors, "narrative", "textarea")} name="narrative" maxLength={LIFE_ENTRY_TEXT_MAX} value={narrative} onChange={(event) => setProseTyped("narrative", event.target.value)} />
+          <textarea id={fieldInputId("narrative")} className={fieldControlClass(fieldErrors, "narrative", "textarea")} name="narrative" maxLength={LIFE_ENTRY_TEXT_MAX} value={narrative} onChange={(event) => setProseTyped("narrative", event.target.value)} />
           {fieldErrorMessage(fieldErrors, "narrative") && <p className="field-error">{fieldErrorMessage(fieldErrors, "narrative")}</p>}
-        </label>
+        </div>
 
         <div className="rounded-2xl border border-[var(--line)] bg-[#fcfdf9] p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -910,7 +929,7 @@ export function LifeEntryForm({
 
         <fieldset data-field="lifeAreas" className={`m-0 flex min-w-0 flex-col gap-3 border-0 p-0 ${hasFieldError(fieldErrors, "lifeAreas") ? "rounded-xl border border-[var(--danger)] p-3" : ""}`}>
           <legend className="field-label !mb-0">{t.areas}</legend>
-          <div className="flex flex-wrap gap-2">
+          <div className="mt-2 flex flex-wrap gap-2">
             {LIFE_AREAS.map((value) => (
               <label key={value} className="pill cursor-pointer gap-2 !px-3 !py-2">
                 <input
@@ -947,7 +966,7 @@ export function LifeEntryForm({
 
         <fieldset data-field="momentFlags" className={`m-0 flex min-w-0 flex-col gap-3 border-0 p-0 ${hasFieldError(fieldErrors, "momentFlags") ? "rounded-xl border border-[var(--danger)] p-3" : ""}`}>
           <legend className="field-label !mb-0">{t.moments}</legend>
-          <div className="flex flex-wrap gap-2">
+          <div className="mt-2 flex flex-wrap gap-2">
             {MOMENT_FLAGS.map((value) => (
               <label key={value} className="pill cursor-pointer gap-2 !px-3 !py-2">
                 <input
@@ -964,9 +983,10 @@ export function LifeEntryForm({
           {fieldErrorMessage(fieldErrors, "momentFlags") && <p className="field-error">{fieldErrorMessage(fieldErrors, "momentFlags")}</p>}
         </fieldset>
 
-        <label data-field="difficulty" className="flex flex-col gap-2">
+        <div data-field="difficulty" className="flex flex-col gap-2">
           <FieldLabelWithVoice
             label={t.difficulty}
+            htmlFor={fieldInputId("difficulty")}
             origin={textOrigins.difficulty}
             containsAi={textContainsAi.difficulty}
             locale={locale}
@@ -981,12 +1001,13 @@ export function LifeEntryForm({
             onError={setError}
             onWarning={setVoiceMessage}
           />
-          <textarea className={`${fieldControlClass(fieldErrors, "difficulty", "textarea")} !min-h-24`} name="difficulty" maxLength={LIFE_ENTRY_TEXT_MAX} value={difficulty} onChange={(event) => setProseTyped("difficulty", event.target.value)} />
+          <textarea id={fieldInputId("difficulty")} className={`${fieldControlClass(fieldErrors, "difficulty", "textarea")} !min-h-24`} name="difficulty" maxLength={LIFE_ENTRY_TEXT_MAX} value={difficulty} onChange={(event) => setProseTyped("difficulty", event.target.value)} />
           {fieldErrorMessage(fieldErrors, "difficulty") && <p className="field-error">{fieldErrorMessage(fieldErrors, "difficulty")}</p>}
-        </label>
-        <label data-field="learning" className="flex flex-col gap-2">
+        </div>
+        <div data-field="learning" className="flex flex-col gap-2">
           <FieldLabelWithVoice
             label={t.learning}
+            htmlFor={fieldInputId("learning")}
             origin={textOrigins.learning}
             containsAi={textContainsAi.learning}
             locale={locale}
@@ -1001,12 +1022,13 @@ export function LifeEntryForm({
             onError={setError}
             onWarning={setVoiceMessage}
           />
-          <textarea className={`${fieldControlClass(fieldErrors, "learning", "textarea")} !min-h-24`} name="learning" maxLength={LIFE_ENTRY_TEXT_MAX} value={learning} onChange={(event) => setProseTyped("learning", event.target.value)} />
+          <textarea id={fieldInputId("learning")} className={`${fieldControlClass(fieldErrors, "learning", "textarea")} !min-h-24`} name="learning" maxLength={LIFE_ENTRY_TEXT_MAX} value={learning} onChange={(event) => setProseTyped("learning", event.target.value)} />
           {fieldErrorMessage(fieldErrors, "learning") && <p className="field-error">{fieldErrorMessage(fieldErrors, "learning")}</p>}
-        </label>
-        <label data-field="transformation" className="flex flex-col gap-2">
+        </div>
+        <div data-field="transformation" className="flex flex-col gap-2">
           <FieldLabelWithVoice
             label={t.transformation}
+            htmlFor={fieldInputId("transformation")}
             origin={textOrigins.transformation}
             containsAi={textContainsAi.transformation}
             locale={locale}
@@ -1021,9 +1043,9 @@ export function LifeEntryForm({
             onError={setError}
             onWarning={setVoiceMessage}
           />
-          <textarea className={`${fieldControlClass(fieldErrors, "transformation", "textarea")} !min-h-24`} name="transformation" maxLength={LIFE_ENTRY_TEXT_MAX} value={transformation} onChange={(event) => setProseTyped("transformation", event.target.value)} />
+          <textarea id={fieldInputId("transformation")} className={`${fieldControlClass(fieldErrors, "transformation", "textarea")} !min-h-24`} name="transformation" maxLength={LIFE_ENTRY_TEXT_MAX} value={transformation} onChange={(event) => setProseTyped("transformation", event.target.value)} />
           {fieldErrorMessage(fieldErrors, "transformation") && <p className="field-error">{fieldErrorMessage(fieldErrors, "transformation")}</p>}
-        </label>
+        </div>
 
         <label data-field="tags" className="flex flex-col gap-2">
           <span className="field-label !mb-0">{t.tags}</span>
@@ -1071,7 +1093,6 @@ export function LifeEntryForm({
               {t.discard}
             </button>
           )}
-          {!isEdit && <Link className="btn btn-quiet" href={`/${locale}/app`}>{t.cancel}</Link>}
         </div>
       </form>
 

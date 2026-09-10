@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assertNoParentCycle, relationToSubject, grantsTimelineAccess, normalizePersonEmail, type FamilyPerson, type FamilyRelationship } from "./family-graph";
+import { assertNoParentCycle, childrenOf, formatPersonChildCount, relationToSubject, grantsTimelineAccess, normalizePersonEmail, type FamilyPerson, type FamilyRelationship } from "./family-graph";
 
 const people: FamilyPerson[] = [
   { id: "great-grandparent", userId: "u", fullName: "Luis García", birthDate: null, birthDatePrecision: null, deathDate: null, deathDatePrecision: null, birthCountry: null, birthCity: null, gender: "male", baptized: null, notes: null, isSubject: false },
@@ -80,5 +80,18 @@ describe("family graph", () => {
     expect(grantsTimelineAccess({ email: "me@example.com", canReadTimeline: true, isSubject: true })).toBe(false);
     expect(normalizePersonEmail("  Sister@Example.COM ")).toBe("sister@example.com");
     expect(normalizePersonEmail("not-an-email")).toBe(null);
+  });
+
+  it("counts children of a parent", () => {
+    expect(childrenOf("mother", graph)).toEqual(["subject", "sister", "half-brother"]);
+    expect(childrenOf("cousin", graph)).toEqual([]);
+  });
+
+  it("phrases living and deceased child counts", () => {
+    expect(formatPersonChildCount(0, false, "es")).toEqual({ label: "Hijos", value: "tiene 0 hijos" });
+    expect(formatPersonChildCount(1, false, "es")).toEqual({ label: "Hijos", value: "tiene 1 hijo" });
+    expect(formatPersonChildCount(3, true, "es")).toEqual({ label: "Hijos", value: "tuvo 3 hijos" });
+    expect(formatPersonChildCount(1, true, "en")).toEqual({ label: "Children", value: "had 1 child" });
+    expect(formatPersonChildCount(2, false, "en")).toEqual({ label: "Children", value: "has 2 children" });
   });
 });

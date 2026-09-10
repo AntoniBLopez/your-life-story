@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { assertValidStoryDates, defaultLifeEntryProvenance, entryTone } from "./life-entry";
-import { buildLifeEntryFormSnapshot, lifeEntryFormSnapshotsEqual } from "./life-entry-form-state";
+import { buildLifeEntryFormSnapshot, emptyLifeEntryFormSnapshot, lifeEntryFormSnapshotsEqual } from "./life-entry-form-state";
 import { buildLifeEntryThreads } from "./life-entry-threads";
 import type { LifeEntry } from "./life-entry";
 
@@ -67,6 +67,15 @@ describe("life entry form snapshot", () => {
       ...saved,
       textOrigins: { ...saved.textOrigins, title: "spoken" },
     })).toBe(false);
+  });
+
+  it("treats a new empty form as clean and any filled field as dirty", () => {
+    const empty = emptyLifeEntryFormSnapshot();
+    expect(lifeEntryFormSnapshotsEqual(empty, emptyLifeEntryFormSnapshot())).toBe(true);
+    expect(lifeEntryFormSnapshotsEqual(empty, { ...empty, title: "Hi" })).toBe(false);
+    expect(lifeEntryFormSnapshotsEqual(empty, { ...empty, startDate: "2024-01-01" })).toBe(false);
+    expect(lifeEntryFormSnapshotsEqual(empty, { ...empty, narrative: "Something happened" })).toBe(false);
+    expect(lifeEntryFormSnapshotsEqual(empty, { ...empty, lifeAreas: ["work"] })).toBe(false);
   });
 });
 

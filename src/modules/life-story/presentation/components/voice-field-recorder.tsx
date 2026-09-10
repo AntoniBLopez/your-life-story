@@ -190,7 +190,7 @@ export function VoiceFieldRecorder({
   return (
     <button
       type="button"
-      className={compact ? "btn btn-quiet !px-2 !py-1 text-xs" : "btn btn-secondary !px-3 !py-2 text-xs"}
+      className={`btn btn-secondary shrink-0 text-xs ${compact ? "!px-2.5 !py-1" : "!px-3 !py-2"}`}
       disabled={disabled || processing}
       onClick={() => (recording ? stopRecording() : void startRecording())}
       aria-pressed={recording}

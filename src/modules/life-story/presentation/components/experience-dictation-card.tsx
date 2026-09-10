@@ -56,8 +56,8 @@ export function ExperienceDictationCard({
     ? {
         title: "Dictar la experiencia completa",
         body: saveVoiceRecordings
-          ? "Habla con naturalidad: qué pasó, qué fue difícil y qué aprendiste. Transcribimos el audio y rellenamos los campos por ti. Se guardan el audio y el texto."
-          : "Habla con naturalidad. Solo usaremos el audio para transcribir; no guardaremos ningún archivo de voz (puedes cambiarlo en Ajustes).",
+          ? "Habla con naturalidad. Transcribimos el audio y rellenamos el formulario. Se guarda el audio."
+          : "Habla con naturalidad. Rellenamos el formulario a partir de lo que digas. Solo usaremos el audio para transcribir; no guardaremos ningún archivo de voz (puedes cambiarlo en Ajustes).",
         record: "Empezar a hablar",
         stop: "Terminar",
         processing: "Organizando tu historia…",
@@ -70,8 +70,8 @@ export function ExperienceDictationCard({
     : {
         title: "Dictate the full experience",
         body: saveVoiceRecordings
-          ? "Speak naturally: what happened, what was hard, and what you learned. We transcribe the audio and fill in the fields for you. Both audio and text are saved."
-          : "Speak naturally. We will only use the audio to transcribe; no voice files will be stored (you can change this in Settings).",
+          ? "Speak naturally. We transcribe the audio and fill in the form. Both audio and text are saved."
+          : "Speak naturally. We fill in the form from what you say. We will only use the audio to transcribe; no voice files will be stored (you can change this in Settings).",
         record: "Start speaking",
         stop: "Finish",
         processing: "Organizing your story…",
