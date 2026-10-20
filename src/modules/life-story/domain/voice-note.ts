@@ -12,6 +12,32 @@ export const AUDIO_CONTENT_TYPES = [
 
 export type AudioContentType = (typeof AUDIO_CONTENT_TYPES)[number];
 
+/** Same ceiling as experience attachments and `/api/ai/transcribe`. */
+export const MAX_DICTATION_AUDIO_BYTES = 15 * 1024 * 1024;
+
+export const DICTATION_AUDIO_ACCEPT = [
+  "audio/mpeg",
+  "audio/mp3",
+  "audio/mp4",
+  "audio/x-m4a",
+  "audio/m4a",
+  "audio/wav",
+  "audio/x-wav",
+  "audio/wave",
+  "audio/webm",
+  "audio/ogg",
+  ".mp3",
+  ".m4a",
+  ".wav",
+  ".webm",
+  ".ogg",
+].join(",");
+
+export function audioContentTypeForTranscription(contentType: string) {
+  const normalized = normalizeAudioContentType(contentType);
+  return normalized === "audio/x-m4a" ? "audio/mp4" : normalized;
+}
+
 export type PendingVoiceNote = {
   fieldKey: VoiceFieldKey;
   fileName: string;

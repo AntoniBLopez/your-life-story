@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { appendTranscript, mimeTypeToExtension, normalizeAudioContentType } from "./voice-note";
+import { appendTranscript, audioContentTypeForTranscription, mimeTypeToExtension, normalizeAudioContentType } from "./voice-note";
 
 describe("appendTranscript", () => {
   it("appends with paragraph break when text already exists", () => {
@@ -18,6 +18,13 @@ describe("appendTranscript", () => {
 describe("normalizeAudioContentType", () => {
   it("strips codec suffix from webm", () => {
     expect(normalizeAudioContentType("audio/webm;codecs=opus")).toBe("audio/webm");
+  });
+});
+
+describe("audioContentTypeForTranscription", () => {
+  it("sends m4a to the transcription provider as mp4", () => {
+    expect(audioContentTypeForTranscription("audio/x-m4a")).toBe("audio/mp4");
+    expect(audioContentTypeForTranscription("audio/mpeg")).toBe("audio/mpeg");
   });
 });
 
