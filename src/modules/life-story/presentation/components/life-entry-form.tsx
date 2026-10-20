@@ -32,13 +32,24 @@ import {
 import { uploadAttachment } from "@/modules/life-story/presentation/upload-attachment";
 import { defaultNewEntryStartDate, localDateKey, resolveDictationDates, type EntryDictationOutput } from "@/modules/life-story/domain/entry-dictation-prompt";
 import { reflectionTitleToApply, type EntryReflectionOutput } from "@/modules/life-story/domain/entry-reflection-prompt";
-import { AUDIO_CONTENT_TYPES, base64ToBlob, type PendingVoiceNote, type VoiceFieldKey } from "@/modules/life-story/domain/voice-note";
+import {
+  appendTranscriptWithin,
+  AUDIO_CONTENT_TYPES,
+  normalizeAudioContentType,
+  pendingVoiceNoteBlob,
+  type PendingVoiceNote,
+  type VoiceFieldKey,
+} from "@/modules/life-story/domain/voice-note";
+import { deleteRecordingBackup } from "@/modules/life-story/presentation/recording-backup";
+import { RecordingRecovery } from "@/modules/life-story/presentation/components/recording-recovery";
+import { processVoiceCapture } from "@/modules/life-story/presentation/voice-pipeline";
+import { leaveVoiceNotice, queueAutoTranscription, type AutoTranscribeItem } from "@/modules/life-story/presentation/voice-session-queue";
 import { resolveAttachmentContentType } from "@/modules/life-story/domain/attachment-content-type";
 import type { AttachmentRecord } from "@/shared/lib/mongodb/attachments";
 import { ExperienceDictationCard, type FullDictationMode } from "@/modules/life-story/presentation/components/experience-dictation-card";
 import { ConfirmDialog } from "@/modules/life-story/presentation/components/confirm-dialog";
 import { FileAttachmentsList } from "@/modules/life-story/presentation/components/file-attachments-list";
-import { appendFieldTranscript, VoiceFieldRecorder } from "@/modules/life-story/presentation/components/voice-field-recorder";
+import { VoiceFieldRecorder } from "@/modules/life-story/presentation/components/voice-field-recorder";
 import { VoiceAttachmentsList } from "@/modules/life-story/presentation/components/voice-attachments-list";
 import { PendingVoiceNotesList } from "@/modules/life-story/presentation/components/pending-voice-notes-list";
 import { TextOriginBadge } from "@/modules/life-story/presentation/components/text-origin-badge";
@@ -321,6 +332,9 @@ export function LifeEntryForm({
         consentRequired: "Activa el consentimiento de IA en Reflexionar o Ajustes para usar esta función.",
         narrativeTooShort: "Escribe al menos unas líneas en «Qué ocurrió» antes de generar.",
         voiceSaved: "Nota de voz guardada.",
+        transcriptTruncated: "La transcripción no cabe entera en el campo (máx. 50.000 caracteres): hemos añadido el principio. La transcripción completa queda guardada junto al audio.",
+        transcriptAdded: "Transcripción añadida al formulario. Guarda la experiencia para conservar el texto.",
+        pendingUploadFailed: "Algunas notas de voz no se pudieron subir. Siguen a salvo en este navegador: recupéralas en «Grabaciones sin guardar».",
         attachmentsBody: "JPG, PNG, WEBP, PDF o audio, hasta 15 MB. Se guardan al elegir el archivo o al dictar.",
         fullDictationTitle: "Ya hay texto en la experiencia",
         fullDictationBody: "Puedes añadir lo que hables al final de «Qué ocurrió» sin tocar el resto, o sustituir título y reflexiones por lo que digas ahora.",
@@ -374,6 +388,9 @@ export function LifeEntryForm({
         consentRequired: "Enable AI consent in Reflect or Settings to use this feature.",
         narrativeTooShort: "Write at least a few lines in «What happened» before generating.",
         voiceSaved: "Voice note saved.",
+        transcriptTruncated: "The transcript doesn't fit in the field (max 50,000 characters), so we added the beginning. The full transcript stays with the audio.",
+        transcriptAdded: "Transcript added to the form. Save the experience to keep the text.",
+        pendingUploadFailed: "Some voice notes couldn't be uploaded. They're still safe in this browser: recover them under “Unsaved recordings”.",
         attachmentsBody: "JPG, PNG, WEBP, PDF or audio, up to 15 MB. Files are saved when you choose them or dictate.",
         fullDictationTitle: "There is already text in this experience",
         fullDictationBody: "You can add what you say to the end of «What happened» without changing anything else, or replace the title and reflections with what you say now.",
@@ -425,7 +442,7 @@ export function LifeEntryForm({
         const snapshot = snapshotFromDraft(draft);
         applySnapshot(
           { ...snapshot, startDate: defaultNewEntryStartDate(snapshot.startDate, today) },
-          draft.pendingVoiceNotes ?? [],
+          (draft.pendingVoiceNotes ?? []).filter((note) => typeof note.fileBase64 === "string" && note.fileBase64.length > 0),
         );
       } else {
         setStartDate((current) => defaultNewEntryStartDate(current, today));
@@ -462,7 +479,8 @@ export function LifeEntryForm({
       textOrigins,
       textContainsAi,
       aiClassified,
-      pendingVoiceNotes,
+      // Long notes live only as Blobs (and in the IndexedDB backup), not in the draft.
+      pendingVoiceNotes: pendingVoiceNotes.filter((note) => !note.blob && note.fileBase64),
     });
   }, [draftReady, draftKey, title,
     narrative,
@@ -557,9 +575,14 @@ export function LifeEntryForm({
 
   function appendSpokenToField(field: LifeEntryProseField, transcript: string) {
     const currentValue = { title, narrative, difficulty, learning, transformation }[field];
-    const nextValue = field === "title"
-      ? appendInlineTranscript(currentValue, transcript)
-      : appendFieldTranscript(currentValue, transcript);
+    let nextValue: string;
+    if (field === "title") {
+      nextValue = appendInlineTranscript(currentValue, transcript).slice(0, LIFE_ENTRY_TITLE_MAX);
+    } else {
+      const fitted = appendTranscriptWithin(currentValue, transcript, LIFE_ENTRY_TEXT_MAX);
+      nextValue = fitted.value;
+      if (fitted.truncated) setVoiceMessage(t.transcriptTruncated);
+    }
     if (nextValue === currentValue) return;
     const setters = {
       title: setTitle,
@@ -590,6 +613,37 @@ export function LifeEntryForm({
   function handleVoiceSaved() {
     setVoiceMessage(t.voiceSaved);
     router.refresh();
+  }
+
+  function proseFieldFor(fieldKey: VoiceFieldKey | null): LifeEntryProseField {
+    return fieldKey && fieldKey !== "full" ? fieldKey : "narrative";
+  }
+
+  function handleSavedAudioTranscribed(fieldKey: VoiceFieldKey | null, transcript: string) {
+    if (transcript.trim()) {
+      setVoiceMessage(t.transcriptAdded);
+      appendSpokenToField(proseFieldFor(fieldKey), transcript);
+    }
+    router.refresh();
+  }
+
+  async function recoverRecording(recording: { blob: Blob; mimeType: string; fieldKey: VoiceFieldKey; backupId: string; fileName: string }) {
+    setUploadError(undefined);
+    const result = await processVoiceCapture({
+      entryId: entry?.id,
+      blob: recording.blob,
+      fileName: recording.fileName,
+      contentType: normalizeAudioContentType(recording.mimeType),
+      fieldKey: recording.fieldKey,
+      locale,
+      saveVoiceRecordings,
+      backupId: recording.backupId,
+      onPendingVoiceNote: queueVoiceNote,
+    });
+    if (result.transcript) appendSpokenToField(proseFieldFor(recording.fieldKey), result.transcript);
+    if (result.error) setUploadError(result.error);
+    else if (result.warning) setVoiceMessage(result.warning);
+    if (result.saved === "uploaded") handleVoiceSaved();
   }
 
   function applyDictation(fields: EntryDictationOutput) {
@@ -730,21 +784,34 @@ export function LifeEntryForm({
 
       const entryId = result.data?.id ?? entry?.id;
       if (entryId && pendingVoiceNotes.length > 0) {
+        // The experience already exists now: never block on a failed note (its browser
+        // backup stays recoverable) and hand long audios to the edit page to transcribe.
+        const toTranscribe: AutoTranscribeItem[] = [];
+        let failed = false;
         for (const note of pendingVoiceNotes) {
           const uploadResult = await uploadAttachment({
             entryId,
-            file: base64ToBlob(note.fileBase64, note.contentType),
+            file: pendingVoiceNoteBlob(note),
             fileName: note.fileName,
             contentType: note.contentType,
             fieldKey: note.fieldKey,
-            transcript: note.transcript,
+            transcript: note.transcript || undefined,
             locale,
           });
           if (!uploadResult.ok) {
-            setError(uploadResult.error);
-            return;
+            failed = true;
+            continue;
+          }
+          await deleteRecordingBackup(note.backupId);
+          if (note.needsTranscription) {
+            toTranscribe.push({ attachmentId: uploadResult.data.id, fieldKey: note.fieldKey, deleteAfterTranscription: Boolean(note.deleteAfterTranscription) });
+          } else if (note.deleteAfterTranscription) {
+            const { deleteAttachmentAction } = await import("@/modules/life-story/application/life-entry-actions");
+            await deleteAttachmentAction(uploadResult.data.id, entryId, locale);
           }
         }
+        queueAutoTranscription(entryId, toTranscribe);
+        if (failed) leaveVoiceNotice(entryId, t.pendingUploadFailed);
         setPendingVoiceNotes([]);
       }
 
@@ -834,7 +901,13 @@ export function LifeEntryForm({
       <h1 className="display mt-2 text-4xl sm:text-5xl">{t.title}</h1>
       <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--muted)]">{t.body}</p>
 
-      <div className="mt-8">
+      <div className="mt-8 space-y-4">
+        <RecordingRecovery
+          locale={locale}
+          entryId={entry?.id}
+          excludeIds={pendingVoiceNotes.flatMap((note) => (note.backupId ? [note.backupId] : []))}
+          onRecover={recoverRecording}
+        />
         <ExperienceDictationCard
           locale={locale}
           entryId={entry?.id}
@@ -1116,6 +1189,7 @@ export function LifeEntryForm({
                   attachments={attachments}
                   onDeleted={() => router.refresh()}
                   onError={setUploadError}
+                  onTranscribed={handleSavedAudioTranscribed}
                 />
               )}
               {pendingVoiceNotes.length > 0 && (

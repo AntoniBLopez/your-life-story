@@ -8,8 +8,20 @@
  * the GridFS chunks collection without buffering the full file anywhere.
  */
 
-/** Largest attachment the app accepts (advertised in the UI). */
+/** Largest image/PDF attachment the app accepts (advertised in the UI). */
 export const MAX_ATTACHMENT_BYTES = 15 * 1024 * 1024;
+
+/**
+ * Largest audio attachment. 150 MB holds ~10 h recorded in the app (32 kbps Opus,
+ * ~14 MB/h) and ~5 h of a typical 64 kbps phone voice memo, while one file can't take more
+ * than ~30 % of a 512 MB MongoDB Atlas free cluster. Transcription cost doesn't depend
+ * on this: audio is transcribed in ~6 MB segments.
+ */
+export const MAX_AUDIO_ATTACHMENT_BYTES = 150 * 1024 * 1024;
+
+export function maxAttachmentBytes(contentType: string) {
+  return contentType.startsWith("audio/") ? MAX_AUDIO_ATTACHMENT_BYTES : MAX_ATTACHMENT_BYTES;
+}
 
 /** GridFS chunk size used for chunked uploads (the GridFS default, 255 KiB). */
 export const ATTACHMENT_GRIDFS_CHUNK_BYTES = 255 * 1024;

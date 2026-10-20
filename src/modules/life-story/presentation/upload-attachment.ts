@@ -1,6 +1,6 @@
 import type { ActionResult } from "@/shared/types/action";
 import { isAttachmentUploadErrorCode, type AttachmentUploadErrorCode } from "@/modules/life-story/application/attachment-upload-errors";
-import { MAX_ATTACHMENT_BYTES } from "@/modules/life-story/domain/attachment-upload";
+import { maxAttachmentBytes } from "@/modules/life-story/domain/attachment-upload";
 import type { VoiceFieldKey } from "@/modules/life-story/domain/voice-note";
 
 const UPLOADS_ENDPOINT = "/api/attachments/uploads";
@@ -17,6 +17,8 @@ export type UploadAttachmentInput = {
   fieldKey?: VoiceFieldKey;
   transcript?: string;
   locale: Locale;
+  /** Called with 0…1 as parts are stored. */
+  onProgress?: (fraction: number) => void;
   /** Injected in tests. */
   fetchImpl?: typeof fetch;
 };
@@ -25,8 +27,8 @@ function formatMegabytes(bytes: number) {
   return (bytes / (1024 * 1024)).toFixed(1).replace(/\.0$/, "");
 }
 
-export function uploadErrorMessage(kind: FailureKind, fileName: string, sizeBytes: number, locale: Locale) {
-  const maxMb = formatMegabytes(MAX_ATTACHMENT_BYTES);
+export function uploadErrorMessage(kind: FailureKind, fileName: string, sizeBytes: number, locale: Locale, contentType = "") {
+  const maxMb = formatMegabytes(maxAttachmentBytes(contentType));
   if (locale === "en") {
     switch (kind) {
       case "too_large": return `“${fileName}” is ${formatMegabytes(sizeBytes)} MB; the maximum is ${maxMb} MB.`;
@@ -78,11 +80,12 @@ function isRetryable(error: unknown) {
  * a user-facing message in the requested locale.
  */
 export async function uploadAttachment(input: UploadAttachmentInput): Promise<ActionResult<{ id: string }>> {
+  input.onProgress?.(0);
   const fetchImpl = input.fetchImpl ?? fetch;
-  const fail = (kind: FailureKind) => ({ ok: false as const, error: uploadErrorMessage(kind, input.fileName, input.file.size, input.locale) });
+  const fail = (kind: FailureKind) => ({ ok: false as const, error: uploadErrorMessage(kind, input.fileName, input.file.size, input.locale, input.contentType) });
 
   if (input.file.size <= 0) return fail("invalid_file");
-  if (input.file.size > MAX_ATTACHMENT_BYTES) return fail("too_large");
+  if (input.file.size > maxAttachmentBytes(input.contentType)) return fail("too_large");
 
   let uploadId: string | undefined;
   try {
@@ -110,6 +113,7 @@ export async function uploadAttachment(input: UploadAttachmentInput): Promise<Ac
             headers: { "Content-Type": "application/octet-stream" },
             body: part,
           });
+          input.onProgress?.((index + 1) / started.totalParts);
           break;
         } catch (error) {
           if (attempt >= PART_ATTEMPTS || !isRetryable(error)) throw error;

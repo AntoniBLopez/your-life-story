@@ -126,10 +126,42 @@ export function listGroqProviderSlots() {
   return listAiProviderSlots().filter((slot) => slot.kind === "groq");
 }
 
+/** Thrown when every Groq key is rate limited (HTTP 429). */
+export class TranscriptionRateLimitError extends Error {
+  constructor(readonly retryAfterSeconds: number) {
+    super(`Transcription rate limited; retry in ${retryAfterSeconds}s`);
+  }
+}
+
+export const DEFAULT_TRANSCRIPTION_MODEL = "whisper-large-v3";
+
+export function transcriptionModel() {
+  return readEnvValue("GROQ_TRANSCRIPTION_MODEL") ?? DEFAULT_TRANSCRIPTION_MODEL;
+}
+
+function errorStatus(error: unknown) {
+  return typeof error === "object" && error && "status" in error ? Number((error as { status?: unknown }).status) : undefined;
+}
+
+/** Seconds to wait from a 429, using `retry-after` or Groq's reset headers, defaulting to 60. */
+export function retryAfterSecondsFromError(error: unknown) {
+  const headers = typeof error === "object" && error && "headers" in error ? (error as { headers?: unknown }).headers : undefined;
+  const get = (name: string) => {
+    if (!headers) return null;
+    if (typeof (headers as Headers).get === "function") return (headers as Headers).get(name);
+    const value = (headers as Record<string, unknown>)[name];
+    return typeof value === "string" ? value : null;
+  };
+  const retryAfter = Number(get("retry-after"));
+  if (Number.isFinite(retryAfter) && retryAfter > 0) return Math.ceil(retryAfter);
+  return 60;
+}
+
 export async function transcribeAudio(
-  buffer: Buffer,
+  buffer: Buffer | Uint8Array,
   fileName: string,
   mimeType: string,
+  options: { timeoutMs?: number; allowEmpty?: boolean } = {},
 ) {
   const slots = listGroqProviderSlots();
   if (slots.length === 0) {
@@ -137,24 +169,34 @@ export async function transcribeAudio(
   }
 
   let lastError: unknown;
+  let shortestRetry: number | null = null;
+  let allRateLimited = true;
   for (const slot of slots) {
     try {
-      const client = createClient(slot);
+      // No SDK retries: callers run inside short serverless invocations and retry themselves.
+      const client = new OpenAI({ apiKey: slot.apiKey, baseURL: slot.baseURL, maxRetries: 0, timeout: options.timeoutMs ?? 50_000 });
       const file = new File([new Uint8Array(buffer)], fileName, { type: mimeType });
       const response = await client.audio.transcriptions.create({
         file,
-        model: "whisper-large-v3",
+        model: transcriptionModel(),
         response_format: "text",
         temperature: 0,
       });
-      const transcript = typeof response === "string" ? response : String(response).trim();
-      if (!transcript) throw new Error(`Empty transcript from ${slot.id}`);
+      const transcript = typeof response === "string" ? response.trim() : String(response).trim();
+      if (!transcript && !options.allowEmpty) throw new Error(`Empty transcript from ${slot.id}`);
       return transcript;
     } catch (error) {
       lastError = error;
+      if (errorStatus(error) === 429) {
+        const wait = retryAfterSecondsFromError(error);
+        shortestRetry = shortestRetry === null ? wait : Math.min(shortestRetry, wait);
+      } else {
+        allRateLimited = false;
+      }
       console.warn(`[ai] transcription ${slot.id} failed:`, error instanceof Error ? error.message : error);
     }
   }
 
+  if (allRateLimited && shortestRetry !== null) throw new TranscriptionRateLimitError(shortestRetry);
   throw lastError instanceof Error ? lastError : new Error("Audio transcription failed.");
 }

@@ -1,5 +1,5 @@
 import { isAudioContentType, resolveAttachmentContentType } from "../domain/attachment-content-type";
-import { ATTACHMENT_UPLOAD_PART_BYTES, MAX_ATTACHMENT_BYTES } from "../domain/attachment-upload";
+import { ATTACHMENT_UPLOAD_PART_BYTES, maxAttachmentBytes } from "../domain/attachment-upload";
 import { MongoLifeEntryRepository } from "../infrastructure/mongo-life-entry-repository";
 import { beginAttachmentUploadSchema, mongoIdSchema } from "./attachment-upload-schema";
 import type { AttachmentUploadErrorCode } from "./attachment-upload-errors";
@@ -22,8 +22,8 @@ export async function startAttachmentUpload(userId: string, body: unknown): Prom
   const raw = (body && typeof body === "object" ? body : {}) as Record<string, unknown>;
   const fileName = typeof raw.fileName === "string" ? raw.fileName : "";
   const contentType = resolveAttachmentContentType(fileName, typeof raw.contentType === "string" ? raw.contentType : "");
-  if (typeof raw.size === "number" && raw.size > MAX_ATTACHMENT_BYTES) return fail("too_large", 413);
   if (!contentType) return fail("invalid_file", 400);
+  if (typeof raw.size === "number" && raw.size > maxAttachmentBytes(contentType)) return fail("too_large", 413);
 
   const parsed = beginAttachmentUploadSchema.safeParse({ ...raw, contentType });
   if (!parsed.success) return fail("invalid_file", 400);

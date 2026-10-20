@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { isAudioContentType, resolveAttachmentContentType } from "@/modules/life-story/domain/attachment-content-type";
-import { audioContentTypeForTranscription, MAX_DICTATION_AUDIO_BYTES } from "@/modules/life-story/domain/voice-note";
+import { audioContentTypeForTranscription, DIRECT_TRANSCRIBE_MAX_BYTES } from "@/modules/life-story/domain/voice-note";
 import { getReflectionState } from "@/modules/reflection/application/reflection-service";
 import { getCurrentUser } from "@/shared/lib/auth";
 import { isAiConfigured, listGroqProviderSlots, transcribeAudio } from "@/shared/lib/ai-providers";
@@ -42,10 +42,13 @@ export async function POST(request: NextRequest) {
   }
 
   const buffer = Buffer.from(audioBase64, "base64");
-  if (buffer.byteLength > MAX_DICTATION_AUDIO_BYTES) {
+  if (buffer.byteLength > DIRECT_TRANSCRIBE_MAX_BYTES) {
     return Response.json({
-      error: locale === "es" ? "El audio es demasiado largo (máx. 15 MB)." : "Audio is too large (max 15 MB).",
-    }, { status: 400 });
+      error: locale === "es"
+        ? "Este audio es largo: guarda la experiencia y transcríbelo desde «Tu voz en esta experiencia»."
+        : "This audio is long: save the experience and transcribe it from “Your voice in this experience”.",
+      code: "too_long_for_direct",
+    }, { status: 413 });
   }
 
   const resolvedType = resolveAttachmentContentType(fileName, mimeType);

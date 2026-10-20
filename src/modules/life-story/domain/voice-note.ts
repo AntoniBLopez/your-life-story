@@ -1,3 +1,5 @@
+import { MAX_AUDIO_ATTACHMENT_BYTES } from "./attachment-upload";
+
 export const VOICE_FIELD_KEYS = ["title", "narrative", "difficulty", "learning", "transformation", "full"] as const;
 export type VoiceFieldKey = (typeof VOICE_FIELD_KEYS)[number];
 
@@ -12,8 +14,21 @@ export const AUDIO_CONTENT_TYPES = [
 
 export type AudioContentType = (typeof AUDIO_CONTENT_TYPES)[number];
 
-/** Same ceiling as experience attachments and `/api/ai/transcribe`. */
-export const MAX_DICTATION_AUDIO_BYTES = 15 * 1024 * 1024;
+/** Largest audio that can be recorded/uploaded (see MAX_AUDIO_ATTACHMENT_BYTES). */
+export const MAX_DICTATION_AUDIO_BYTES = MAX_AUDIO_ATTACHMENT_BYTES;
+
+/**
+ * Largest audio sent inline (base64 JSON) to `/api/ai/transcribe`, used only before an
+ * experience exists. 3 MB → ~4 MB base64, under Vercel's 4.5 MB request limit. Anything
+ * longer is saved first and transcribed in segments from storage.
+ */
+export const DIRECT_TRANSCRIBE_MAX_BYTES = 3 * 1024 * 1024;
+
+/** Recording bitrate: 32 kbps Opus is clear for speech and keeps 1 h ≈ 14 MB, 5 h ≈ 72 MB. */
+export const RECORDING_AUDIO_BITS_PER_SECOND = 32_000;
+
+/** MediaRecorder hands over data every 15 s, so long recordings can be backed up as they go. */
+export const RECORDING_TIMESLICE_MS = 15_000;
 
 export const DICTATION_AUDIO_ACCEPT = [
   "audio/mpeg",
@@ -43,9 +58,39 @@ export type PendingVoiceNote = {
   fileName: string;
   contentType: AudioContentType;
   size: number;
+  /** Inline audio for short notes (also kept in the local draft). Empty when `blob` is set. */
   fileBase64: string;
+  /** Long notes keep the audio as a Blob (too big for the draft; the IndexedDB backup covers it). */
+  blob?: Blob;
   transcript: string;
+  /** IndexedDB recording backup to delete once the note is stored on the server. */
+  backupId?: string | null;
+  /** Long audio: transcribe it in segments after the experience is saved. */
+  needsTranscription?: boolean;
+  /** The user doesn't keep voice files: delete the audio once transcribed. */
+  deleteAfterTranscription?: boolean;
 };
+
+export function pendingVoiceNoteBlob(note: PendingVoiceNote) {
+  return note.blob ?? base64ToBlob(note.fileBase64, note.contentType);
+}
+
+/**
+ * Appends a transcript to a form field without exceeding its maximum length. Long
+ * transcripts are cut at a sentence/word boundary; the full text stays on the audio.
+ */
+export function appendTranscriptWithin(current: string, transcript: string, maxLength: number) {
+  const full = appendTranscript(current, transcript);
+  if (full.length <= maxLength) return { value: full, truncated: false };
+  const base = current.trim();
+  const room = maxLength - (base ? base.length + 2 : 0) - 1;
+  if (room <= 0) return { value: current, truncated: true };
+  let cut = transcript.trim().slice(0, room);
+  const sentenceEnd = Math.max(cut.lastIndexOf(". "), cut.lastIndexOf("? "), cut.lastIndexOf("! "));
+  if (sentenceEnd > room * 0.8) cut = cut.slice(0, sentenceEnd + 1);
+  else if (cut.lastIndexOf(" ") > room * 0.8) cut = cut.slice(0, cut.lastIndexOf(" "));
+  return { value: appendTranscript(current, `${cut.trim()}…`), truncated: true };
+}
 
 export function appendTranscript(current: string, transcript: string) {
   const next = transcript.trim();
@@ -101,4 +146,9 @@ export function base64ToBlob(fileBase64: string, mimeType: string) {
 
 export function base64ToBlobUrl(fileBase64: string, mimeType: string) {
   return URL.createObjectURL(base64ToBlob(fileBase64, mimeType));
+}
+
+/** e.g. "narrative-1729440000000.webm" */
+export function voiceNoteFileName(prefix: string, contentType: string) {
+  return `${prefix}-${Date.now()}.${mimeTypeToExtension(contentType)}`;
 }
