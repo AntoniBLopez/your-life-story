@@ -21,7 +21,7 @@ export function AppNavLink({
       prefetch
       title={title}
       href={href as Route}
-      className={`btn btn-quiet !p-2 ${active ? "!bg-[#edf3eb]" : ""} ${className}`}
+      className={`btn btn-quiet !p-2 ${active ? "!bg-[var(--tint-moss)]" : ""} ${className}`}
     >
       <AppNavLinkContent>{children}</AppNavLinkContent>
     </Link>

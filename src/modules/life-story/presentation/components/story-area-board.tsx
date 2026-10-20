@@ -56,7 +56,7 @@ export function StoryAreaBoard({
         {columns.map((column) => (
           <section
             key={column.area}
-            className="flex w-[min(20rem,calc(100vw-3rem))] shrink-0 flex-col rounded-2xl border border-[var(--line)] bg-[#fbfaf6] p-3"
+            className="flex w-[min(20rem,calc(100vw-3rem))] shrink-0 flex-col rounded-2xl border border-[var(--line)] bg-[var(--surface-sunken)] p-3"
           >
             <header className="flex items-baseline justify-between gap-3 px-1 pb-3">
               <h2 className="display text-xl">{lifeAreaLabel(column.area, locale)}</h2>
@@ -80,7 +80,7 @@ export function StoryAreaBoard({
                   {entry.momentFlags.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-1">
                       {entry.momentFlags.map((flag) => (
-                        <span key={flag} className="rounded-full bg-[#fff0e5] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#8a5a3d]">
+                        <span key={flag} className="rounded-full bg-[var(--tint-peach)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--ink-warm)]">
                           {momentFlagLabel(flag, locale)}
                         </span>
                       ))}
@@ -101,7 +101,7 @@ export function StoryAreaBoard({
               ))}
               <Link
                 href={`/${locale}/app/entries/new`}
-                className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-[var(--line)] px-3 py-2.5 text-sm font-bold text-[var(--moss-deep)] hover:bg-white"
+                className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-[var(--line)] px-3 py-2.5 text-sm font-bold text-[var(--accent)] hover:bg-[var(--surface-raised)]"
               >
                 <Plus size={14} />
                 {locale === "es" ? "Añadir aquí" : "Add here"}

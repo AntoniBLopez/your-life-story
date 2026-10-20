@@ -9,6 +9,7 @@ import { FAMILY_LAYOUT } from "@/modules/family-tree/domain/family-layout";
 import { FamilyTreeCanvasToolModeControl, type FamilyTreeCanvasToolMode } from "@/modules/family-tree/presentation/components/family-tree-canvas-tool-mode-control";
 import { familyTreeEdgeTypes, familyTreeNodeTypes } from "@/modules/family-tree/presentation/components/family-tree-flow";
 import { FamilyTreeResetLayoutControl } from "@/modules/family-tree/presentation/components/family-tree-reset-layout-control";
+import { flowCanvasColors, useThemeColors } from "@/shared/presentation/theme/use-theme-colors";
 
 const LAYOUT_SAVE_DELAY_MS = 450;
 const SAVED_HIDE_MS = 1400;
@@ -58,6 +59,7 @@ function isBirthdayNode(node: Node) {
 }
 
 function FamilyTreeMiniMap() {
+  const colors = useThemeColors(flowCanvasColors);
   const { getViewport, setCenter } = useReactFlow();
 
   const handleClick = useCallback((_event: MouseEvent, position: { x: number; y: number }) => {
@@ -70,14 +72,14 @@ function FamilyTreeMiniMap() {
       zoomable
       pannable
       onClick={handleClick}
-      nodeColor={(node) => (isBirthdayNode(node) ? "#f5a54e" : "#fffef9")}
-      nodeStrokeColor={(node) => (isBirthdayNode(node) ? "#e2739e" : "#b7b0a6")}
+      nodeColor={(node) => (isBirthdayNode(node) ? "#f5a54e" : colors.minimapNode)}
+      nodeStrokeColor={(node) => (isBirthdayNode(node) ? "#e2739e" : colors.minimapNodeStroke)}
       nodeBorderRadius={8}
       nodeStrokeWidth={1.5}
-      maskColor="rgb(36 49 43 / 0.08)"
-      maskStrokeColor="#c4bdb3"
+      maskColor={colors.minimapMask}
+      maskStrokeColor={colors.minimapStroke}
       maskStrokeWidth={1.25}
-      bgColor="#e4dfd5"
+      bgColor={colors.minimapBg}
     />
   );
 }
@@ -98,6 +100,7 @@ function FamilyTreeCanvasInner({
   onPaneClick,
 }: Props) {
   const router = useRouter();
+  const colors = useThemeColors(flowCanvasColors);
   const { setNodes } = useReactFlow();
   const [toolMode, setToolMode] = useState<FamilyTreeCanvasToolMode>("pointer");
   const selectToolActive = !readOnly && toolMode === "select";
@@ -253,7 +256,7 @@ function FamilyTreeCanvasInner({
       proOptions={{ hideAttribution: true }}
     >
       <FamilyTreeInitialViewport subjectId={subjectId} nodes={nodes} />
-      <Background gap={18} size={1} color="#dce5db" />
+      <Background gap={18} size={1} color={colors.dot} />
       {saveStatus !== "idle" && (
         <div className="family-tree-canvas-save-status" data-state={saveStatus} role="status" aria-live="polite">
           {saveStatus === "saving" ? <LoaderCircle className="animate-spin" size={13} /> : saveStatus === "error" ? <X size={13} /> : <Check size={13} />}

@@ -93,7 +93,7 @@ export function PendingVoiceNotesList({ locale, notes, onRemove }: Props) {
         {notes.map((note, index) => {
           const fieldLabel = note.fieldKey in labels ? labels[note.fieldKey] : labels.other;
           return (
-            <li key={`${note.fileName}-${index}`} className="rounded-xl border border-dashed border-[var(--line)] bg-[#fcfdf9] p-4">
+            <li key={`${note.fileName}-${index}`} className="rounded-xl border border-dashed border-[var(--line)] bg-[var(--surface-inset)] p-4">
               <div className="flex items-start justify-between gap-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-[var(--moss)]">{fieldLabel}</p>
                 <button

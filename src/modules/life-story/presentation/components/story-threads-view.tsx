@@ -45,7 +45,7 @@ function ThreadEntryCard({
       {entry.momentFlags.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1">
           {entry.momentFlags.map((flag) => (
-            <span key={flag} className="rounded-full bg-[#fff0e5] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#8a5a3d]">
+            <span key={flag} className="rounded-full bg-[var(--tint-peach)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--ink-warm)]">
               {momentFlagLabel(flag, locale)}
             </span>
           ))}
@@ -54,7 +54,7 @@ function ThreadEntryCard({
       {entry.learning && (
         <div className="mt-3 text-sm leading-6 text-[var(--ink)]">
           <span className="mb-1 flex flex-wrap items-center gap-2">
-            <span className="font-bold text-[var(--moss-deep)]">{locale === "es" ? "Aprendizaje" : "Lesson"}</span>
+            <span className="font-bold text-[var(--accent)]">{locale === "es" ? "Aprendizaje" : "Lesson"}</span>
             <EntryFieldOriginBadge entry={entry} field="learning" locale={locale} />
           </span>
           <p className="mt-1">{entry.learning}</p>
@@ -144,7 +144,7 @@ export function StoryThreadsView({
         ) : (
           <div className="mt-5 grid gap-5 lg:grid-cols-2">
             {threads.map((thread) => (
-              <article key={thread.id} className="rounded-2xl border border-[var(--line)] bg-[#fbfaf6] p-4">
+              <article key={thread.id} className="rounded-2xl border border-[var(--line)] bg-[var(--surface-sunken)] p-4">
                 {thread.entries.map((entry, index) => {
                   const previous = thread.entries[index - 1];
                   const relation = previous ? linkBetween(thread.links, previous.id, entry.id) : undefined;
@@ -176,7 +176,7 @@ export function StoryThreadsView({
               <Link
                 key={entry.id}
                 href={`/${locale}/app/entries/${entry.id}/edit`}
-                className="card flex items-start justify-between gap-4 p-4 shadow-none transition hover:border-[#b9d0b8]"
+                className="card flex items-start justify-between gap-4 p-4 shadow-none transition hover:border-[var(--line-moss)]"
               >
                 <div>
                   <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--muted)]">

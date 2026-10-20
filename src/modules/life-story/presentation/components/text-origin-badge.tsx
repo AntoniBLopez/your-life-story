@@ -18,7 +18,7 @@ export function TextOriginBadge({
   return (
     <span
       className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-        containsAi ? "bg-[#f3eef8] text-[#6b4c7a]" : "bg-[#eff4ed] text-[var(--moss-deep)]"
+        containsAi ? "bg-[var(--tint-ai)] text-[var(--ink-ai)]" : "bg-[var(--pill-bg)] text-[var(--accent)]"
       }`}
     >
       {label}

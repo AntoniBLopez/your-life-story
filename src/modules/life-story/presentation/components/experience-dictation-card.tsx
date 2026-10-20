@@ -325,9 +325,9 @@ export function ExperienceDictationCard({
   const processingLabel = activeMode === "append" ? t.processingAppend : t.processing;
 
   return (
-    <div className="rounded-2xl border border-[var(--line)] bg-gradient-to-br from-[#f8faf5] to-[#fcfdf9] p-4 sm:p-5">
+    <div className="rounded-2xl border border-[var(--line)] bg-gradient-to-br from-[var(--surface-wash)] to-[var(--surface-inset)] p-4 sm:p-5">
       <div className="flex items-start gap-3">
-        <div className="rounded-xl bg-[var(--moss-pale)] p-2 text-[var(--moss-deep)]">
+        <div className="rounded-xl bg-[var(--moss-pale)] p-2 text-[var(--accent)]">
           <Sparkles size={18} />
         </div>
         <div className="min-w-0 flex-1">

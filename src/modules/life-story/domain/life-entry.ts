@@ -77,12 +77,15 @@ export function assertValidStoryDates(startDate: string, endDate?: string | null
 }
 
 export function entryTone(direction: ChangeDirection) {
-  return {
-    improved: "#5c9265",
-    difficult: "#c87a70",
-    mixed: "#d9a45b",
-    neutral: "#8b9c92",
-  }[direction];
+  return `var(--tone-${direction})`;
+}
+
+export function entryToneSoft(direction: ChangeDirection) {
+  return `var(--tone-${direction}-soft)`;
+}
+
+export function entryToneEdge(direction: ChangeDirection) {
+  return `var(--tone-${direction}-edge)`;
 }
 
 export function momentFlagLabel(flag: MomentFlag, locale: "es" | "en") {

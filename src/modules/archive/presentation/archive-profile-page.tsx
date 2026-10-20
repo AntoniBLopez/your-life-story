@@ -6,7 +6,7 @@ import type { Route } from "next";
 import { ArrowLeft, CalendarDays, GitBranch, Mountain, UsersRound } from "lucide-react";
 import { StoryLifeTree } from "@/modules/life-story/presentation/components/story-life-tree";
 import { VoiceAttachmentsList } from "@/modules/life-story/presentation/components/voice-attachments-list";
-import { entryTone, LIFE_AREAS, momentFlagLabel, type LifeEntry, type LifeEntryLink } from "@/modules/life-story/domain/life-entry";
+import { entryTone, entryToneSoft, LIFE_AREAS, momentFlagLabel, type LifeEntry, type LifeEntryLink } from "@/modules/life-story/domain/life-entry";
 import type { FamilyPerson, FamilyRelationship } from "@/modules/family-tree/domain/family-graph";
 import type { AttachmentRecord } from "@/shared/lib/mongodb/attachments";
 import { formatStoryDate, titleCase } from "@/shared/lib/utils";
@@ -108,7 +108,7 @@ export function ArchiveProfilePage({ locale, slug, displayName, deceasedAt, publ
       <article className="relative overflow-hidden pb-20 pt-2 sm:pt-4">
         <div className="pointer-events-none absolute right-8 top-4 h-40 w-40 rounded-full bg-[var(--sage)] blur-3xl" />
         <div className="pointer-events-none absolute left-4 top-24 h-28 w-28 rounded-full bg-[var(--peach)]/50 blur-3xl" />
-        <Link className="relative inline-flex items-center gap-2 text-sm font-bold text-[var(--moss-deep)]" href={`/${locale}/archive` as Route}>
+        <Link className="relative inline-flex items-center gap-2 text-sm font-bold text-[var(--accent)]" href={`/${locale}/archive` as Route}>
           <ArrowLeft size={15} />
           {t.back}
         </Link>
@@ -116,10 +116,10 @@ export function ArchiveProfilePage({ locale, slug, displayName, deceasedAt, publ
         <div className="relative mt-3 flex flex-wrap items-end justify-between gap-4">
           <div className="max-w-3xl">
             <h1 className="display text-4xl sm:text-6xl">{displayName}</h1>
-            <p className="mt-3 text-sm font-semibold text-[var(--moss-deep)]">{span}</p>
+            <p className="mt-3 text-sm font-semibold text-[var(--accent)]">{span}</p>
             <p className="mt-4 max-w-2xl text-base leading-7 text-[var(--muted)]">{t.intro}</p>
           </div>
-          <span className={`pill ${deceasedAt ? "!bg-[#fff0e5] !text-[#8a5a3d]" : ""}`}>{deceasedAt ? t.deceased : t.published}</span>
+          <span className={`pill ${deceasedAt ? "!bg-[var(--tint-peach)] !text-[var(--ink-warm)]" : ""}`}>{deceasedAt ? t.deceased : t.published}</span>
         </div>
         <div className="relative mt-8 grid gap-3 sm:grid-cols-4">
           {[
@@ -137,7 +137,7 @@ export function ArchiveProfilePage({ locale, slug, displayName, deceasedAt, publ
         {highlights.length > 0 && (
           <div className="relative mt-4 grid gap-3 sm:grid-cols-2">
             {highlights.map((item) => (
-              <blockquote key={`${item.kind}-${item.text}`} className="card p-5" style={{ background: item.kind === "lesson" ? "#edf5ec" : "#fff4ec" }}>
+              <blockquote key={`${item.kind}-${item.text}`} className="card p-5" style={{ background: item.kind === "lesson" ? "var(--tint-moss-strong)" : "var(--tint-peach-mid)" }}>
                 <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--moss)]">
                   {item.kind === "lesson" ? t.highlightLesson : t.highlightMoment}
                 </p>
@@ -146,10 +146,10 @@ export function ArchiveProfilePage({ locale, slug, displayName, deceasedAt, publ
             ))}
           </div>
         )}
-        <div className="relative mt-8 flex gap-1 rounded-xl bg-[#eef2ec] p-1 w-fit">
-          <button onClick={() => setView("timeline")} className={`btn !rounded-lg !px-3 !py-2 ${view === "timeline" ? "!bg-white !text-[var(--moss-deep)] shadow-sm" : "btn-quiet"}`}><CalendarDays size={15} />{t.timeline}</button>
-          <button onClick={() => setView("tree")} className={`btn !rounded-lg !px-3 !py-2 ${view === "tree" ? "!bg-white !text-[var(--moss-deep)] shadow-sm" : "btn-quiet"}`}><GitBranch size={15} />{t.tree}</button>
-          <button onClick={() => setView("family")} className={`btn !rounded-lg !px-3 !py-2 ${view === "family" ? "!bg-white !text-[var(--moss-deep)] shadow-sm" : "btn-quiet"}`}><UsersRound size={15} />{t.family}</button>
+        <div className="relative mt-8 flex gap-1 rounded-xl bg-[var(--tint-sage)] p-1 w-fit">
+          <button onClick={() => setView("timeline")} className={`btn !rounded-lg !px-3 !py-2 ${view === "timeline" ? "!bg-[var(--segment-active)] !text-[var(--accent)] shadow-sm" : "btn-quiet"}`}><CalendarDays size={15} />{t.timeline}</button>
+          <button onClick={() => setView("tree")} className={`btn !rounded-lg !px-3 !py-2 ${view === "tree" ? "!bg-[var(--segment-active)] !text-[var(--accent)] shadow-sm" : "btn-quiet"}`}><GitBranch size={15} />{t.tree}</button>
+          <button onClick={() => setView("family")} className={`btn !rounded-lg !px-3 !py-2 ${view === "family" ? "!bg-[var(--segment-active)] !text-[var(--accent)] shadow-sm" : "btn-quiet"}`}><UsersRound size={15} />{t.family}</button>
         </div>
         {entries.length === 0 && view !== "family" ? (
           <div className="card mt-8 p-8 text-center"><p className="text-sm text-[var(--muted)]">{t.empty}</p></div>
@@ -168,7 +168,7 @@ export function ArchiveProfilePage({ locale, slug, displayName, deceasedAt, publ
                     {entry.momentFlags.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-1">
                         {entry.momentFlags.map((flag) => (
-                          <span key={flag} className="inline-flex items-center gap-1 rounded-full bg-[#fff0e5] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#8a5a3d]">
+                          <span key={flag} className="inline-flex items-center gap-1 rounded-full bg-[var(--tint-peach)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--ink-warm)]">
                             <Mountain size={10} />
                             {momentFlagLabel(flag, locale)}
                           </span>
@@ -182,13 +182,13 @@ export function ArchiveProfilePage({ locale, slug, displayName, deceasedAt, publ
                       </div>
                     )}
                     <div className="mt-4 flex flex-wrap gap-2">
-                      <span className="pill" style={{ color: entryTone(entry.changeDirection), background: `${entryTone(entry.changeDirection)}18` }}>{titleCase(entry.changeDirection)}</span>
+                      <span className="pill" style={{ color: entryTone(entry.changeDirection), background: entryToneSoft(entry.changeDirection) }}>{titleCase(entry.changeDirection)}</span>
                       {(entry.lifeAreas ?? [entry.lifeArea]).map((area) => <span className="pill" key={area}>{LIFE_AREAS.includes(area) ? titleCase(area) : area}</span>)}
                       {entry.tags.map((item) => <span className="pill" key={item}>#{item}</span>)}
                     </div>
-                    {entry.difficulty && <div className="mt-4 rounded-xl bg-[#fff6f1] p-3 text-sm"><span className="mb-1 flex flex-wrap items-center gap-2"><span className="font-bold text-[#8a5a3d]">{t.difficulty}</span><EntryFieldOriginBadge entry={entry} field="difficulty" locale={locale} /></span><p className="mt-1">{entry.difficulty}</p></div>}
-                    {entry.learning && <div className="mt-3 rounded-xl bg-[#f1f6ee] p-3 text-sm"><span className="mb-1 flex flex-wrap items-center gap-2"><span className="font-bold text-[var(--moss-deep)]">{t.learning}</span><EntryFieldOriginBadge entry={entry} field="learning" locale={locale} /></span><p className="mt-1">{entry.learning}</p></div>}
-                    {entry.transformation && <div className="mt-3 rounded-xl bg-[#edf3eb] p-3 text-sm"><span className="mb-1 flex flex-wrap items-center gap-2"><span className="font-bold text-[var(--moss-deep)]">{t.transformation}</span><EntryFieldOriginBadge entry={entry} field="transformation" locale={locale} /></span><p className="mt-1">{entry.transformation}</p></div>}
+                    {entry.difficulty && <div className="mt-4 rounded-xl bg-[var(--tint-peach-soft)] p-3 text-sm"><span className="mb-1 flex flex-wrap items-center gap-2"><span className="font-bold text-[var(--ink-warm)]">{t.difficulty}</span><EntryFieldOriginBadge entry={entry} field="difficulty" locale={locale} /></span><p className="mt-1">{entry.difficulty}</p></div>}
+                    {entry.learning && <div className="mt-3 rounded-xl bg-[var(--tint-moss-soft)] p-3 text-sm"><span className="mb-1 flex flex-wrap items-center gap-2"><span className="font-bold text-[var(--accent)]">{t.learning}</span><EntryFieldOriginBadge entry={entry} field="learning" locale={locale} /></span><p className="mt-1">{entry.learning}</p></div>}
+                    {entry.transformation && <div className="mt-3 rounded-xl bg-[var(--tint-moss)] p-3 text-sm"><span className="mb-1 flex flex-wrap items-center gap-2"><span className="font-bold text-[var(--accent)]">{t.transformation}</span><EntryFieldOriginBadge entry={entry} field="transformation" locale={locale} /></span><p className="mt-1">{entry.transformation}</p></div>}
                     {files.length > 0 && (
                       <div className="mt-4 space-y-3">
                         <p className="text-xs font-bold uppercase tracking-wide text-[var(--muted)]">{t.files}</p>

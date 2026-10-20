@@ -36,13 +36,13 @@ export function FamilyPartnerEdge({
         id={id}
         path={edgePath}
         style={{
-          stroke: "#c89f78",
+          stroke: "var(--edge-partner)",
           strokeWidth: 1.5,
         }}
       />
       <EdgeLabelRenderer>
         <div
-          className="nodrag nopan flex h-7 w-7 items-center justify-center rounded-full border border-[#e8d4c4] bg-[#fff8f2] text-[#a96d4d] shadow-sm"
+          className="nodrag nopan flex h-7 w-7 items-center justify-center rounded-full border border-[var(--line-peach)] bg-[var(--tint-partner)] text-[var(--ink-partner)] shadow-sm"
           style={{
             position: "absolute",
             transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,

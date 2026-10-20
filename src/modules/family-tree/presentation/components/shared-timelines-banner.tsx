@@ -21,10 +21,10 @@ export function SharedTimelinesBanner({ locale, shares }: { locale: "es" | "en";
           <Link
             key={share.ownerUserId}
             href={`/${locale}/app/shared/${share.ownerUserId}` as Route}
-            className="card group relative overflow-hidden p-5 transition hover:-translate-y-0.5 hover:border-[#b9d0b8]"
+            className="card group relative overflow-hidden p-5 transition hover:-translate-y-0.5 hover:border-[var(--line-moss)]"
           >
             <span className="absolute inset-x-0 top-0 h-1.5 bg-[var(--sage)]" />
-            <span className="inline-grid h-10 w-10 place-items-center rounded-full bg-[#edf5ec] text-[var(--moss)]">
+            <span className="inline-grid h-10 w-10 place-items-center rounded-full bg-[var(--tint-moss-strong)] text-[var(--moss)]">
               <UsersRound size={18} />
             </span>
             <h3 className="display mt-4 text-xl">{share.ownerDisplayName}</h3>
@@ -36,7 +36,7 @@ export function SharedTimelinesBanner({ locale, shares }: { locale: "es" | "en";
             <p className="mt-3 text-xs font-bold uppercase tracking-wide text-[var(--moss)]">
               {share.entryCount} {locale === "es" ? "momentos" : "moments"}
             </p>
-            <span className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-[var(--moss-deep)]">
+            <span className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-[var(--accent)]">
               {locale === "es" ? "Abrir en solo lectura" : "Open read-only"}
               <ArrowRight size={15} />
             </span>

@@ -34,9 +34,9 @@ export function FileAttachmentsList({ locale, attachments }: Props) {
                 href={`/api/attachments/${file.id}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-3 rounded-xl border border-[var(--line)] bg-[#fcfdf9] p-3 transition hover:border-[var(--moss)]"
+                className="flex items-center gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface-inset)] p-3 transition hover:border-[var(--moss)]"
               >
-                <span className="rounded-lg bg-[#edf3eb] p-2 text-[var(--moss-deep)]">
+                <span className="rounded-lg bg-[var(--tint-moss)] p-2 text-[var(--accent)]">
                   <Icon size={16} />
                 </span>
                 <span className="min-w-0 flex-1">

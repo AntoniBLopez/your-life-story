@@ -91,7 +91,7 @@ export function AdminPanel({
                     <h3 className="display mt-1 text-2xl">{request.targetDisplayName || request.targetEmail}</h3>
                     <p className="mt-1 text-sm text-[var(--muted)]">{request.targetEmail}</p>
                   </div>
-                  <span className={`pill ${hadPermission ? "" : "!bg-[#fff0e5] !text-[#8a5a3d]"}`}>{hadPermission ? t.consent : t.noConsent}</span>
+                  <span className={`pill ${hadPermission ? "" : "!bg-[var(--tint-peach)] !text-[var(--ink-warm)]"}`}>{hadPermission ? t.consent : t.noConsent}</span>
                 </div>
                 <p className="mt-3 text-sm leading-6">{request.message}</p>
                 <p className="mt-3 text-xs text-[var(--muted)]">{request.requesterName} · {request.requesterEmail}{request.deathDate ? ` · ${request.deathDate}` : ""}{request.relationship ? ` · ${request.relationship}` : ""}</p>
@@ -121,7 +121,7 @@ export function AdminPanel({
                   <div className="mt-2 flex flex-wrap gap-2">
                     {user.publicArchiveConsent && <span className="pill">{t.consent}</span>}
                     {user.publishedAt && <span className="pill">{t.published}</span>}
-                    {user.deceasedAt && <span className="pill !bg-[#fff0e5] !text-[#8a5a3d]">{t.deceased}</span>}
+                    {user.deceasedAt && <span className="pill !bg-[var(--tint-peach)] !text-[var(--ink-warm)]">{t.deceased}</span>}
                     {user.inactivityReleaseYears && <span className="pill">{t.inactivity}: {user.inactivityReleaseYears} {locale === "es" ? "años" : "years"}</span>}
                   </div>
                 </div>

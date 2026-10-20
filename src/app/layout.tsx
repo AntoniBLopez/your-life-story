@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { ThemeSync } from "@/shared/presentation/theme/theme-sync";
+import { themeInitScript } from "@/shared/presentation/theme/theme";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -12,7 +14,13 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="es" data-scroll-behavior="smooth" suppressHydrationWarning>
-      <body>{children}</body>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
+      <body>
+        <ThemeSync />
+        {children}
+      </body>
     </html>
   );
 }

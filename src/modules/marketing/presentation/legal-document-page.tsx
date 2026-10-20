@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Sprout } from "lucide-react";
+import { ThemeToggle } from "@/shared/presentation/theme/theme-toggle";
 
 type Section = {
   title: string;
@@ -20,16 +21,17 @@ export function LegalDocumentPage({
 }) {
   return (
     <main className="page-shell min-h-screen">
-      <header className="border-b border-[var(--line)] bg-[#fffdf9e8] backdrop-blur-md">
+      <header className="border-b border-[var(--line)] bg-[var(--header-solid)] backdrop-blur-md">
         <div className="container flex min-h-[4.25rem] items-center justify-between gap-4 py-4">
           <Link href="/es" className="flex items-center gap-2 font-bold">
             <span className="brand-mark"><Sprout size={15} /></span>
             <span className="display text-lg">Your Life Story</span>
           </Link>
           <nav className="flex flex-wrap items-center gap-4 text-sm font-semibold text-[var(--muted)]">
-            <Link href="/legal/privacy" className="hover:text-[var(--moss-deep)]">Privacy</Link>
-            <Link href="/legal/tos" className="hover:text-[var(--moss-deep)]">Terms</Link>
-            <Link href="/es/login" className="hover:text-[var(--moss-deep)]">Sign in</Link>
+            <ThemeToggle />
+            <Link href="/legal/privacy" className="hover:text-[var(--accent)]">Privacy</Link>
+            <Link href="/legal/tos" className="hover:text-[var(--accent)]">Terms</Link>
+            <Link href="/es/login" className="hover:text-[var(--accent)]">Sign in</Link>
           </nav>
         </div>
       </header>
@@ -61,7 +63,7 @@ export function LegalDocumentPage({
         </div>
       </article>
 
-      <footer className="border-t border-[var(--line)] bg-[#fffdf9b8] py-8">
+      <footer className="border-t border-[var(--line)] bg-[var(--footer)] py-8">
         <div className="container flex flex-col gap-3 text-sm text-[var(--muted)] sm:flex-row sm:items-center sm:justify-between">
           <p>© 2026 Your Life Story</p>
           <div className="flex flex-wrap gap-4 font-semibold">

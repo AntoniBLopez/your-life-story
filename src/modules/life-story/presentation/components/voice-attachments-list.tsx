@@ -100,7 +100,7 @@ export function VoiceAttachmentsList({ locale, entryId, attachments, readOnly, o
             : labels.other;
           const isDeleting = deletingId === note.id;
           return (
-            <li key={note.id} className="rounded-xl border border-[var(--line)] bg-[#fcfdf9] p-4">
+            <li key={note.id} className="rounded-xl border border-[var(--line)] bg-[var(--surface-inset)] p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-xs font-semibold uppercase tracking-wide text-[var(--moss)]">{fieldLabel}</p>
@@ -118,7 +118,7 @@ export function VoiceAttachmentsList({ locale, entryId, attachments, readOnly, o
               </div>
               <audio className="mt-3 w-full" controls preload="metadata" src={`/api/attachments/${note.id}`} />
               {note.transcript && (
-                <div className="mt-3 rounded-lg bg-[#f4f7f2] p-3">
+                <div className="mt-3 rounded-lg bg-[var(--surface-audio)] p-3">
                   <p className="text-xs font-medium text-[var(--muted)]">{t.transcript}</p>
                   <p className="mt-1 text-sm leading-6 text-[var(--ink)]">{note.transcript}</p>
                 </div>

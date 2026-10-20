@@ -135,7 +135,7 @@ export function BirthdayReminderFields({
   }
 
   return (
-    <div className="md:col-span-3 rounded-2xl border border-[var(--line)] bg-[#fbfaf6] p-4">
+    <div className="md:col-span-3 rounded-2xl border border-[var(--line)] bg-[var(--surface-sunken)] p-4">
       <input type="hidden" name="timeZone" value={timeZone} />
       <input type="hidden" name="birthdayReminderPresetId" value={presetId} />
       <input type="hidden" name="birthdayReminderOffsets" value={JSON.stringify(offsets)} />
@@ -154,19 +154,19 @@ export function BirthdayReminderFields({
           aria-checked={enabled && hasBirth}
           disabled={!hasBirth}
           onClick={() => setEnabled((value) => !value)}
-          className={`relative h-7 w-12 shrink-0 rounded-full transition ${enabled && hasBirth ? "bg-[var(--moss)]" : "bg-[#d8d3c8]"} disabled:opacity-40`}
+          className={`relative h-7 w-12 shrink-0 rounded-full transition ${enabled && hasBirth ? "bg-[var(--moss)]" : "bg-[var(--toggle-off)]"} disabled:opacity-40`}
         >
           <span className={`absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-white shadow-sm transition ${enabled && hasBirth ? "translate-x-5" : ""}`} />
         </button>
       </div>
       {enabled && hasBirth && (
         <div className="mt-4 space-y-4">
-          <div className="flex flex-wrap items-center gap-2 rounded-xl bg-white p-3 text-xs">
+          <div className="flex flex-wrap items-center gap-2 rounded-xl bg-[var(--surface-raised)] p-3 text-xs">
             {calendar?.connected ? (
               <>
                 <CalendarPlus size={15} className="text-[var(--moss)]" />
                 <span>{t.connected} <strong>{calendar.email}</strong></span>
-                <a className="font-bold text-[var(--moss-deep)] underline" href={calendarHref}>{t.reconnect}</a>
+                <a className="font-bold text-[var(--accent)] underline" href={calendarHref}>{t.reconnect}</a>
               </>
             ) : (
               <>
@@ -194,7 +194,7 @@ export function BirthdayReminderFields({
           </label>
           <ul className="space-y-2">
             {offsets.map((offset) => (
-              <li key={offsetKey(offset)} className="flex items-center justify-between gap-3 rounded-xl bg-white px-3 py-2 text-sm">
+              <li key={offsetKey(offset)} className="flex items-center justify-between gap-3 rounded-xl bg-[var(--surface-raised)] px-3 py-2 text-sm">
                 <span>{offsetLabel(offset, locale)}</span>
                 <button type="button" className="btn btn-quiet !p-1" aria-label={locale === "es" ? "Quitar aviso" : "Remove reminder"} onClick={() => setOffsets((current) => current.filter((item) => offsetKey(item) !== offsetKey(offset)))}>
                   <Trash2 size={14} />
@@ -211,7 +211,7 @@ export function BirthdayReminderFields({
               </button>
             ))}
           </div>
-          <div className="grid gap-2 rounded-xl bg-white p-3 sm:grid-cols-[1fr_1fr_auto_auto] sm:items-end">
+          <div className="grid gap-2 rounded-xl bg-[var(--surface-raised)] p-3 sm:grid-cols-[1fr_1fr_auto_auto] sm:items-end">
             <label>
               <span className="field-label">{t.custom}</span>
               <input className="input" type="number" min={0} max={366} value={customAmount} onChange={(event) => setCustomAmount(Number(event.target.value))} />
