@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { ArrowRight, LoaderCircle } from "lucide-react";
 import { signInAction, signUpAction, requestPasswordResetAction } from "@/modules/identity/application/auth-actions";
+import { ThemeToggle } from "@/shared/presentation/theme/theme-toggle";
 
 function GoogleIcon({ size = 16 }: { size?: number }) {
   return (
@@ -62,7 +63,10 @@ export function AuthForm({ mode, locale }: { mode: Mode; locale: "es" | "en" }) 
   }
 
   return (
-    <main className="page-shell flex min-h-screen items-center py-8">
+    <main className="page-shell relative flex min-h-screen items-center py-8">
+      <div className="absolute right-4 top-4 z-10 sm:right-6 sm:top-5">
+        <ThemeToggle locale={locale} />
+      </div>
       <section className="container grid items-center gap-12 lg:grid-cols-[1fr_.9fr]">
         <div className="hidden max-w-xl lg:block">
           <p className="eyebrow">Your Life Story</p>
@@ -70,7 +74,7 @@ export function AuthForm({ mode, locale }: { mode: Mode; locale: "es" | "en" }) 
           <p className="mt-6 max-w-md text-lg leading-8 text-[var(--muted)]">{locale === "es" ? "Un lugar tranquilo para convertir experiencias en perspectiva." : "A quiet place to turn experiences into perspective."}</p>
         </div>
         <div className="card mx-auto w-full max-w-md p-7 sm:p-9">
-          <Link href={`/${locale}`} className="mb-8 inline-flex items-center gap-2 font-semibold text-[var(--moss-deep)]">← Your Life Story</Link>
+          <Link href={`/${locale}`} className="mb-8 inline-flex items-center gap-2 font-semibold text-[var(--accent)]">← Your Life Story</Link>
           <h2 className="display text-4xl">{copy.title}</h2>
           <p className="mt-3 text-sm leading-6 text-[var(--muted)]">{copy.subtitle}</p>
           <form action={submit} className="mt-7 space-y-4">
@@ -79,7 +83,7 @@ export function AuthForm({ mode, locale }: { mode: Mode; locale: "es" | "en" }) 
             <label><span className="field-label">{copy.password}</span><input className="input" type="password" name="password" required minLength={8} autoComplete={isRegister ? "new-password" : "current-password"} /></label>
             {isRegister && <label className="flex items-start gap-2 text-xs leading-5 text-[var(--muted)]"><input name="acceptedAdultTerms" type="checkbox" value="true" required className="mt-1" />{copy.adult}</label>}
             {error && <p role="alert" className="field-error">{error}</p>}
-            {message && <p role="status" className="rounded-xl bg-[#edf5ec] p-3 text-sm text-[var(--moss-deep)]">{message}</p>}
+            {message && <p role="status" className="rounded-xl bg-[var(--tint-moss-strong)] p-3 text-sm text-[var(--accent)]">{message}</p>}
             <button disabled={pending} className="btn btn-primary w-full mt-4" type="submit">{pending ? <LoaderCircle className="animate-spin" size={16} /> : <ArrowRight size={16} />}{copy.submit}</button>
           </form>
           {!isRegister && <button type="button" onClick={resetPassword} disabled={pending} className="mt-4 text-xs font-bold text-[var(--moss)]">{copy.forgot}</button>}

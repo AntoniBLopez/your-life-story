@@ -8,7 +8,7 @@ import { duplicateSharedTimelineAction } from "@/modules/family-tree/application
 import type { SharedTimeline } from "@/modules/family-tree/application/timeline-share-service";
 import { FamilyTreePage } from "@/modules/family-tree/presentation/components/family-tree-page";
 import { StoryLifeTree } from "@/modules/life-story/presentation/components/story-life-tree";
-import { entryTone, LIFE_AREAS, momentFlagLabel } from "@/modules/life-story/domain/life-entry";
+import { entryTone, entryToneSoft, LIFE_AREAS, momentFlagLabel } from "@/modules/life-story/domain/life-entry";
 import { EntryFieldOriginBadge } from "@/modules/life-story/presentation/components/text-origin-badge";
 import { formatStoryDate, titleCase } from "@/shared/lib/utils";
 
@@ -69,7 +69,7 @@ export function SharedTimelinePage({ locale, shared }: { locale: "es" | "en"; sh
 
   return (
     <div className="fade-in">
-      <Link className="inline-flex items-center gap-2 text-sm font-bold text-[var(--moss-deep)]" href={`/${locale}/app`}>
+      <Link className="inline-flex items-center gap-2 text-sm font-bold text-[var(--accent)]" href={`/${locale}/app`}>
         <ArrowLeft size={15} />
         {t.back}
       </Link>
@@ -91,10 +91,10 @@ export function SharedTimelinePage({ locale, shared }: { locale: "es" | "en"; sh
         </div>
       </div>
       {error && <p className="field-error mt-4">{error}</p>}
-      <div className="mt-8 flex gap-1 rounded-xl bg-[#eef2ec] p-1 w-fit">
-        <button onClick={() => setView("timeline")} className={`btn !rounded-lg !px-3 !py-2 ${view === "timeline" ? "!bg-white !text-[var(--moss-deep)] shadow-sm" : "btn-quiet"}`}><CalendarDays size={15} />{t.timeline}</button>
-        <button onClick={() => setView("tree")} className={`btn !rounded-lg !px-3 !py-2 ${view === "tree" ? "!bg-white !text-[var(--moss-deep)] shadow-sm" : "btn-quiet"}`}><GitBranch size={15} />{t.tree}</button>
-        <button onClick={() => setView("family")} className={`btn !rounded-lg !px-3 !py-2 ${view === "family" ? "!bg-white !text-[var(--moss-deep)] shadow-sm" : "btn-quiet"}`}><UsersRound size={15} />{t.family}</button>
+      <div className="mt-8 flex gap-1 rounded-xl bg-[var(--tint-sage)] p-1 w-fit">
+        <button onClick={() => setView("timeline")} className={`btn !rounded-lg !px-3 !py-2 ${view === "timeline" ? "!bg-[var(--segment-active)] !text-[var(--accent)] shadow-sm" : "btn-quiet"}`}><CalendarDays size={15} />{t.timeline}</button>
+        <button onClick={() => setView("tree")} className={`btn !rounded-lg !px-3 !py-2 ${view === "tree" ? "!bg-[var(--segment-active)] !text-[var(--accent)] shadow-sm" : "btn-quiet"}`}><GitBranch size={15} />{t.tree}</button>
+        <button onClick={() => setView("family")} className={`btn !rounded-lg !px-3 !py-2 ${view === "family" ? "!bg-[var(--segment-active)] !text-[var(--accent)] shadow-sm" : "btn-quiet"}`}><UsersRound size={15} />{t.family}</button>
       </div>
       {view === "family" ? (
         <FamilyTreePage locale={locale} people={shared.people} relationships={shared.relationships} readOnly embedded youPersonId={shared.personId} />
@@ -110,7 +110,7 @@ export function SharedTimelinePage({ locale, shared }: { locale: "es" | "en"; sh
               <div className="card p-5">
                 <p className="eyebrow !text-[.66rem]">{formatStoryDate(entry.startDate, entry.datePrecision, locale)}{entry.endDate ? ` → ${formatStoryDate(entry.endDate, entry.datePrecision, locale)}` : ""}</p>
                 <h2 className="display mt-2 flex flex-wrap items-center gap-2 text-2xl">{entry.title}<EntryFieldOriginBadge entry={entry} field="title" locale={locale} /></h2>
-                {entry.momentFlags.length > 0 && <div className="mt-2 flex flex-wrap gap-1">{entry.momentFlags.map((flag) => <span key={flag} className="rounded-full bg-[#fff0e5] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#8a5a3d]">{momentFlagLabel(flag, locale)}</span>)}</div>}
+                {entry.momentFlags.length > 0 && <div className="mt-2 flex flex-wrap gap-1">{entry.momentFlags.map((flag) => <span key={flag} className="rounded-full bg-[var(--tint-peach)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--ink-warm)]">{momentFlagLabel(flag, locale)}</span>)}</div>}
                 {entry.narrative && (
                   <div className="mt-3">
                     <EntryFieldOriginBadge entry={entry} field="narrative" locale={locale} />
@@ -118,13 +118,13 @@ export function SharedTimelinePage({ locale, shared }: { locale: "es" | "en"; sh
                   </div>
                 )}
                 <div className="mt-4 flex flex-wrap gap-2">
-                  <span className="pill" style={{ color: entryTone(entry.changeDirection), background: `${entryTone(entry.changeDirection)}18` }}>{titleCase(entry.changeDirection)}</span>
+                  <span className="pill" style={{ color: entryTone(entry.changeDirection), background: entryToneSoft(entry.changeDirection) }}>{titleCase(entry.changeDirection)}</span>
                   {(entry.lifeAreas ?? [entry.lifeArea]).map((area) => <span className="pill" key={area}>{LIFE_AREAS.includes(area) ? titleCase(area) : area}</span>)}
                   {entry.tags.map((item) => <span className="pill" key={item}>#{item}</span>)}
                 </div>
-                {entry.difficulty && <div className="mt-4 rounded-xl bg-[#fff6f1] p-3 text-sm"><span className="mb-1 flex flex-wrap items-center gap-2"><span className="font-bold text-[#8a5a3d]">{t.difficulty}</span><EntryFieldOriginBadge entry={entry} field="difficulty" locale={locale} /></span><p className="mt-1">{entry.difficulty}</p></div>}
-                {entry.learning && <div className="mt-3 rounded-xl bg-[#f1f6ee] p-3 text-sm"><span className="mb-1 flex flex-wrap items-center gap-2"><span className="font-bold text-[var(--moss-deep)]">{t.learning}</span><EntryFieldOriginBadge entry={entry} field="learning" locale={locale} /></span><p className="mt-1">{entry.learning}</p></div>}
-                {entry.transformation && <div className="mt-3 rounded-xl bg-[#edf3eb] p-3 text-sm"><span className="mb-1 flex flex-wrap items-center gap-2"><span className="font-bold text-[var(--moss-deep)]">{t.transformation}</span><EntryFieldOriginBadge entry={entry} field="transformation" locale={locale} /></span><p className="mt-1">{entry.transformation}</p></div>}
+                {entry.difficulty && <div className="mt-4 rounded-xl bg-[var(--tint-peach-soft)] p-3 text-sm"><span className="mb-1 flex flex-wrap items-center gap-2"><span className="font-bold text-[var(--ink-warm)]">{t.difficulty}</span><EntryFieldOriginBadge entry={entry} field="difficulty" locale={locale} /></span><p className="mt-1">{entry.difficulty}</p></div>}
+                {entry.learning && <div className="mt-3 rounded-xl bg-[var(--tint-moss-soft)] p-3 text-sm"><span className="mb-1 flex flex-wrap items-center gap-2"><span className="font-bold text-[var(--accent)]">{t.learning}</span><EntryFieldOriginBadge entry={entry} field="learning" locale={locale} /></span><p className="mt-1">{entry.learning}</p></div>}
+                {entry.transformation && <div className="mt-3 rounded-xl bg-[var(--tint-moss)] p-3 text-sm"><span className="mb-1 flex flex-wrap items-center gap-2"><span className="font-bold text-[var(--accent)]">{t.transformation}</span><EntryFieldOriginBadge entry={entry} field="transformation" locale={locale} /></span><p className="mt-1">{entry.transformation}</p></div>}
               </div>
             </article>
           ))}

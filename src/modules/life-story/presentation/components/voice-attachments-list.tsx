@@ -187,7 +187,7 @@ export function VoiceAttachmentsList({ locale, entryId, attachments, readOnly, o
           const isLong = transcript.length > TRANSCRIPT_PREVIEW_CHARS;
           const showAll = expanded[note.id] ?? false;
           return (
-            <li key={note.id} className="rounded-xl border border-[var(--line)] bg-[#fcfdf9] p-4">
+            <li key={note.id} className="rounded-xl border border-[var(--line)] bg-[var(--surface-inset)] p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-xs font-semibold uppercase tracking-wide text-[var(--moss)]">{fieldLabel}</p>
@@ -205,13 +205,13 @@ export function VoiceAttachmentsList({ locale, entryId, attachments, readOnly, o
               </div>
               <audio className="mt-3 w-full" controls preload="metadata" src={`/api/attachments/${note.id}`} />
               {transcript ? (
-                <div className="mt-3 rounded-lg bg-[#f4f7f2] p-3">
+                <div className="mt-3 rounded-lg bg-[var(--surface-audio)] p-3">
                   <p className="text-xs font-medium text-[var(--muted)]">{t.transcript}</p>
                   <p className="mt-1 whitespace-pre-line text-sm leading-6 text-[var(--ink)]">
                     {isLong && !showAll ? `${transcript.slice(0, TRANSCRIPT_PREVIEW_CHARS).trimEnd()}…` : transcript}
                   </p>
                   {isLong && (
-                    <button type="button" className="mt-1 text-xs font-medium text-[var(--moss-deep)] underline" onClick={() => setExpanded((current) => ({ ...current, [note.id]: !showAll }))}>
+                    <button type="button" className="mt-1 text-xs font-medium text-[var(--accent)] underline" onClick={() => setExpanded((current) => ({ ...current, [note.id]: !showAll }))}>
                       {showAll ? t.showLess : t.showAll}
                     </button>
                   )}
@@ -226,7 +226,7 @@ export function VoiceAttachmentsList({ locale, entryId, attachments, readOnly, o
                         {voiceStageLabel(job?.stage ?? null, locale) ?? t.starting}
                       </p>
                       {job?.stage && job.stage.kind !== "saving" && job.stage.total > 1 && (
-                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#e3eadf]">
+                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--progress-track)]">
                           <div className="h-full bg-[var(--moss)] transition-all" style={{ width: `${Math.round((job.stage.done / job.stage.total) * 100)}%` }} />
                         </div>
                       )}

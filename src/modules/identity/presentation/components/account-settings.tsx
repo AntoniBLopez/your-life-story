@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Download, Globe, Hourglass, Landmark, LoaderCircle, Mic, ShieldAlert, Trash2, UsersRound, CalendarDays } from "lucide-react";
+import { Download, Globe, Hourglass, Landmark, LoaderCircle, Mic, Palette, ShieldAlert, Trash2, UsersRound, CalendarDays } from "lucide-react";
+import { ThemeToggle } from "@/shared/presentation/theme/theme-toggle";
 import { deleteAccountAction, exportAccountDataAction, updateSaveVoiceRecordingsAction } from "@/modules/identity/application/account-actions";
 import { revokeAiConsentAction } from "@/modules/reflection/application/reflection-actions";
 import { setInactivityReleaseAction, setPublicArchiveConsentAction, submitDeathDeclarationAction } from "@/modules/archive/application/archive-actions";
@@ -40,6 +41,8 @@ export function AccountSettings({ locale, aiConsented, publicArchiveConsent, arc
     ? {
         eyebrow: "Control de datos",
         title: "Ajustes y privacidad",
+        appearance: "Apariencia",
+        appearanceBody: "Elige claro, oscuro o el mismo tema que tu sistema. La elección se guarda en este dispositivo.",
         intro: "Tu historia es tuya. Aquí decides si se publica, puedes llevártela contigo o eliminarla.",
         archive: "Archivo público",
         archiveBody: "Si lo activas, toda tu historia —experiencias, aprendizajes, familia y archivos— podrá verse y estudiarse en el archivo público. Puedes desactivarlo cuando quieras, salvo si ya has sido marcada como fallecida.",
@@ -97,6 +100,8 @@ export function AccountSettings({ locale, aiConsented, publicArchiveConsent, arc
     : {
         eyebrow: "Data control",
         title: "Settings and privacy",
+        appearance: "Appearance",
+        appearanceBody: "Choose light, dark, or the same theme as your system. This choice stays on this device.",
         intro: "Your story is yours. Here you decide whether it is published, take it with you or delete it.",
         archive: "Public archive",
         archiveBody: "If you turn this on, your whole story —experiences, lessons, family and files— can be viewed and studied in the public archive. You can turn it off at any time, unless you have already been marked as deceased.",
@@ -250,11 +255,19 @@ export function AccountSettings({ locale, aiConsented, publicArchiveConsent, arc
       <p className="mt-3 text-sm leading-6 text-[var(--muted)]">{t.intro}</p>
       <div className="mt-8 space-y-5">
         <section className="card p-6">
+          <Palette className="text-[var(--moss)]" size={21} />
+          <h2 className="display mt-3 text-2xl">{t.appearance}</h2>
+          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{t.appearanceBody}</p>
+          <div className="mt-5">
+            <ThemeToggle locale={locale} variant="inline" />
+          </div>
+        </section>
+        <section className="card p-6">
           <Landmark className="text-[var(--moss)]" size={21} />
           <h2 className="display mt-3 text-2xl">{t.archive}</h2>
           <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{t.archiveBody}</p>
           {deceased ? (
-            <p className="mt-5 rounded-xl bg-[#fff0e5] p-3 text-sm text-[#8a5a3d]">{t.deceasedNote}</p>
+            <p className="mt-5 rounded-xl bg-[var(--tint-peach)] p-3 text-sm text-[var(--ink-warm)]">{t.deceasedNote}</p>
           ) : (
             <button disabled={pending} className={`btn mt-5 ${isPublic ? "btn-secondary" : "btn-primary"}`} onClick={toggleArchive}>
               {pending && <LoaderCircle className="animate-spin" size={15} />}
@@ -289,7 +302,7 @@ export function AccountSettings({ locale, aiConsented, publicArchiveConsent, arc
           <h2 className="display mt-3 text-2xl">{t.inactivity}</h2>
           <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{t.inactivityBody}</p>
           {deceased ? (
-            <p className="mt-5 rounded-xl bg-[#fff0e5] p-3 text-sm text-[#8a5a3d]">{t.deceasedNote}</p>
+            <p className="mt-5 rounded-xl bg-[var(--tint-peach)] p-3 text-sm text-[var(--ink-warm)]">{t.deceasedNote}</p>
           ) : (
             <div className="mt-5 space-y-4">
               <label className="flex items-center gap-3 text-sm font-bold">
@@ -325,7 +338,7 @@ export function AccountSettings({ locale, aiConsented, publicArchiveConsent, arc
           <h2 className="display mt-3 text-2xl">{t.death}</h2>
           <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{t.deathBody}</p>
           {deathSent ? (
-            <p className="mt-5 rounded-xl bg-[#edf5ec] p-3 text-sm text-[var(--moss-deep)]">{t.deathSent}</p>
+            <p className="mt-5 rounded-xl bg-[var(--tint-moss-strong)] p-3 text-sm text-[var(--accent)]">{t.deathSent}</p>
           ) : (
             <form action={declareDeath} className="mt-5 grid gap-4">
               <label><span className="field-label">{t.deathName}</span><input className="input" name="requesterName" required minLength={2} defaultValue={displayName} /></label>
@@ -368,7 +381,7 @@ export function AccountSettings({ locale, aiConsented, publicArchiveConsent, arc
           <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{t.aiBody}</p>
           {aiConsented ? <button disabled={pending} className="btn btn-secondary mt-5" onClick={revoke}>{t.revoke}</button> : <span className="pill mt-5">{locale === "es" ? "No hay consentimiento activo" : "No active consent"}</span>}
         </section>
-        <section className="card border-[#edcfcb] p-6">
+        <section className="card border-[var(--line-danger-soft)] p-6">
           <Trash2 className="text-[var(--danger)]" size={21} />
           <h2 className="display mt-3 text-2xl">{t.danger}</h2>
           <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{t.dangerBody}</p>
@@ -376,7 +389,7 @@ export function AccountSettings({ locale, aiConsented, publicArchiveConsent, arc
           <button disabled={pending || confirmation !== "DELETE"} className="btn btn-danger mt-4" onClick={remove}>{pending && <LoaderCircle className="animate-spin" size={15} />}<Trash2 size={15} />{t.remove}</button>
         </section>
         {error && <p className="field-error">{error}</p>}
-        {message && <p className="rounded-xl bg-[#edf5ec] p-3 text-sm text-[var(--moss-deep)]">{message}</p>}
+        {message && <p className="rounded-xl bg-[var(--tint-moss-strong)] p-3 text-sm text-[var(--accent)]">{message}</p>}
       </div>
     </div>
   );

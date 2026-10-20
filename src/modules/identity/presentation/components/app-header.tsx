@@ -7,6 +7,7 @@ import { useTransition } from "react";
 import { Bot, BookOpen, Landmark, LogOut, Search, Settings, Shield, Sprout, UsersRound } from "lucide-react";
 import { signOutAction } from "@/modules/identity/application/auth-actions";
 import { LanguageSwitcher } from "./language-switcher";
+import { ThemeToggle } from "@/shared/presentation/theme/theme-toggle";
 import { AppNavLink } from "./app-nav-link";
 import { isArchiveAdmin } from "@/modules/archive/domain/archive";
 
@@ -73,12 +74,12 @@ export function AppHeader({ locale, email, showSearch = true }: { locale: "es" |
           <Bot size={17} />
           <span className="hidden md:inline text-xs">{t.reflect}</span>
         </AppNavLink>
-        <Link title={t.archive} className={`btn btn-quiet !p-2 hidden sm:inline-flex ${isArchive ? "!bg-[#edf3eb]" : ""}`} href={`/${locale}/archive` as Route}>
+        <Link title={t.archive} className={`btn btn-quiet !p-2 hidden sm:inline-flex ${isArchive ? "!bg-[var(--tint-moss)]" : ""}`} href={`/${locale}/archive` as Route}>
           <Landmark size={16} />
           <span className="hidden md:inline text-xs">{t.archive}</span>
         </Link>
         {admin && (
-          <Link title={t.admin} className={`btn btn-quiet !p-2 ${is(`/${locale}/app/admin`) ? "!bg-[#edf3eb]" : ""}`} href={`/${locale}/app/admin` as Route}>
+          <Link title={t.admin} className={`btn btn-quiet !p-2 ${is(`/${locale}/app/admin`) ? "!bg-[var(--tint-moss)]" : ""}`} href={`/${locale}/app/admin` as Route}>
             <Shield size={16} />
             <span className="hidden md:inline text-xs">{t.admin}</span>
           </Link>
@@ -86,6 +87,7 @@ export function AppHeader({ locale, email, showSearch = true }: { locale: "es" |
         <AppNavLink title={t.settings} active={is(`/${locale}/app/settings`)} href={`/${locale}/app/settings`} className="hidden sm:inline-flex">
           <Settings size={16} />
         </AppNavLink>
+        <ThemeToggle locale={locale} />
         <LanguageSwitcher compact />
         <button disabled={pending} title={t.out} onClick={signOut} className="btn btn-quiet !p-2">
           <LogOut size={16} />

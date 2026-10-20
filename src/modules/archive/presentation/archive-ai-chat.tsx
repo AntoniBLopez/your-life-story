@@ -78,11 +78,11 @@ export function ArchiveAiChat({ locale, slug, displayName }: { locale: "es" | "e
         <h2 className="display mt-1 text-2xl">{t.title}</h2>
         <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{t.intro}</p>
       </div>
-      <div className="max-h-[420px] min-h-[240px] space-y-4 overflow-y-auto bg-[#fcfdf9] p-5 sm:p-7">
+      <div className="max-h-[420px] min-h-[240px] space-y-4 overflow-y-auto bg-[var(--surface-inset)] p-5 sm:p-7">
         {messages.length === 0 ? (
           <div className="grid min-h-40 place-items-center text-center">
             <div>
-              <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-[#edf3eb] text-[var(--moss)]"><Sparkles size={20} /></span>
+              <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-[var(--tint-moss)] text-[var(--moss)]"><Sparkles size={20} /></span>
               <p className="mt-4 text-sm text-[var(--muted)]">{t.empty}</p>
               <div className="mt-4 flex flex-wrap justify-center gap-2">
                 {t.prompts.map((prompt) => (
@@ -100,7 +100,7 @@ export function ArchiveAiChat({ locale, slug, displayName }: { locale: "es" | "e
           </div>
         ) : messages.map((item) => (
           <div key={item.id} className={`flex ${item.role === "user" ? "justify-end" : "justify-start"}`}>
-            <div className={`max-w-[86%] rounded-2xl px-4 py-3 text-sm leading-6 ${item.role === "user" ? "bg-[var(--moss-deep)] text-white" : "bg-[#edf3eb] text-[var(--ink)]"}`}>
+            <div className={`max-w-[86%] rounded-2xl px-4 py-3 text-sm leading-6 ${item.role === "user" ? "bg-[var(--moss-deep)] text-white" : "bg-[var(--tint-moss)] text-[var(--ink)]"}`}>
               {item.content || <LoaderCircle size={15} className="animate-spin" />}
             </div>
           </div>

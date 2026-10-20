@@ -12,7 +12,7 @@ type Variant =
   | "generic";
 
 function Block({ className }: { className?: string }) {
-  return <div className={`animate-pulse rounded-xl bg-[#e8e2d8] ${className ?? ""}`} />;
+  return <div className={`animate-pulse rounded-xl bg-[var(--skeleton)] ${className ?? ""}`} />;
 }
 
 function PageHeaderSkeleton({ introLines = 1 }: { introLines?: number }) {
@@ -33,7 +33,7 @@ function BackLinkSkeleton() {
 
 function ViewTabsSkeleton({ count = 3 }: { count?: number }) {
   return (
-    <div className="flex flex-wrap gap-1 rounded-xl bg-[#eef2ec] p-1">
+    <div className="flex flex-wrap gap-1 rounded-xl bg-[var(--tint-sage)] p-1">
       {Array.from({ length: count }, (_, index) => (
         <Block key={index} className={`h-10 rounded-lg ${index === 0 ? "w-36" : "w-28"}`} />
       ))}
@@ -220,7 +220,7 @@ function EntrySkeleton() {
       <div className="mt-6">
         <PageHeaderSkeleton introLines={2} />
       </div>
-      <div className="mt-8 rounded-2xl border border-[var(--line)] bg-[#fcfdf9] p-4 sm:p-5">
+      <div className="mt-8 rounded-2xl border border-[var(--line)] bg-[var(--surface-inset)] p-4 sm:p-5">
         <Block className="h-4 w-52" />
         <Block className="mt-2 h-4 w-full" />
         <Block className="mt-2 h-4 w-4/5" />
@@ -351,7 +351,7 @@ function SettingsSectionSkeleton({
   titleWidth?: string;
 }) {
   return (
-    <section className={`card p-6 ${danger ? "border-[#edcfcb]" : ""}`}>
+    <section className={`card p-6 ${danger ? "border-[var(--line-danger-soft)]" : ""}`}>
       <Block className="h-[21px] w-[21px] rounded-md" />
       <Block className={`mt-3 h-8 max-w-full ${titleWidth}`} />
       <Block className="mt-2 h-4 w-full" />

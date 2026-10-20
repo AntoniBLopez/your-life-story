@@ -118,7 +118,7 @@ function hasFieldError(fieldErrors: Record<string, string[]> | undefined, field:
 }
 
 function fieldControlClass(fieldErrors: Record<string, string[]> | undefined, field: string, base = "input") {
-  return hasFieldError(fieldErrors, field) ? `${base} !border-[var(--danger)] !shadow-[0_0_0_3px_#a6424218]` : base;
+  return hasFieldError(fieldErrors, field) ? `${base} !border-[var(--danger)] !shadow-[0_0_0_3px_var(--danger-ring)]` : base;
 }
 
 function FieldLabelWithVoice({
@@ -991,7 +991,7 @@ export function LifeEntryForm({
           {fieldErrorMessage(fieldErrors, "narrative") && <p className="field-error">{fieldErrorMessage(fieldErrors, "narrative")}</p>}
         </div>
 
-        <div className="rounded-2xl border border-[var(--line)] bg-[#fcfdf9] p-4">
+        <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface-inset)] p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm leading-6 text-[var(--muted)]">{t.generateAiHelp}</p>
             <button
@@ -1226,15 +1226,15 @@ export function LifeEntryForm({
           </label>
           )}
           {uploadError && (
-            <p role="alert" className="mt-3 rounded-xl border border-[#e8c3c3] bg-[#fdf3f3] p-3 text-sm text-[var(--danger)]">
+            <p role="alert" className="mt-3 rounded-xl border border-[var(--line-danger)] bg-[var(--tint-danger)] p-3 text-sm text-[var(--danger)]">
               {uploadError}
             </p>
           )}
           {voiceMessage && !uploadError && (
-            <p className="mt-3 rounded-xl border border-[#d6e4d2] bg-[#edf5ec] p-3 text-sm text-[var(--moss-deep)]">{voiceMessage}</p>
+            <p className="mt-3 rounded-xl border border-[var(--line-success)] bg-[var(--tint-moss-strong)] p-3 text-sm text-[var(--accent)]">{voiceMessage}</p>
           )}
           {uploadMessage && !uploadError && !voiceMessage && (
-            <p className="mt-3 rounded-xl bg-[#edf5ec] p-3 text-sm text-[var(--moss-deep)]">{uploadMessage}</p>
+            <p className="mt-3 rounded-xl bg-[var(--tint-moss-strong)] p-3 text-sm text-[var(--accent)]">{uploadMessage}</p>
           )}
         </section>
       )}

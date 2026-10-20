@@ -33,7 +33,7 @@ export function ConfirmDialog({ open, title, body, cancelLabel, actions, onClose
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="presentation">
       <button
         type="button"
-        className="absolute inset-0 bg-[#24312b66] backdrop-blur-[2px]"
+        className="absolute inset-0 bg-[var(--overlay)] backdrop-blur-[2px]"
         aria-label={cancelLabel}
         onClick={onClose}
       />

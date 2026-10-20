@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef } from "react";
 import { Background, Controls, MiniMap, ReactFlow, ReactFlowProvider, useReactFlow, type Edge, type Node, type NodeProps } from "@xyflow/react";
 import { buildLifeEntryGraph } from "@/modules/life-story/domain/life-entry-graph";
-import { entryTone, momentFlagLabel, type LifeEntry, type LifeEntryLink } from "@/modules/life-story/domain/life-entry";
+import { entryToneEdge, momentFlagLabel, type LifeEntry, type LifeEntryLink } from "@/modules/life-story/domain/life-entry";
 import { formatStoryDate, titleCase } from "@/shared/lib/utils";
 
 function LifeEntryNode({ data }: NodeProps) {
@@ -49,7 +49,7 @@ function StoryLifeTreeInner({
     position: { x: node.x, y: node.y },
     style: {
       width: 220,
-      borderColor: `${entryTone(node.entry.changeDirection)}80`,
+      borderColor: entryToneEdge(node.entry.changeDirection),
     },
     data: {
       label: (
@@ -61,7 +61,7 @@ function StoryLifeTreeInner({
             {node.entry.momentFlags.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-1">
                 {node.entry.momentFlags.map((flag) => (
-                  <span key={flag} className="rounded-full bg-[#fff0e5] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[#8a5a3d]">
+                  <span key={flag} className="rounded-full bg-[var(--tint-peach)] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[var(--ink-warm)]">
                     {momentFlagLabel(flag, locale)}
                   </span>
                 ))}
@@ -76,7 +76,7 @@ function StoryLifeTreeInner({
             {node.entry.momentFlags.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-1">
                 {node.entry.momentFlags.map((flag) => (
-                  <span key={flag} className="rounded-full bg-[#fff0e5] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[#8a5a3d]">
+                  <span key={flag} className="rounded-full bg-[var(--tint-peach)] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[var(--ink-warm)]">
                     {momentFlagLabel(flag, locale)}
                   </span>
                 ))}
@@ -94,14 +94,14 @@ function StoryLifeTreeInner({
     target: edge.target,
     animated: edge.relation === "consequence",
     style: {
-      stroke: edge.relation === "consequence" ? "#5c9265" : "#b5cbb4",
+      stroke: edge.relation === "consequence" ? "var(--tone-improved)" : "var(--edge-related)",
       strokeWidth: edge.relation === "consequence" ? 2 : 1.5,
       strokeDasharray: edge.relation === "related" ? "6 4" : undefined,
     },
     label: edge.relation === "consequence"
       ? (locale === "es" ? "consecuencia" : "consequence")
       : (locale === "es" ? "relacionada" : "related"),
-    labelStyle: { fill: "#6b746d", fontSize: 10 },
+    labelStyle: { fill: "var(--ink-edge)", fontSize: 10 },
   }));
 
   const help = locale === "es"
@@ -127,19 +127,19 @@ function StoryLifeTreeInner({
           proOptions={{ hideAttribution: true }}
         >
           <LifeTreeViewport nodeCount={nodes.length} />
-          <Background gap={18} size={1} color="#dce5db" />
+          <Background gap={18} size={1} color="var(--flow-dot)" />
           <Controls />
           <MiniMap
             zoomable
             pannable
-            nodeColor="#fffef9"
-            nodeStrokeColor="#b7b0a6"
+            nodeColor="var(--minimap-node)"
+            nodeStrokeColor="var(--minimap-node-stroke)"
             nodeBorderRadius={8}
             nodeStrokeWidth={1.5}
-            maskColor="rgb(36 49 43 / 0.08)"
-            maskStrokeColor="#c4bdb3"
+            maskColor="var(--minimap-mask)"
+            maskStrokeColor="var(--minimap-stroke)"
             maskStrokeWidth={1.25}
-            bgColor="#e4dfd5"
+            bgColor="var(--minimap-bg)"
           />
         </ReactFlow>
       </div>

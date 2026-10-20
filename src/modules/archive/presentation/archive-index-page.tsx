@@ -130,7 +130,7 @@ export function ArchiveIndexPage({ locale, lives, authenticated = false, email }
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--muted)]" size={17} />
             <input
               type="search"
-              className="input !rounded-full !py-3.5 !pl-11 !pr-4 shadow-[0_10px_30px_#26332b0a]"
+              className="input !rounded-full !py-3.5 !pl-11 !pr-4 shadow-[0_10px_30px_var(--shadow-soft)]"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder={t.search}
@@ -147,8 +147,8 @@ export function ArchiveIndexPage({ locale, lives, authenticated = false, email }
                   aria-pressed={status === filter.value}
                   className={`rounded-full border px-3.5 py-1.5 text-xs font-bold transition ${
                     status === filter.value
-                      ? "border-[var(--moss)] bg-[#edf3eb] text-[var(--moss-deep)]"
-                      : "border-[var(--line)] bg-[var(--paper)] text-[var(--muted)] hover:border-[#b9d0b8] hover:text-[var(--moss-deep)]"
+                      ? "border-[var(--moss)] bg-[var(--tint-moss)] text-[var(--accent)]"
+                      : "border-[var(--line)] bg-[var(--paper)] text-[var(--muted)] hover:border-[var(--line-moss)] hover:text-[var(--accent)]"
                   }`}
                 >
                   {filter.label}
@@ -184,11 +184,11 @@ export function ArchiveIndexPage({ locale, lives, authenticated = false, email }
               <Link
                 key={life.slug}
                 href={`/${locale}/archive/${life.slug}` as Route}
-                className="card group flex flex-col p-5 transition hover:-translate-y-0.5 hover:border-[#b9d0b8] sm:p-6"
+                className="card group flex flex-col p-5 transition hover:-translate-y-0.5 hover:border-[var(--line-moss)] sm:p-6"
               >
                 <div className="flex items-baseline justify-between gap-3">
                   <h2 className="display text-xl leading-snug">{life.displayName}</h2>
-                  <span className={`pill shrink-0 ${life.deceased ? "!bg-[#f4ece3] !text-[#8a5a3d]" : ""}`}>{life.deceased ? t.deceased : t.living}</span>
+                  <span className={`pill shrink-0 ${life.deceased ? "!bg-[var(--tint-peach-deep)] !text-[var(--ink-warm)]" : ""}`}>{life.deceased ? t.deceased : t.living}</span>
                 </div>
                 <p className="mt-1.5 text-sm text-[var(--muted)]">
                   {[life.firstYear, life.lastYear].filter(Boolean).join(" – ") || "—"}
@@ -201,7 +201,7 @@ export function ArchiveIndexPage({ locale, lives, authenticated = false, email }
                     <p className="mt-1 text-sm leading-6 text-[var(--ink)]">{life.highlight}</p>
                   </blockquote>
                 )}
-                <span className="mt-auto inline-flex items-center gap-1.5 pt-5 text-sm font-bold text-[var(--moss-deep)]">
+                <span className="mt-auto inline-flex items-center gap-1.5 pt-5 text-sm font-bold text-[var(--accent)]">
                   {t.read}
                   <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
                 </span>
@@ -222,7 +222,7 @@ export function ArchiveIndexPage({ locale, lives, authenticated = false, email }
           </summary>
           <div className="border-t border-[var(--line)] p-5 sm:p-6">
             {sent ? (
-              <p className="rounded-xl bg-[#edf3eb] p-4 text-sm text-[var(--moss-deep)]">{t.sent}</p>
+              <p className="rounded-xl bg-[var(--tint-moss)] p-4 text-sm text-[var(--accent)]">{t.sent}</p>
             ) : (
               <form action={submit} className="grid gap-4 sm:grid-cols-2">
                 <label><span className="field-label">{t.name}</span><input className="input" name="requesterName" required minLength={2} /></label>

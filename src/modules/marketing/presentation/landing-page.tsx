@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import { ArrowRight, BookOpen, BrainCircuit, ChevronDown, Landmark, LockKeyhole, Menu, Network, Sparkles, Sprout, TreePine } from "lucide-react";
 import { LanguageSwitcher } from "@/modules/identity/presentation/components/language-switcher";
+import { ThemeToggle } from "@/shared/presentation/theme/theme-toggle";
 
 type Copy = {
   nav: { how: string; privacy: string; archive: string; login: string; start: string };
@@ -52,6 +53,7 @@ export function LandingPage({ locale }: { locale: "es" | "en" }) {
         <Link href={`/${activeLocale}/archive` as Route}>{t.nav.archive}</Link>
       </nav>
       <div className="flex shrink-0 items-center gap-1 sm:gap-3">
+        <ThemeToggle locale={activeLocale} />
         <LanguageSwitcher compact />
         <div className="hidden items-center gap-1 sm:flex">
           <Link className="btn btn-quiet" href={`/${activeLocale}/login`}>{t.nav.login}</Link>
@@ -65,10 +67,10 @@ export function LandingPage({ locale }: { locale: "es" | "en" }) {
             <Menu size={21} />
           </summary>
           <div className="absolute right-0 top-12 z-30 grid min-w-52 gap-1 rounded-2xl border border-[var(--line)] bg-[var(--paper)] p-2 text-sm font-semibold shadow-xl">
-            <a className="rounded-xl px-3 py-2.5 hover:bg-[#edf3eb]" href="#how">{t.nav.how}</a>
-            <a className="rounded-xl px-3 py-2.5 hover:bg-[#edf3eb]" href="#privacy">{t.nav.privacy}</a>
-            <Link className="rounded-xl px-3 py-2.5 hover:bg-[#edf3eb]" href={`/${activeLocale}/archive` as Route}>{t.nav.archive}</Link>
-            <Link className="rounded-xl px-3 py-2.5 hover:bg-[#edf3eb]" href={`/${activeLocale}/login`}>{t.nav.login}</Link>
+            <a className="rounded-xl px-3 py-2.5 hover:bg-[var(--tint-moss)]" href="#how">{t.nav.how}</a>
+            <a className="rounded-xl px-3 py-2.5 hover:bg-[var(--tint-moss)]" href="#privacy">{t.nav.privacy}</a>
+            <Link className="rounded-xl px-3 py-2.5 hover:bg-[var(--tint-moss)]" href={`/${activeLocale}/archive` as Route}>{t.nav.archive}</Link>
+            <Link className="rounded-xl px-3 py-2.5 hover:bg-[var(--tint-moss)]" href={`/${activeLocale}/login`}>{t.nav.login}</Link>
             <Link className="btn btn-primary mt-1" href={`/${activeLocale}/register`}>
               {t.nav.start}
               <ArrowRight size={15} />
@@ -111,34 +113,34 @@ export function LandingPage({ locale }: { locale: "es" | "en" }) {
               <p className="text-xs font-bold uppercase tracking-[.12em] text-[var(--moss)]">{t.preview.now}</p>
               <p className="display mt-1 text-2xl">{t.preview.changing}</p>
             </div>
-            <div className="rounded-full bg-[#edf3eb] p-3 text-[var(--moss)]">
+            <div className="rounded-full bg-[var(--tint-moss)] p-3 text-[var(--moss)]">
               <Sprout size={22} />
             </div>
           </div>
-          <div className="relative mx-2 mt-8 h-36 border-l border-dashed border-[#a9c2a7]">
+          <div className="relative mx-2 mt-8 h-36 border-l border-dashed border-[var(--line-dashed)]">
             <div className="absolute left-0 top-2 -translate-x-1/2">
-              <span className="block h-3 w-3 rounded-full border-2 border-white bg-[var(--rose)] shadow" />
+              <span className="block h-3 w-3 rounded-full border-2 border-[var(--paper)] bg-[var(--rose)] shadow" />
             </div>
-            <div className="absolute left-4 top-0 rounded-xl bg-[#fff4ec] px-3 py-2 text-xs font-bold text-[#79513b]">{t.preview.hard}</div>
+            <div className="absolute left-4 top-0 rounded-xl bg-[var(--tint-peach-mid)] px-3 py-2 text-xs font-bold text-[var(--ink-warm-deep)]">{t.preview.hard}</div>
             <div className="absolute bottom-7 left-0 -translate-x-1/2">
-              <span className="block h-3 w-3 rounded-full border-2 border-white bg-[var(--moss)] shadow" />
+              <span className="block h-3 w-3 rounded-full border-2 border-[var(--paper)] bg-[var(--moss)] shadow" />
             </div>
-            <div className="absolute bottom-4 left-4 rounded-xl bg-[#eef5ec] px-3 py-2 text-xs font-bold text-[var(--moss-deep)]">{t.preview.learn}</div>
+            <div className="absolute bottom-4 left-4 rounded-xl bg-[var(--tint-you)] px-3 py-2 text-xs font-bold text-[var(--accent)]">{t.preview.learn}</div>
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
             {t.preview.labels.map((label, index) => (
               <span
                 key={label}
                 className="pill"
-                style={{ background: index === 1 ? "#fff0e5" : undefined }}
+                style={{ background: index === 1 ? "var(--tint-peach)" : undefined }}
               >
                 {label}
               </span>
             ))}
           </div>
         </div>
-        <div className="absolute -bottom-7 left-2 rounded-2xl border border-[#f0ddd0] bg-[#fffaf4] p-3 shadow-lg sm:-left-5">
-          <p className="text-[10px] font-bold uppercase tracking-wide text-[#a96d4d]">
+        <div className="absolute -bottom-7 left-2 rounded-2xl border border-[var(--line-warm)] bg-[var(--surface-warm)] p-3 shadow-lg sm:-left-5">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--ink-partner)]">
             {activeLocale === "es" ? "Un momento a la vez" : "One moment at a time"}
           </p>
           <p className="display text-lg">
@@ -151,7 +153,7 @@ export function LandingPage({ locale }: { locale: "es" | "en" }) {
 
   // How it works section component
   const HowItWorksSection = () => (
-    <section id="how" className="border-y border-[var(--line)] bg-[#fffdf9bd] py-22">
+    <section id="how" className="border-y border-[var(--line)] bg-[var(--band)] py-22">
       <div className="container">
         <p className="eyebrow">{t.value.eyebrow}</p>
         <h2 className="display mt-4 max-w-3xl text-4xl leading-tight sm:text-5xl">{t.value.title}</h2>
@@ -160,7 +162,7 @@ export function LandingPage({ locale }: { locale: "es" | "en" }) {
             const Icon = [Network, TreePine, BrainCircuit][index];
             return (
               <article key={card.title} className="card p-6">
-                <span className="inline-grid h-10 w-10 place-items-center rounded-full bg-[#edf3eb] text-[var(--moss)]">
+                <span className="inline-grid h-10 w-10 place-items-center rounded-full bg-[var(--tint-moss)] text-[var(--moss)]">
                   <Icon size={19} />
                 </span>
                 <h3 className="display mt-5 text-2xl">{card.title}</h3>
@@ -185,7 +187,7 @@ export function LandingPage({ locale }: { locale: "es" | "en" }) {
         <ul className="mt-6 space-y-3">
           {t.privacy.points.map((point) => (
             <li key={point} className="flex items-center gap-3 text-sm font-bold">
-              <span className="grid h-6 w-6 place-items-center rounded-full bg-[var(--sage)] text-[var(--moss-deep)]">✓</span>
+              <span className="grid h-6 w-6 place-items-center rounded-full bg-[var(--sage)] text-[var(--accent)]">✓</span>
               {point}
             </li>
           ))}
@@ -195,7 +197,7 @@ export function LandingPage({ locale }: { locale: "es" | "en" }) {
   );
 
   const ArchiveSection = () => (
-    <section className="border-y border-[var(--line)] bg-[#fffdf9bd] py-20 sm:py-22">
+    <section className="border-y border-[var(--line)] bg-[var(--band)] py-20 sm:py-22">
       <div className="container grid gap-10 lg:grid-cols-[1fr_1.1fr] lg:items-center">
         <div>
           <p className="eyebrow">{t.archive.eyebrow}</p>
@@ -211,10 +213,10 @@ export function LandingPage({ locale }: { locale: "es" | "en" }) {
         <div className="grid gap-4 sm:grid-cols-3">
           {t.archive.points.map((point, index) => {
             const Icon = [BookOpen, Sparkles, Landmark][index];
-            const tints = ["#edf5ec", "#fff4ec", "#eef3f7"];
+            const tints = ["var(--tint-moss-strong)", "var(--tint-peach-mid)", "var(--tint-sky)"];
             return (
               <article key={point} className="card p-5">
-                <span className="inline-grid h-10 w-10 place-items-center rounded-full text-[var(--moss-deep)]" style={{ background: tints[index] }}>
+                <span className="inline-grid h-10 w-10 place-items-center rounded-full text-[var(--accent)]" style={{ background: tints[index] }}>
                   <Icon size={18} />
                 </span>
                 <p className="mt-4 text-sm font-bold leading-6">{point}</p>
@@ -229,11 +231,11 @@ export function LandingPage({ locale }: { locale: "es" | "en" }) {
   // CTA section component
   const CtaSection = () => (
     <section className="container pb-16">
-      <div className="rounded-[2rem] bg-[var(--moss-deep)] px-5 py-12 text-center text-white sm:px-14 sm:py-14">
-        <p className="eyebrow !text-[#b8d2ae]">Your Life Story</p>
+      <div className="rounded-[2rem] bg-[var(--cta-bg)] px-5 py-12 text-center text-[var(--cta-fg)] sm:px-14 sm:py-14">
+        <p className="eyebrow !text-[var(--cta-eyebrow)]">Your Life Story</p>
         <h2 className="display mx-auto mt-4 max-w-2xl text-4xl leading-tight sm:text-5xl">{t.cta.title}</h2>
-        <p className="mx-auto mt-5 max-w-xl text-sm leading-6 text-[#d9e5d5]">{t.cta.body}</p>
-        <Link className="btn mt-8 w-full !bg-white !text-[var(--moss-deep)] sm:w-auto" href={`/${activeLocale}/register`}>
+        <p className="mx-auto mt-5 max-w-xl text-sm leading-6 text-[var(--cta-muted)]">{t.cta.body}</p>
+        <Link className="btn mt-8 w-full !bg-[var(--cta-button-bg)] !text-[var(--cta-button-fg)] sm:w-auto" href={`/${activeLocale}/register`}>
           {t.cta.action}
           <ArrowRight size={16} />
         </Link>
@@ -243,7 +245,7 @@ export function LandingPage({ locale }: { locale: "es" | "en" }) {
 
   // Footer component
   const Footer = () => (
-    <footer className="border-t border-[var(--line)] bg-[#fffdf9b8] py-8 sm:py-10">
+    <footer className="border-t border-[var(--line)] bg-[var(--footer)] py-8 sm:py-10">
       <div className="container flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <Link href={`/${activeLocale}`} className="flex items-center gap-2 font-bold">

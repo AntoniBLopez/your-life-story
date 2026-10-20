@@ -55,7 +55,7 @@ export function ReflectionWorkspace({
             <div className="flex min-w-0 flex-1 flex-col">{children}</div>
             {mobileOpen && (
               <div className="absolute inset-0 z-20 flex md:hidden">
-                <div className="flex h-full w-[min(18rem,86%)] flex-col shadow-xl">
+                <div className="reflect-drawer flex h-full w-[min(18rem,86%)] flex-col">
                   <div className="flex justify-end border-b border-[var(--line)] bg-[var(--paper)] px-2 py-1">
                     <button type="button" className="btn btn-quiet !p-2" aria-label={copy.closeSidebar} onClick={() => setMobileOpen(false)}>
                       <X size={16} />
@@ -65,7 +65,7 @@ export function ReflectionWorkspace({
                     <ReflectionSidebar locale={locale} onNavigate={() => setMobileOpen(false)} />
                   </div>
                 </div>
-                <button type="button" className="flex-1 bg-[var(--ink)]/40" aria-label={copy.closeSidebar} onClick={() => setMobileOpen(false)} />
+                <button type="button" className="reflect-drawer-scrim flex-1" aria-label={copy.closeSidebar} onClick={() => setMobileOpen(false)} />
               </div>
             )}
           </div>

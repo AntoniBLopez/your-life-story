@@ -105,13 +105,13 @@ export function RecordingRecovery({ locale, entryId, excludeIds, onRecover }: Pr
   }
 
   return (
-    <div role="region" aria-label={t.title} className="rounded-2xl border border-[#e8d9b5] bg-[#fdf8ec] p-4">
+    <div role="region" aria-label={t.title} className="rounded-2xl border border-[var(--line-amber)] bg-[var(--tint-amber)] p-4">
       <p className="flex items-center gap-2 text-sm font-semibold text-[var(--ink)]"><LifeBuoy size={16} />{t.title}</p>
       {notice && <p role="alert" className="mt-1 text-sm leading-6 text-[var(--danger)]">{notice}</p>}
       {visible.length > 0 && <p className="mt-1 text-sm leading-6 text-[var(--muted)]">{t.body}</p>}
       <ul className="mt-3 space-y-2">
         {visible.map((item) => (
-          <li key={item.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[var(--line)] bg-white/70 p-3">
+          <li key={item.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[var(--line)] bg-[var(--surface-veil)] p-3">
             <span className="text-sm text-[var(--ink)]">{describe(item)}</span>
             <span className="flex flex-wrap gap-2">
               <button type="button" className="btn btn-primary text-xs !px-3 !py-1.5" disabled={Boolean(busyId)} onClick={() => void recover(item)}>

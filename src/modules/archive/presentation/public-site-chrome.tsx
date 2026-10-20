@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import { Menu, Sprout } from "lucide-react";
 import { LanguageSwitcher } from "@/modules/identity/presentation/components/language-switcher";
+import { ThemeToggle } from "@/shared/presentation/theme/theme-toggle";
 
 export function PublicSiteHeader({ locale, current }: { locale: "es" | "en"; current?: "home" | "archive" }) {
   const t = locale === "es"
@@ -24,6 +25,7 @@ export function PublicSiteHeader({ locale, current }: { locale: "es" | "en"; cur
         <div className="hidden flex-1 md:block" />
       )}
       <div className="flex shrink-0 items-center gap-1 sm:gap-3">
+        <ThemeToggle locale={locale} />
         <LanguageSwitcher compact />
         <div className="hidden items-center gap-1 sm:flex">
           <Link className="btn btn-quiet" href={`/${locale}/login`}>{t.login}</Link>
@@ -34,8 +36,8 @@ export function PublicSiteHeader({ locale, current }: { locale: "es" | "en"; cur
             <Menu size={21} />
           </summary>
           <div className="absolute right-0 top-12 z-30 grid min-w-52 gap-1 rounded-2xl border border-[var(--line)] bg-[var(--paper)] p-2 text-sm font-semibold shadow-xl">
-            {showArchiveLink && <Link className="rounded-xl px-3 py-2.5 hover:bg-[#edf3eb]" href={`/${locale}/archive` as Route}>{t.archive}</Link>}
-            <Link className="rounded-xl px-3 py-2.5 hover:bg-[#edf3eb]" href={`/${locale}/login`}>{t.login}</Link>
+            {showArchiveLink && <Link className="rounded-xl px-3 py-2.5 hover:bg-[var(--tint-moss)]" href={`/${locale}/archive` as Route}>{t.archive}</Link>}
+            <Link className="rounded-xl px-3 py-2.5 hover:bg-[var(--tint-moss)]" href={`/${locale}/login`}>{t.login}</Link>
             <Link className="btn btn-primary mt-1" href={`/${locale}/register`}>{t.start}</Link>
           </div>
         </details>
@@ -50,7 +52,7 @@ export function PublicSiteFooter({ locale, authenticated = false }: { locale: "e
     : { tagline: "A public archive of life stories.", archive: "Life archive", login: "Sign in", app: "My story", copyright: "Published stories still belong to those who wrote them." };
 
   return (
-    <footer className="border-t border-[var(--line)] bg-[#fffdf9b8] py-8 sm:py-10">
+    <footer className="border-t border-[var(--line)] bg-[var(--footer)] py-8 sm:py-10">
       <div className="container flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <Link href={authenticated ? `/${locale}/app` : `/${locale}`} className="flex items-center gap-2 font-bold">

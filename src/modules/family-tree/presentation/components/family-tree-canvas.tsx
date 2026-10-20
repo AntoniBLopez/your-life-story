@@ -70,14 +70,14 @@ function FamilyTreeMiniMap() {
       zoomable
       pannable
       onClick={handleClick}
-      nodeColor={(node) => (isBirthdayNode(node) ? "#f5a54e" : "#fffef9")}
-      nodeStrokeColor={(node) => (isBirthdayNode(node) ? "#e2739e" : "#b7b0a6")}
+      nodeColor={(node) => (isBirthdayNode(node) ? "#f5a54e" : "var(--minimap-node)")}
+      nodeStrokeColor={(node) => (isBirthdayNode(node) ? "#e2739e" : "var(--minimap-node-stroke)")}
       nodeBorderRadius={8}
       nodeStrokeWidth={1.5}
-      maskColor="rgb(36 49 43 / 0.08)"
-      maskStrokeColor="#c4bdb3"
+      maskColor="var(--minimap-mask)"
+      maskStrokeColor="var(--minimap-stroke)"
       maskStrokeWidth={1.25}
-      bgColor="#e4dfd5"
+      bgColor="var(--minimap-bg)"
     />
   );
 }
@@ -253,7 +253,7 @@ function FamilyTreeCanvasInner({
       proOptions={{ hideAttribution: true }}
     >
       <FamilyTreeInitialViewport subjectId={subjectId} nodes={nodes} />
-      <Background gap={18} size={1} color="#dce5db" />
+      <Background gap={18} size={1} color="var(--flow-dot)" />
       {saveStatus !== "idle" && (
         <div className="family-tree-canvas-save-status" data-state={saveStatus} role="status" aria-live="polite">
           {saveStatus === "saving" ? <LoaderCircle className="animate-spin" size={13} /> : saveStatus === "error" ? <X size={13} /> : <Check size={13} />}

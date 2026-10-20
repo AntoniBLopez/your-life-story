@@ -55,7 +55,7 @@ export function BirthdayReminderOffsetEditor({
     <div className={`min-w-0 space-y-3 ${compact ? "" : "mt-2"}`}>
       <ul className="space-y-2">
         {offsets.map((offset) => (
-          <li key={offsetKey(offset)} className="flex items-center justify-between gap-2 rounded-xl bg-white px-3 py-2 text-xs">
+          <li key={offsetKey(offset)} className="flex items-center justify-between gap-2 rounded-xl bg-[var(--surface-raised)] px-3 py-2 text-xs">
             <span className="min-w-0 break-words">{offsetLabel(offset, locale)}</span>
             <button type="button" className="btn btn-quiet shrink-0 !p-1" aria-label={locale === "es" ? "Quitar aviso" : "Remove reminder"} onClick={() => onChange(offsets.filter((item) => offsetKey(item) !== offsetKey(offset)))}>
               <Trash2 size={13} />
@@ -72,7 +72,7 @@ export function BirthdayReminderOffsetEditor({
           </button>
         ))}
       </div>
-      <div className={`grid gap-2 rounded-xl bg-white p-2.5 ${compact ? "" : "sm:grid-cols-[1fr_auto_auto] sm:items-end"}`}>
+      <div className={`grid gap-2 rounded-xl bg-[var(--surface-raised)] p-2.5 ${compact ? "" : "sm:grid-cols-[1fr_auto_auto] sm:items-end"}`}>
         <label>
           <span className="field-label">{t.when}</span>
           <select className="select !py-2 text-sm" value={selectedOptionId} onChange={(event) => setSelectedOptionId(event.target.value)}>

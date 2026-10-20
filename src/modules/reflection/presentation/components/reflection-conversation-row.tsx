@@ -80,7 +80,7 @@ export function ReflectionConversationRow({
   }
 
   return (
-    <div className={`group flex items-start gap-1 rounded-xl pr-1 ${active ? "bg-[var(--sage)]" : "hover:bg-[var(--sage)]/70"}`}>
+    <div className={`group flex items-start gap-1 rounded-xl pr-1 ${active ? "bg-[var(--sage)]" : "hover:bg-[var(--row-hover)]"}`}>
       <Link href={href} onClick={onOpen} aria-current={active ? "page" : undefined} className="min-w-0 flex-1 px-3 py-2">
         <span className="block truncate text-sm font-bold text-[var(--ink)]">{conversation.title}</span>
         <span className="mt-0.5 block text-[11px] text-[var(--muted)]">{formatReflectionTime(conversation.updatedAt, locale)}</span>

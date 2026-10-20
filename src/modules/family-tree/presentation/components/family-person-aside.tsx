@@ -257,7 +257,7 @@ export function FamilyPersonAside({
       </div>
       )}
       {!readOnly && calendarPromptOpen && !reminderEnabled && !isMe && (
-        <div className="mt-4 min-w-0 overflow-hidden rounded-xl border border-[var(--line)] bg-[#fbfaf6] p-3">
+        <div className="mt-4 min-w-0 overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--surface-sunken)] p-3">
           <p className="text-sm font-bold text-[var(--ink)]">{t.connectTitle}</p>
           <p className="mt-1 text-xs leading-5 text-[var(--muted)]">{t.connectBody}</p>
           <a className="btn btn-primary mt-3 w-full !py-2 text-xs" href={calendarHref}>
@@ -267,10 +267,10 @@ export function FamilyPersonAside({
         </div>
       )}
       {!readOnly && setupOpen && !reminderEnabled && !isMe && (
-        <div className="mt-4 min-w-0 overflow-hidden rounded-xl border border-[var(--line)] bg-[#fbfaf6] p-3">
+        <div className="mt-4 min-w-0 overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--surface-sunken)] p-3">
           <p className="text-sm font-bold text-[var(--ink)]">{t.setupTitle}</p>
           <p className="mt-1 text-xs leading-5 text-[var(--muted)]">{t.setupBody}</p>
-          <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl bg-white p-2.5 text-[11px]">
+          <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl bg-[var(--surface-raised)] p-2.5 text-[11px]">
             {hasCalendar ? (
               <>
                 <CalendarPlus size={14} className="text-[var(--moss)]" />
@@ -293,7 +293,7 @@ export function FamilyPersonAside({
         </div>
       )}
       {error && !readOnly && <p className="field-error mt-3 text-xs">{error}</p>}
-      {message && !readOnly && <p className="mt-3 rounded-xl bg-[#edf5ec] p-2.5 text-xs text-[var(--moss-deep)]">{message}</p>}
+      {message && !readOnly && <p className="mt-3 rounded-xl bg-[var(--tint-moss-strong)] p-2.5 text-xs text-[var(--accent)]">{message}</p>}
     </aside>
   );
 }

@@ -92,7 +92,7 @@ export function FamilyPersonReminderEdit({
   const preview = offsets.slice(0, 2).map((offset) => offsetLabel(offset, locale, { includeTime: false })).join(" · ");
 
   return (
-    <div className="md:col-span-3 rounded-2xl border border-[var(--line)] bg-[#fbfaf6]">
+    <div className="md:col-span-3 rounded-2xl border border-[var(--line)] bg-[var(--surface-sunken)]">
       <input type="hidden" name="birthdayReminderField" value="1" />
       <input type="hidden" name="timeZone" value={timeZone} />
       <input type="hidden" name="birthdayReminderPresetId" value={defaultPreset?.id ?? person?.birthdayReminderPresetId ?? ""} />
@@ -128,7 +128,7 @@ export function FamilyPersonReminderEdit({
           )}
           {hasBirth && (
             <>
-              <div className="flex flex-wrap items-center gap-2 rounded-xl bg-white p-2.5 text-[11px]">
+              <div className="flex flex-wrap items-center gap-2 rounded-xl bg-[var(--surface-raised)] p-2.5 text-[11px]">
                 {calendar?.connected ? (
                   <>
                     <CalendarPlus size={14} className="text-[var(--moss)]" />
