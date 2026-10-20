@@ -94,7 +94,11 @@ export function normalizeAudioContentType(mimeType: string): AudioContentType {
   return "audio/webm";
 }
 
-export function base64ToBlobUrl(fileBase64: string, mimeType: string) {
+export function base64ToBlob(fileBase64: string, mimeType: string) {
   const bytes = Uint8Array.from(atob(fileBase64), (char) => char.charCodeAt(0));
-  return URL.createObjectURL(new Blob([bytes], { type: mimeType }));
+  return new Blob([bytes], { type: mimeType });
+}
+
+export function base64ToBlobUrl(fileBase64: string, mimeType: string) {
+  return URL.createObjectURL(base64ToBlob(fileBase64, mimeType));
 }

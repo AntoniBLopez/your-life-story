@@ -105,15 +105,15 @@ export function ExperienceDictationCard({
     const contentType = normalizeAudioContentType(mimeType);
 
     if (entryId) {
-      const { uploadAttachmentAction } = await import("@/modules/life-story/application/life-entry-actions");
-      const result = await uploadAttachmentAction({
+      const { uploadAttachment } = await import("@/modules/life-story/presentation/upload-attachment");
+      const result = await uploadAttachment({
         entryId,
+        file: blob,
         fileName,
         contentType,
-        size: blob.size,
-        fileBase64,
         fieldKey: "full",
         transcript,
+        locale,
       });
       if (!result.ok) reportError(result.error);
       else onVoiceSaved?.();

@@ -1,6 +1,6 @@
 import { MongoClient, type Db } from "mongodb";
 import { getMongoUri } from "../env";
-import { COLLECTIONS } from "./collections";
+import { COLLECTIONS, GRIDFS_BUCKET } from "./collections";
 
 const globalForMongo = globalThis as unknown as { mongoClient?: Promise<MongoClient> };
 
@@ -32,6 +32,8 @@ async function ensureIndexes(db: Db) {
     db.collection(COLLECTIONS.lifeEntries).createIndex({ userId: 1, startDate: 1, createdAt: 1 }),
     db.collection(COLLECTIONS.lifeEntryLinks).createIndex({ userId: 1, sourceEntryId: 1 }),
     db.collection(COLLECTIONS.entryAttachments).createIndex({ userId: 1, entryId: 1 }),
+    db.collection(COLLECTIONS.entryAttachmentUploads).createIndex({ userId: 1, createdAt: 1 }),
+    db.collection(`${GRIDFS_BUCKET}.chunks`).createIndex({ files_id: 1, n: 1 }, { unique: true }),
     db.collection(COLLECTIONS.familyPeople).createIndex({ userId: 1, fullName: 1 }),
     db.collection(COLLECTIONS.familyPeople).createIndex({ email: 1, canReadTimeline: 1 }),
     db.collection(COLLECTIONS.familyRelationships).createIndex({ userId: 1 }),
