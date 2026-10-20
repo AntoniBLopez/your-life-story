@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { Trash2 } from "lucide-react";
-import { base64ToBlobUrl, type PendingVoiceNote } from "@/modules/life-story/domain/voice-note";
+import { pendingVoiceNoteBlob, type PendingVoiceNote } from "@/modules/life-story/domain/voice-note";
 
 const FIELD_LABELS = {
   es: {
@@ -41,7 +41,7 @@ function useStableBlobUrls(notes: PendingVoiceNote[]) {
   for (const note of notes) {
     const key = pendingNoteKey(note);
     if (!urlsRef.current.has(key)) {
-      urlsRef.current.set(key, base64ToBlobUrl(note.fileBase64, note.contentType));
+      urlsRef.current.set(key, URL.createObjectURL(pendingVoiceNoteBlob(note)));
     }
   }
 

@@ -4,6 +4,8 @@ import {
   ATTACHMENT_GRIDFS_CHUNK_BYTES,
   ATTACHMENT_UPLOAD_PART_BYTES,
   MAX_ATTACHMENT_BYTES,
+  MAX_AUDIO_ATTACHMENT_BYTES,
+  maxAttachmentBytes,
   countGridFsChunks,
   countUploadParts,
   expectedPartBytes,
@@ -56,5 +58,14 @@ describe("attachment upload parts", () => {
       offset += chunk.data.byteLength;
     }
     expect(joined).toEqual(part);
+  });
+});
+
+describe("per-type size limits", () => {
+  it("allows 150 MB for audio (5 h at 64 kbps) and keeps 15 MB for other files", () => {
+    expect(maxAttachmentBytes("audio/webm")).toBe(MAX_AUDIO_ATTACHMENT_BYTES);
+    expect(maxAttachmentBytes("image/png")).toBe(MAX_ATTACHMENT_BYTES);
+    expect(MAX_AUDIO_ATTACHMENT_BYTES).toBeGreaterThan((64_000 / 8) * 5 * 3600);
+    expect(countUploadParts(MAX_AUDIO_ATTACHMENT_BYTES)).toBeLessThan(100);
   });
 });

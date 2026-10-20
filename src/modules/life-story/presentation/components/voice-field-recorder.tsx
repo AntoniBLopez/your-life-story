@@ -1,17 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { LoaderCircle, Mic, Square } from "lucide-react";
 import {
   appendTranscript,
-  blobToBase64,
-  mimeTypeToExtension,
   normalizeAudioContentType,
-  pickRecordingMimeType,
   type PendingVoiceNote,
   type VoiceFieldKey,
+  voiceNoteFileName,
 } from "@/modules/life-story/domain/voice-note";
-import { uploadAttachment } from "@/modules/life-story/presentation/upload-attachment";
+import { formatRecordingTime, useLongRecorder, type FinishedRecording } from "@/modules/life-story/presentation/use-long-recorder";
+import { processVoiceCapture, voiceStageLabel, type VoiceStage } from "@/modules/life-story/presentation/voice-pipeline";
 
 type Props = {
   locale: "es" | "en";
@@ -28,6 +27,13 @@ type Props = {
   compact?: boolean;
 };
 
+function shortStageLabel(stage: VoiceStage | null, locale: "es" | "en") {
+  if (!stage) return locale === "es" ? "Guardando tu voz…" : "Saving your voice…";
+  if (stage.kind === "saving") return `${locale === "es" ? "Guardando" : "Saving"} ${Math.round(stage.fraction * 100)} %`;
+  if (stage.kind === "waiting") return locale === "es" ? "En pausa…" : "Paused…";
+  return stage.total > 1 ? `${locale === "es" ? "Transcribiendo" : "Transcribing"} ${Math.min(stage.done + 1, stage.total)}/${stage.total}` : (locale === "es" ? "Transcribiendo…" : "Transcribing…");
+}
+
 export function VoiceFieldRecorder({
   locale,
   fieldKey,
@@ -42,160 +48,82 @@ export function VoiceFieldRecorder({
   saveVoiceRecordings = true,
   compact,
 }: Props) {
-  const [recording, setRecording] = useState(false);
   const [processing, setProcessing] = useState(false);
-  const [seconds, setSeconds] = useState(0);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const timerRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
+  const [stage, setStage] = useState<VoiceStage | null>(null);
 
   const t = locale === "es"
     ? {
         record: compact ? "Dictar" : "Hablar",
         stop: "Parar",
-        processing: "Guardando tu voz…",
         consent: "Activa el consentimiento de IA para dictar.",
         micError: "No se pudo acceder al micrófono.",
-        transcribeError: "No se pudo transcribir el audio.",
-        savedWithoutTranscript: "Audio guardado. No se pudo transcribir, pero tu voz quedó en la experiencia.",
         uploadError: "No se pudo guardar el audio.",
       }
     : {
         record: compact ? "Dictate" : "Speak",
         stop: "Stop",
-        processing: "Saving your voice…",
         consent: "Enable AI consent to dictate.",
         micError: "Could not access the microphone.",
-        transcribeError: "Could not transcribe the audio.",
-        savedWithoutTranscript: "Audio saved. Transcription failed, but your voice was kept in the experience.",
         uploadError: "Could not save the audio.",
       };
 
-  useEffect(() => () => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    streamRef.current?.getTracks().forEach((track) => track.stop());
-  }, []);
-
-  async function saveVoiceNote(blob: Blob, mimeType: string, fileBase64: string, transcript: string) {
-    const contentType = normalizeAudioContentType(mimeType);
-    const fileName = `${fieldKey}-${Date.now()}.${mimeTypeToExtension(contentType)}`;
-
-    if (entryId) {
-      const result = await uploadAttachment({
+  async function handleRecordingStop({ blob, mimeType, backupId }: FinishedRecording) {
+    setProcessing(true);
+    setStage(null);
+    try {
+      const contentType = normalizeAudioContentType(mimeType);
+      const result = await processVoiceCapture({
         entryId,
-        file: blob,
-        fileName,
+        blob,
+        fileName: voiceNoteFileName(fieldKey, contentType),
         contentType,
         fieldKey,
-        transcript,
         locale,
+        saveVoiceRecordings,
+        backupId,
+        onStage: setStage,
+        onPendingVoiceNote,
       });
-      if (!result.ok) {
-        onError?.(result.error ?? t.uploadError);
-        return false;
-      }
-      onVoiceSaved?.();
-      return true;
-    }
-
-    onPendingVoiceNote?.({
-      fieldKey,
-      fileName,
-      contentType,
-      size: blob.size,
-      fileBase64,
-      transcript,
-    });
-    return true;
-  }
-
-  async function handleRecordingStop(blob: Blob, mimeType: string) {
-    setProcessing(true);
-    try {
-      const fileBase64 = await blobToBase64(blob);
-      const contentType = normalizeAudioContentType(mimeType);
-      const fileName = `${fieldKey}-${Date.now()}.${mimeTypeToExtension(contentType)}`;
-
-      let transcript = "";
-      try {
-        const response = await fetch("/api/ai/transcribe", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ audioBase64: fileBase64, fileName, mimeType: contentType, locale }),
-        });
-        const data = await response.json().catch(() => ({})) as { transcript?: string; error?: string };
-        if (response.ok) {
-          transcript = data.transcript?.trim() ?? "";
-          if (transcript) onTranscript(transcript);
-          else onWarning?.(t.savedWithoutTranscript);
-        } else {
-          onWarning?.(data.error ?? t.savedWithoutTranscript);
-        }
-      } catch {
-        onWarning?.(t.savedWithoutTranscript);
-      }
-
-      if (saveVoiceRecordings) {
-        await saveVoiceNote(blob, mimeType, fileBase64, transcript);
-      }
+      if (result.transcript) onTranscript(result.transcript);
+      if (result.error) onError?.(result.error);
+      else if (result.warning) onWarning?.(result.warning);
+      if (result.saved === "uploaded") onVoiceSaved?.();
     } catch {
       onError?.(t.uploadError);
     } finally {
       setProcessing(false);
-      setSeconds(0);
+      setStage(null);
     }
   }
+
+  const recorder = useLongRecorder({ scope: entryId ?? "new", fieldKey, onFinished: (recording) => void handleRecordingStop(recording) });
 
   async function startRecording() {
     if (!aiConsented) {
       onError?.(t.consent);
       return;
     }
-    setProcessing(false);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
-      const mimeType = pickRecordingMimeType();
-      const recorder = new MediaRecorder(stream, { mimeType });
-      chunksRef.current = [];
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) chunksRef.current.push(event.data);
-      };
-      recorder.onstop = () => {
-        stream.getTracks().forEach((track) => track.stop());
-        streamRef.current = null;
-        const blob = new Blob(chunksRef.current, { type: mimeType });
-        void handleRecordingStop(blob, mimeType);
-      };
-      recorder.start();
-      mediaRecorderRef.current = recorder;
-      setRecording(true);
-      setSeconds(0);
-      timerRef.current = setInterval(() => setSeconds((value) => value + 1), 1000);
+      await recorder.start();
     } catch {
       onError?.(t.micError);
     }
   }
 
-  function stopRecording() {
-    if (timerRef.current) clearInterval(timerRef.current);
-    mediaRecorderRef.current?.stop();
-    mediaRecorderRef.current = null;
-    setRecording(false);
-  }
-
-  const label = processing ? t.processing : recording ? `${t.stop} (${seconds}s)` : t.record;
+  const label = processing
+    ? shortStageLabel(stage, locale)
+    : recorder.recording ? `${t.stop} (${formatRecordingTime(recorder.seconds)})` : t.record;
 
   return (
     <button
       type="button"
       className={`btn btn-secondary shrink-0 text-xs ${compact ? "!px-2.5 !py-1" : "!px-3 !py-2"}`}
       disabled={disabled || processing}
-      onClick={() => (recording ? stopRecording() : void startRecording())}
-      aria-pressed={recording}
+      onClick={() => (recorder.recording ? recorder.stop() : void startRecording())}
+      aria-pressed={recorder.recording}
+      title={processing ? voiceStageLabel(stage, locale) ?? undefined : undefined}
     >
-      {processing ? <LoaderCircle className="animate-spin" size={14} /> : recording ? <Square size={14} /> : <Mic size={14} />}
+      {processing ? <LoaderCircle className="animate-spin" size={14} /> : recorder.recording ? <Square size={14} /> : <Mic size={14} />}
       {label}
     </button>
   );
