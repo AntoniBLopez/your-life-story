@@ -7,28 +7,10 @@ import type { ActionResult } from "@/shared/types/action";
 import { assertValidStoryDates } from "../domain/life-entry";
 import { MongoLifeEntryRepository } from "../infrastructure/mongo-life-entry-repository";
 import { lifeEntryInputSchema } from "./life-entry-schema";
-import { storeAttachment, deleteAttachmentById } from "@/shared/lib/mongodb/attachments";
-import { ObjectId } from "mongodb";
-import {
-  ATTACHMENT_CONTENT_TYPES,
-  isAudioContentType,
-  resolveAttachmentContentType,
-  type AttachmentContentType,
-} from "../domain/attachment-content-type";
-import { VOICE_FIELD_KEYS } from "../domain/voice-note";
+import { deleteAttachmentById } from "@/shared/lib/mongodb/attachments";
+import { mongoIdSchema } from "./attachment-upload-schema";
 
 const repository = new MongoLifeEntryRepository();
-
-const mongoIdSchema = z.string().refine((value) => ObjectId.isValid(value), "Invalid entry id.");
-
-const attachmentSchema = z.object({
-  entryId: mongoIdSchema,
-  fileName: z.string().min(1).max(160),
-  contentType: z.enum(ATTACHMENT_CONTENT_TYPES),
-  size: z.number().int().positive().max(15 * 1024 * 1024),
-  fieldKey: z.enum(VOICE_FIELD_KEYS).optional(),
-  transcript: z.string().max(8000).optional(),
-});
 
 function parseJsonField(value: FormDataEntryValue | null) {
   if (typeof value !== "string" || !value.trim()) return undefined;
@@ -103,42 +85,6 @@ export async function deleteLifeEntryAction(entryId: string, locale: string): Pr
     return { ok: true, data: undefined };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "No se pudo borrar la experiencia." };
-  }
-}
-
-export async function uploadAttachmentAction(request: z.input<typeof attachmentSchema> & { fileBase64: string }): Promise<ActionResult<{ id: string }>> {
-  const contentType = resolveAttachmentContentType(request.fileName, request.contentType);
-  if (!contentType) {
-    return { ok: false, error: "El archivo no cumple los requisitos: imágenes, PDF o audio, hasta 15 MB." };
-  }
-
-  const parsed = attachmentSchema.extend({ fileBase64: z.string().min(1) }).safeParse({
-    ...request,
-    contentType,
-  });
-  const isAudio = parsed.success && isAudioContentType(parsed.data.contentType);
-  if (!parsed.success) {
-    return { ok: false, error: "El archivo no cumple los requisitos: imágenes, PDF o audio, hasta 15 MB." };
-  }
-  try {
-    const user = await requireCurrentUser();
-    const entry = await repository.findById(user.id, parsed.data.entryId);
-    if (!entry) return { ok: false, error: "No tienes acceso a esta experiencia." };
-    const buffer = Buffer.from(parsed.data.fileBase64, "base64");
-    if (buffer.byteLength !== parsed.data.size) return { ok: false, error: "El archivo no coincide con el tamaño indicado." };
-    const attachment = await storeAttachment({
-      userId: user.id,
-      entryId: parsed.data.entryId,
-      fileName: parsed.data.fileName,
-      mimeType: parsed.data.contentType,
-      sizeBytes: parsed.data.size,
-      buffer,
-      fieldKey: parsed.data.fieldKey ?? null,
-      transcript: isAudio ? parsed.data.transcript ?? null : null,
-    });
-    return { ok: true, data: { id: attachment.id } };
-  } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : "No se pudo guardar el adjunto." };
   }
 }
 

@@ -11,7 +11,7 @@ import {
   type PendingVoiceNote,
   type VoiceFieldKey,
 } from "@/modules/life-story/domain/voice-note";
-import { uploadAttachmentAction } from "@/modules/life-story/application/life-entry-actions";
+import { uploadAttachment } from "@/modules/life-story/presentation/upload-attachment";
 
 type Props = {
   locale: "es" | "en";
@@ -82,14 +82,14 @@ export function VoiceFieldRecorder({
     const fileName = `${fieldKey}-${Date.now()}.${mimeTypeToExtension(contentType)}`;
 
     if (entryId) {
-      const result = await uploadAttachmentAction({
+      const result = await uploadAttachment({
         entryId,
+        file: blob,
         fileName,
         contentType,
-        size: blob.size,
-        fileBase64,
         fieldKey,
         transcript,
+        locale,
       });
       if (!result.ok) {
         onError?.(result.error ?? t.uploadError);

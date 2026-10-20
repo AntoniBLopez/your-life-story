@@ -28,11 +28,11 @@ import {
 import {
   createLifeEntryAction,
   updateLifeEntryAction,
-  uploadAttachmentAction,
 } from "@/modules/life-story/application/life-entry-actions";
+import { uploadAttachment } from "@/modules/life-story/presentation/upload-attachment";
 import { defaultNewEntryStartDate, localDateKey, resolveDictationDates, type EntryDictationOutput } from "@/modules/life-story/domain/entry-dictation-prompt";
 import { reflectionTitleToApply, type EntryReflectionOutput } from "@/modules/life-story/domain/entry-reflection-prompt";
-import { AUDIO_CONTENT_TYPES, type PendingVoiceNote, type VoiceFieldKey } from "@/modules/life-story/domain/voice-note";
+import { AUDIO_CONTENT_TYPES, base64ToBlob, type PendingVoiceNote, type VoiceFieldKey } from "@/modules/life-story/domain/voice-note";
 import { resolveAttachmentContentType } from "@/modules/life-story/domain/attachment-content-type";
 import type { AttachmentRecord } from "@/shared/lib/mongodb/attachments";
 import { ExperienceDictationCard, type FullDictationMode } from "@/modules/life-story/presentation/components/experience-dictation-card";
@@ -108,18 +108,6 @@ function hasFieldError(fieldErrors: Record<string, string[]> | undefined, field:
 
 function fieldControlClass(fieldErrors: Record<string, string[]> | undefined, field: string, base = "input") {
   return hasFieldError(fieldErrors, field) ? `${base} !border-[var(--danger)] !shadow-[0_0_0_3px_#a6424218]` : base;
-}
-
-function fileToBase64(file: File) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = String(reader.result ?? "");
-      resolve(result.split(",")[1] ?? "");
-    };
-    reader.onerror = () => reject(reader.error ?? new Error("Could not read the file."));
-    reader.readAsDataURL(file);
-  });
 }
 
 function FieldLabelWithVoice({
@@ -344,6 +332,7 @@ export function LifeEntryForm({
         generateAiConfirm: "Sí, generar",
         uploadInvalidType: (name: string) => `No se pudo adjuntar «${name}»: formato no compatible.`,
         uploading: "Subiendo archivos…",
+        uploadFailed: "No se pudo subir el archivo. Inténtalo de nuevo.",
         reviewFields: "Revisa los campos marcados.",
         discard: "Cancelar cambios",
         discardTitle: "¿Descartar los cambios?",
@@ -396,6 +385,7 @@ export function LifeEntryForm({
         generateAiConfirm: "Yes, generate",
         uploadInvalidType: (name: string) => `Could not attach «${name}»: unsupported format.`,
         uploading: "Uploading files…",
+        uploadFailed: "Could not upload the file. Please try again.",
         reviewFields: "Review the marked fields.",
         discard: "Cancel changes",
         discardTitle: "Discard changes?",
@@ -741,14 +731,14 @@ export function LifeEntryForm({
       const entryId = result.data?.id ?? entry?.id;
       if (entryId && pendingVoiceNotes.length > 0) {
         for (const note of pendingVoiceNotes) {
-          const uploadResult = await uploadAttachmentAction({
+          const uploadResult = await uploadAttachment({
             entryId,
+            file: base64ToBlob(note.fileBase64, note.contentType),
             fileName: note.fileName,
             contentType: note.contentType,
-            size: note.size,
-            fileBase64: note.fileBase64,
             fieldKey: note.fieldKey,
             transcript: note.transcript,
+            locale,
           });
           if (!uploadResult.ok) {
             setError(uploadResult.error);
@@ -779,12 +769,12 @@ export function LifeEntryForm({
             setUploadError(t.uploadInvalidType(file.name));
             return;
           }
-          const result = await uploadAttachmentAction({
+          const result = await uploadAttachment({
             entryId: entry.id,
+            file,
             fileName: file.name,
             contentType,
-            size: file.size,
-            fileBase64: await fileToBase64(file),
+            locale,
           });
           if (!result.ok) {
             setUploadError(result.error);
@@ -794,8 +784,8 @@ export function LifeEntryForm({
         }
         setUploadMessage(saved === 1 ? t.uploaded : t.uploadedMany(saved));
         router.refresh();
-      } catch (caught) {
-        setUploadError(caught instanceof Error ? caught.message : t.attachmentsBody);
+      } catch {
+        setUploadError(t.uploadFailed);
       } finally {
         setUploading(false);
       }

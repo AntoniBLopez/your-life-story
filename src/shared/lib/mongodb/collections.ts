@@ -5,6 +5,7 @@ export const COLLECTIONS = {
   lifeEntries: "life_entries",
   lifeEntryLinks: "life_entry_links",
   entryAttachments: "entry_attachments",
+  entryAttachmentUploads: "entry_attachment_uploads",
   familyPeople: "family_people",
   familyRelationships: "family_relationships",
   chatThreads: "chat_threads",

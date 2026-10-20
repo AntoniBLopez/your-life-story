@@ -47,10 +47,6 @@ function mapAttachment(record: AttachmentDbRecord): AttachmentRecord {
   };
 }
 
-function getBucket() {
-  return new GridFSBucket(getDb() as unknown as import("mongodb").Db, { bucketName: GRIDFS_BUCKET });
-}
-
 export async function listAttachmentsForEntry(userId: string, entryId: string) {
   const db = await getDb();
   const rows = await db.collection<AttachmentDbRecord>(COLLECTIONS.entryAttachments).find({ userId, entryId }).toArray();
@@ -103,8 +99,7 @@ export async function storeAttachment(input: {
 }) {
   const db = await getDb();
   const bucket = new GridFSBucket(db, { bucketName: GRIDFS_BUCKET });
-  const safeName = input.fileName.replace(/[^a-zA-Z0-9._-]/g, "-").toLowerCase();
-  const storagePath = `${input.userId}/${input.entryId}/${crypto.randomUUID()}-${safeName}`;
+  const storagePath = `${input.userId}/${input.entryId}/${crypto.randomUUID()}-${safeStorageName(input.fileName)}`;
 
   const gridFsId = await new Promise<string>((resolve, reject) => {
     const stream = bucket.openUploadStream(storagePath, {
@@ -115,11 +110,41 @@ export async function storeAttachment(input: {
     stream.end(input.buffer);
   });
 
-  const record = {
+  return recordStoredAttachment({
     userId: input.userId,
     entryId: input.entryId,
     storagePath,
     gridFsId: gridFsId.toString(),
+    fileName: input.fileName,
+    mimeType: input.mimeType,
+    sizeBytes: input.sizeBytes,
+    fieldKey: input.fieldKey,
+    transcript: input.transcript,
+  });
+}
+
+export function safeStorageName(fileName: string) {
+  return fileName.replace(/[^a-zA-Z0-9._-]/g, "-").toLowerCase();
+}
+
+/** Inserts the attachment record for a file that is already stored in GridFS. */
+export async function recordStoredAttachment(input: {
+  userId: string;
+  entryId: string;
+  storagePath: string;
+  gridFsId: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  fieldKey?: string | null;
+  transcript?: string | null;
+}) {
+  const db = await getDb();
+  const record = {
+    userId: input.userId,
+    entryId: input.entryId,
+    storagePath: input.storagePath,
+    gridFsId: input.gridFsId,
     fileName: input.fileName,
     mimeType: input.mimeType,
     sizeBytes: input.sizeBytes,
@@ -161,8 +186,18 @@ export async function findAttachmentById(attachmentId: string) {
   return record ? mapAttachment(record) : null;
 }
 
-export async function openAttachmentStream(gridFsId: string) {
+export async function openAttachmentStream(gridFsId: string, range?: { start: number; end: number }) {
   const db = await getDb();
   const bucket = new GridFSBucket(db, { bucketName: GRIDFS_BUCKET });
-  return bucket.openDownloadStream(new ObjectId(gridFsId));
+  // GridFS `end` is exclusive; HTTP ranges are inclusive.
+  return bucket.openDownloadStream(new ObjectId(gridFsId), range ? { start: range.start, end: range.end + 1 } : undefined);
+}
+
+/** Size in bytes of a stored GridFS file, or null when it is missing. */
+export async function getAttachmentFileLength(gridFsId: string) {
+  const db = await getDb();
+  const file = await db
+    .collection<{ _id: MongoObjectId; length: number }>(`${GRIDFS_BUCKET}.files`)
+    .findOne({ _id: new ObjectId(gridFsId) }, { projection: { length: 1 } });
+  return file ? file.length : null;
 }
