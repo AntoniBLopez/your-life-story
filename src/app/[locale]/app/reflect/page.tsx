@@ -1,9 +1,7 @@
-import { ReflectionChat } from "@/modules/reflection/presentation/components/reflection-chat";
-import { getReflectionState } from "@/modules/reflection/application/reflection-service";
-import { requirePageUser } from "@/shared/lib/auth";
+import { ReflectionThread } from "@/modules/reflection/presentation/components/reflection-thread";
+import { parseAppLocale } from "@/i18n/routing";
 
-export default async function ReflectPage({ params }: { params: Promise<{ locale: "es" | "en" }> }) {
-  const { locale } = await params; const user = await requirePageUser(locale);
-  const reflection = await getReflectionState(user.id);
-  return <ReflectionChat locale={locale} consented={reflection.consented} initialMessages={reflection.messages} />;
+export default async function ReflectPage({ params }: { params: Promise<{ locale: string }> }) {
+  const locale = parseAppLocale((await params).locale);
+  return <ReflectionThread locale={locale} chatId={null} initialMessages={[]} />;
 }
