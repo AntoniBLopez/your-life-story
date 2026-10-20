@@ -38,6 +38,7 @@ async function ensureIndexes(db: Db) {
     db.collection(COLLECTIONS.familyPeople).createIndex({ email: 1, canReadTimeline: 1 }),
     db.collection(COLLECTIONS.familyRelationships).createIndex({ userId: 1 }),
     db.collection(COLLECTIONS.chatMessages).createIndex({ userId: 1, threadId: 1, createdAt: 1 }),
+    db.collection(COLLECTIONS.chatThreads).createIndex({ userId: 1, updatedAt: -1 }),
     db.collection(COLLECTIONS.profiles).createIndex({ userId: 1 }, { unique: true }),
     db.collection(COLLECTIONS.profiles).createIndex({ archiveSlug: 1 }, { unique: true, sparse: true }),
     db.collection(COLLECTIONS.profiles).createIndex({ publishedAt: 1 }),

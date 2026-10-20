@@ -95,26 +95,30 @@ function StorySkeleton() {
 
 function ReflectSkeleton() {
   return (
-    <div className="fade-in mx-auto max-w-4xl">
+    <div className="fade-in">
       <PageHeaderSkeleton introLines={2} />
-      <div className="card mt-8 overflow-hidden">
-        <div className="space-y-4 bg-[var(--surface-inset)] p-5 sm:p-7">
-          <div className="flex justify-start">
-            <Block className="h-16 w-4/5 max-w-md rounded-2xl" />
-          </div>
-          <div className="flex justify-end">
-            <Block className="h-12 w-2/5 max-w-xs rounded-2xl" />
-          </div>
-          <div className="flex justify-start">
-            <Block className="h-20 w-3/5 max-w-lg rounded-2xl" />
-          </div>
+      <div className="card mt-6 flex min-h-96 overflow-hidden">
+        <div className="hidden w-72 shrink-0 border-r border-[var(--line)] p-3 md:block">
+          <Block className="h-11 w-full rounded-full" />
+          <Block className="mt-3 h-12 w-full" />
+          <Block className="mt-2 h-12 w-full" />
+          <Block className="mt-2 h-12 w-full" />
         </div>
-        <div className="border-t border-[var(--line)] p-4">
-          <div className="flex gap-3">
-            <Block className="h-12 flex-1" />
-            <Block className="h-12 w-24 shrink-0 rounded-full" />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <div className="space-y-4 bg-[var(--cream)] p-5 sm:p-7">
+            <div className="flex justify-start">
+              <Block className="h-16 w-4/5 max-w-md rounded-2xl" />
+            </div>
+            <div className="flex justify-end">
+              <Block className="h-12 w-2/5 max-w-xs rounded-2xl" />
+            </div>
           </div>
-          <Block className="mt-2 h-3 w-4/5 max-w-md" />
+          <div className="mt-auto border-t border-[var(--line)] p-4">
+            <div className="flex gap-3">
+              <Block className="h-12 flex-1" />
+              <Block className="h-12 w-24 shrink-0 rounded-full" />
+            </div>
+          </div>
         </div>
       </div>
     </div>

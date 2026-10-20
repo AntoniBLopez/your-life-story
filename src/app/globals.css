@@ -27,6 +27,7 @@
   --footer: #fffdf9b8;
   --band: #fffdf9bd;
   --glow: #f3dfc9;
+  --row-hover: #e6eee2;
   --surface-raised: #ffffff;
   --surface-sunken: #fbfaf6;
   --surface-inset: #fcfdf9;
@@ -154,6 +155,7 @@
   --footer: #161d1acc;
   --band: #1a221ee8;
   --glow: #3d2e26;
+  --row-hover: #27382f;
   --surface-raised: #26312c;
   --surface-sunken: #171e1b;
   --surface-inset: #202824;
@@ -412,6 +414,10 @@ a { color: inherit; text-decoration: none; }
 .react-flow__minimap .react-flow__minimap-svg { cursor: pointer; }
 .react-flow__minimap svg { display: block; border-radius: .9rem; }
 .react-flow__minimap-mask { fill: var(--minimap-mask); stroke: var(--minimap-stroke); }
+
+.reflect-drawer { box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1); }
+.reflect-drawer-scrim { background: var(--overlay); }
+[data-theme="dark"] .reflect-drawer { box-shadow: 0 18px 40px #00000099; }
 
 .theme-menu { position: relative; }
 .theme-toggle-icon { display: grid; }
