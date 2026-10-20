@@ -7,7 +7,6 @@ import { Background, Controls, MiniMap, ReactFlow, ReactFlowProvider, useReactFl
 import { buildLifeEntryGraph } from "@/modules/life-story/domain/life-entry-graph";
 import { entryToneEdge, momentFlagLabel, type LifeEntry, type LifeEntryLink } from "@/modules/life-story/domain/life-entry";
 import { formatStoryDate, titleCase } from "@/shared/lib/utils";
-import { flowCanvasColors, useThemeColors } from "@/shared/presentation/theme/use-theme-colors";
 
 function LifeEntryNode({ data }: NodeProps) {
   const nodeData = data as { label: ReactNode };
@@ -43,7 +42,6 @@ function StoryLifeTreeInner({
   readOnly?: boolean;
 }) {
   const graph = useMemo(() => buildLifeEntryGraph(entries, links), [entries, links]);
-  const colors = useThemeColors(flowCanvasColors);
 
   const nodes: Node[] = graph.nodes.map((node) => ({
     id: node.id,
@@ -129,19 +127,19 @@ function StoryLifeTreeInner({
           proOptions={{ hideAttribution: true }}
         >
           <LifeTreeViewport nodeCount={nodes.length} />
-          <Background gap={18} size={1} color={colors.dot} />
+          <Background gap={18} size={1} color="var(--flow-dot)" />
           <Controls />
           <MiniMap
             zoomable
             pannable
-            nodeColor={colors.minimapNode}
-            nodeStrokeColor={colors.minimapNodeStroke}
+            nodeColor="var(--minimap-node)"
+            nodeStrokeColor="var(--minimap-node-stroke)"
             nodeBorderRadius={8}
             nodeStrokeWidth={1.5}
-            maskColor={colors.minimapMask}
-            maskStrokeColor={colors.minimapStroke}
+            maskColor="var(--minimap-mask)"
+            maskStrokeColor="var(--minimap-stroke)"
             maskStrokeWidth={1.25}
-            bgColor={colors.minimapBg}
+            bgColor="var(--minimap-bg)"
           />
         </ReactFlow>
       </div>

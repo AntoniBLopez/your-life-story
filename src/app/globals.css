@@ -159,7 +159,7 @@
   --surface-inset: #202824;
   --surface-wash: #1a2822;
   --surface-warm: #2a221c;
-  --surface-audio: #222c27;
+  --surface-audio: #2a3530;
   --surface-veil: #26312cb3;
   --tint-amber: #3a3220;
   --line-amber: #8a7348;
@@ -424,11 +424,18 @@ html:not([data-theme-preference]) .theme-icon-system { display: block; }
 .theme-menu-panel { position: absolute; right: 0; top: calc(100% + .4rem); z-index: 40; min-width: 11.5rem; padding: .4rem; border: 1px solid var(--line); border-radius: 1rem; background: var(--paper); box-shadow: 0 16px 40px var(--shadow); }
 .theme-menu-label { padding: .35rem .65rem .2rem; color: var(--muted); font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 .theme-menu-item { display: flex; width: 100%; align-items: center; gap: .55rem; border: 0; border-radius: .7rem; background: transparent; color: var(--ink); padding: .55rem .65rem; font-size: .88rem; font-weight: 700; cursor: pointer; text-align: left; }
-.theme-menu-item:hover, .theme-menu-item.is-selected { background: var(--tint-moss); color: var(--accent); }
+.theme-menu-item:hover,
+html[data-theme-preference="light"] .theme-menu-item[data-theme-option="light"],
+html[data-theme-preference="dark"] .theme-menu-item[data-theme-option="dark"],
+html[data-theme-preference="system"] .theme-menu-item[data-theme-option="system"],
+html:not([data-theme-preference]) .theme-menu-item[data-theme-option="system"] { background: var(--tint-moss); color: var(--accent); }
 .theme-inline-track { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .25rem; border-radius: .9rem; background: var(--tint-sage); padding: .25rem; }
 .theme-inline-option { display: inline-flex; align-items: center; justify-content: center; gap: .4rem; min-width: 0; border: 0; border-radius: .7rem; background: transparent; color: var(--muted); padding: .55rem .4rem; font-size: .82rem; font-weight: 750; cursor: pointer; }
 .theme-inline-option:hover { color: var(--accent); }
-.theme-inline-option.is-selected { background: var(--segment-active); color: var(--accent); box-shadow: 0 1px 2px var(--shadow-soft); }
+html[data-theme-preference="light"] .theme-inline-option[data-theme-option="light"],
+html[data-theme-preference="dark"] .theme-inline-option[data-theme-option="dark"],
+html[data-theme-preference="system"] .theme-inline-option[data-theme-option="system"],
+html:not([data-theme-preference]) .theme-inline-option[data-theme-option="system"] { background: var(--segment-active); color: var(--accent); box-shadow: 0 1px 2px var(--shadow-soft); }
 
 [data-theme="dark"] .app-shell {
   background:

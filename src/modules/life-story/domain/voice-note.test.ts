@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { appendTranscript, audioContentTypeForTranscription, mimeTypeToExtension, normalizeAudioContentType } from "./voice-note";
+import { appendTranscript, appendTranscriptWithin, audioContentTypeForTranscription, mimeTypeToExtension, normalizeAudioContentType } from "./voice-note";
 
 describe("appendTranscript", () => {
   it("appends with paragraph break when text already exists", () => {
@@ -32,5 +32,24 @@ describe("mimeTypeToExtension", () => {
   it("maps common mime types", () => {
     expect(mimeTypeToExtension("audio/webm")).toBe("webm");
     expect(mimeTypeToExtension("audio/mp4")).toBe("m4a");
+  });
+});
+
+describe("appendTranscriptWithin", () => {
+  it("appends normally when it fits", () => {
+    expect(appendTranscriptWithin("Antes", "Después", 100)).toEqual({ value: "Antes\n\nDespués", truncated: false });
+  });
+
+  it("cuts long transcripts at a sentence boundary within the limit", () => {
+    const sentence = "Esta es una frase de prueba. ";
+    const result = appendTranscriptWithin("Inicio", sentence.repeat(200), 1000);
+    expect(result.truncated).toBe(true);
+    expect(result.value.length).toBeLessThanOrEqual(1000);
+    expect(result.value.startsWith("Inicio\n\nEsta es")).toBe(true);
+    expect(result.value.endsWith(".…")).toBe(true);
+  });
+
+  it("leaves the field untouched when there is no room", () => {
+    expect(appendTranscriptWithin("x".repeat(100), "más", 100)).toEqual({ value: "x".repeat(100), truncated: true });
   });
 });

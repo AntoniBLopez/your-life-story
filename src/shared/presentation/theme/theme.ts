@@ -1,4 +1,5 @@
 export const THEME_STORAGE_KEY = "yls-theme";
+export const THEME_CHANGE_EVENT = "yls-theme-change";
 
 export type ThemePreference = "light" | "dark" | "system";
 export type ResolvedTheme = "light" | "dark";
@@ -37,6 +38,23 @@ export function applyThemePreference(preference: ThemePreference) {
   } catch {
     /* private mode */
   }
+  window.dispatchEvent(new Event(THEME_CHANGE_EVENT));
+}
+
+export function getServerThemePreference(): ThemePreference {
+  return "system";
+}
+
+export function subscribeThemePreference(onStoreChange: () => void) {
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === THEME_STORAGE_KEY || event.key === null) onStoreChange();
+  };
+  window.addEventListener(THEME_CHANGE_EVENT, onStoreChange);
+  window.addEventListener("storage", onStorage);
+  return () => {
+    window.removeEventListener(THEME_CHANGE_EVENT, onStoreChange);
+    window.removeEventListener("storage", onStorage);
+  };
 }
 
 export const themeInitScript = `(function(){try{var k=${JSON.stringify(THEME_STORAGE_KEY)};var s=localStorage.getItem(k);var p=s==="light"||s==="dark"||s==="system"?s:"system";var d=window.matchMedia("(prefers-color-scheme: dark)").matches;var t=p==="dark"||(p==="system"&&d)?"dark":"light";var r=document.documentElement;r.setAttribute("data-theme",t);r.setAttribute("data-theme-preference",p);r.style.colorScheme=t;r.style.backgroundColor=t==="dark"?"#141a17":"#faf7f0";}catch(e){}})();`;

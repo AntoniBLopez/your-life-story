@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { ATTACHMENT_UPLOAD_PART_BYTES, MAX_ATTACHMENT_BYTES } from "@/modules/life-story/domain/attachment-upload";
+import { ATTACHMENT_UPLOAD_PART_BYTES, MAX_ATTACHMENT_BYTES, MAX_AUDIO_ATTACHMENT_BYTES } from "@/modules/life-story/domain/attachment-upload";
 import { uploadAttachment } from "./upload-attachment";
 
 const ENTRY_ID = "64b7f0c2a1b2c3d4e5f60718";
@@ -87,5 +87,29 @@ describe("uploadAttachment", () => {
 
     const tooLarge = await uploadAttachment({ entryId: ENTRY_ID, file: blobOf(10), fileName: "a.png", contentType: "image/png", locale: "es", fetchImpl: fakeServer({ partStatus: 413 }).fetchImpl });
     expect(tooLarge.ok).toBe(false);
+  });
+});
+
+describe("uploadAttachment audio limit", () => {
+  it("accepts long audio above 15 MB (up to 150 MB) in parts", async () => {
+    const server = fakeServer();
+    const result = await uploadAttachment({ entryId: ENTRY_ID, file: blobOf(40 * 1024 * 1024, "audio/webm"), fileName: "voz.webm", contentType: "audio/webm", locale: "es", fetchImpl: server.fetchImpl });
+    expect(result.ok).toBe(true);
+    expect(Math.max(...server.parts)).toBeLessThanOrEqual(ATTACHMENT_UPLOAD_PART_BYTES);
+  });
+
+  it("rejects audio over 150 MB in Spanish", async () => {
+    const server = fakeServer();
+    const result = await uploadAttachment({ entryId: ENTRY_ID, file: blobOf(MAX_AUDIO_ATTACHMENT_BYTES + 1, "audio/mpeg"), fileName: "larga.mp3", contentType: "audio/mpeg", locale: "es", fetchImpl: server.fetchImpl });
+    expect(result.ok).toBe(false);
+    expect(!result.ok && result.error).toMatch(/^«larga\.mp3» pesa 150 MB y el máximo es 150 MB/);
+    expect(server.calls).toHaveLength(0);
+  });
+
+  it("reports upload progress", async () => {
+    const progress: number[] = [];
+    await uploadAttachment({ entryId: ENTRY_ID, file: blobOf(10 * 1024 * 1024, "audio/webm"), fileName: "voz.webm", contentType: "audio/webm", locale: "es", fetchImpl: fakeServer().fetchImpl, onProgress: (fraction) => progress.push(fraction) });
+    expect(progress.at(-1)).toBe(1);
+    expect([...progress].sort((a, b) => a - b)).toEqual(progress);
   });
 });

@@ -1,18 +1,20 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { LoaderCircle, Mic, Sparkles, Square, Upload } from "lucide-react";
 import { inspectDictationAudioFile } from "@/modules/life-story/domain/attachment-content-type";
 import type { EntryDictationOutput } from "@/modules/life-story/domain/entry-dictation-prompt";
 import {
-  audioContentTypeForTranscription,
-  blobToBase64,
   DICTATION_AUDIO_ACCEPT,
-  mimeTypeToExtension,
   normalizeAudioContentType,
-  pickRecordingMimeType,
   type PendingVoiceNote,
+  voiceNoteFileName,
 } from "@/modules/life-story/domain/voice-note";
+import { formatRecordingTime, useLongRecorder } from "@/modules/life-story/presentation/use-long-recorder";
+import { processVoiceCapture, voiceStageLabel, type VoiceStage } from "@/modules/life-story/presentation/voice-pipeline";
+
+/** `/api/ai/entry-dictation` accepts transcripts up to this length. */
+const ENTRY_DICTATION_MAX_CHARS = 8000;
 
 export type FullDictationMode = "append" | "replace";
 
@@ -41,17 +43,13 @@ export function ExperienceDictationCard({
   onVoiceSaved,
   saveVoiceRecordings = true,
 }: Props) {
-  const [recording, setRecording] = useState(false);
   const [processing, setProcessing] = useState(false);
+  const [organizing, setOrganizing] = useState(false);
+  const [stage, setStage] = useState<VoiceStage | null>(null);
   const [processingSource, setProcessingSource] = useState<"record" | "upload" | null>(null);
   const [awaitingChoice, setAwaitingChoice] = useState(false);
   const [notice, setNotice] = useState<{ tone: "error" | "warning"; message: string }>();
   const [activeMode, setActiveMode] = useState<FullDictationMode>("replace");
-  const [seconds, setSeconds] = useState(0);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const timerRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
   const dictationModeRef = useRef<FullDictationMode>("replace");
   const busyRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -70,8 +68,9 @@ export function ExperienceDictationCard({
         consent: "Activa el consentimiento de IA para dictar.",
         micError: "No se pudo acceder al micrófono.",
         transcribeError: "No se pudo transcribir el audio.",
-        savedWithoutTranscript: "Audio guardado. No se pudo transcribir, pero tu voz quedó en la experiencia.",
-        fileTooLarge: "El audio es demasiado largo (máx. 15 MB).",
+        fileTooLarge: "El audio pesa demasiado (máx. 150 MB). Expórtalo a menor calidad (p. ej. MP3 o M4A a 64 kbps mono) y vuelve a subirlo.",
+        saving: "Guardando tu voz…",
+        tooLongToOrganize: "La transcripción es muy larga para reorganizarla con IA: la hemos añadido entera a «Qué ocurrió».",
         fileType: "Formato no compatible. Usa mp3, m4a, wav, webm u ogg.",
         fileEmpty: "El archivo de audio está vacío.",
         fileReadError: "No se pudo leer el archivo de audio.",
@@ -89,49 +88,13 @@ export function ExperienceDictationCard({
         consent: "Enable AI consent to dictate.",
         micError: "Could not access the microphone.",
         transcribeError: "Could not transcribe the audio.",
-        savedWithoutTranscript: "Audio saved. Transcription failed, but your voice was kept in the experience.",
-        fileTooLarge: "Audio is too large (max 15 MB).",
+        fileTooLarge: "The audio is too large (max 150 MB). Export it at lower quality (e.g. 64 kbps mono MP3 or M4A) and upload it again.",
+        saving: "Saving your voice…",
+        tooLongToOrganize: "The transcript is too long to reorganize with AI, so we added all of it to “What happened”.",
         fileType: "Unsupported format. Use mp3, m4a, wav, webm or ogg.",
         fileEmpty: "The audio file is empty.",
         fileReadError: "Could not read the audio file.",
       };
-
-  useEffect(() => () => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    streamRef.current?.getTracks().forEach((track) => track.stop());
-  }, []);
-
-  async function saveVoiceNote(blob: Blob, mimeType: string, fileBase64: string, transcript: string, fileName: string) {
-    const contentType = normalizeAudioContentType(mimeType);
-
-    if (entryId) {
-      const { uploadAttachment } = await import("@/modules/life-story/presentation/upload-attachment");
-      const result = await uploadAttachment({
-        entryId,
-        file: blob,
-        fileName,
-        contentType,
-        fieldKey: "full",
-        transcript,
-        locale,
-      });
-      if (!result.ok) reportError(result.error);
-      else onVoiceSaved?.();
-    } else {
-      onPendingVoiceNote?.({
-        fieldKey: "full",
-        fileName,
-        contentType,
-        size: blob.size,
-        fileBase64,
-        transcript,
-      });
-    }
-  }
-
-  function transcriptionFailureMessage() {
-    return saveVoiceRecordings ? t.savedWithoutTranscript : t.transcribeError;
-  }
 
   async function processCapturedAudio(
     blob: Blob,
@@ -139,73 +102,56 @@ export function ExperienceDictationCard({
     mode: FullDictationMode,
     source: "record" | "upload",
     originalName?: string,
+    backupId: string | null = null,
   ) {
     setProcessing(true);
     setProcessingSource(source);
     setActiveMode(mode);
+    setStage(null);
     try {
-      const fileBase64 = await blobToBase64(blob);
       const contentType = normalizeAudioContentType(mimeType);
-      const fileName = originalName?.trim() || `full-${Date.now()}.${mimeTypeToExtension(contentType)}`;
+      const fileName = originalName?.trim() || voiceNoteFileName("full", contentType);
+      const result = await processVoiceCapture({
+        entryId,
+        blob,
+        fileName,
+        contentType,
+        fieldKey: "full",
+        locale,
+        saveVoiceRecordings,
+        backupId,
+        onStage: setStage,
+        onPendingVoiceNote,
+      });
+      if (result.error) reportError(result.error);
+      else if (result.warning) reportWarning(result.warning);
+      if (result.saved === "uploaded") onVoiceSaved?.();
 
-      let transcript = "";
-      let keepAudio = true;
-      try {
-        const transcribeResponse = await fetch("/api/ai/transcribe", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            audioBase64: fileBase64,
-            fileName,
-            mimeType: audioContentTypeForTranscription(contentType),
-            locale,
-          }),
-        });
-        const transcribeData = await transcribeResponse.json().catch(() => ({})) as { transcript?: string; error?: string };
-        if (transcribeResponse.status === 413) {
-          keepAudio = false;
-          reportError(t.fileTooLarge);
-        } else if (transcribeResponse.ok) {
-          transcript = transcribeData.transcript?.trim() ?? "";
-          if (!transcript) reportWarning(transcriptionFailureMessage());
-        } else {
-          const message = transcribeData.error ?? transcriptionFailureMessage();
-          const tooLarge = /15 MB|demasiado/i.test(message);
-          if (tooLarge) {
-            keepAudio = false;
-            reportError(t.fileTooLarge);
-          } else {
-            reportWarning(message);
-          }
-        }
-      } catch {
-        reportWarning(transcriptionFailureMessage());
-      }
-
-      if (!keepAudio) return;
-
+      const transcript = result.transcript.trim();
+      if (!transcript) return;
       if (mode === "append") {
-        if (transcript) onAppendTranscript?.(transcript);
-        if (saveVoiceRecordings) await saveVoiceNote(blob, contentType, fileBase64, transcript, fileName);
+        onAppendTranscript?.(transcript);
         return;
       }
-
-      if (transcript) {
-        const dictationResponse = await fetch("/api/ai/entry-dictation", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ transcript, locale }),
-        });
-        const dictationData = await dictationResponse.json().catch(() => ({})) as EntryDictationOutput & { error?: string };
-        if (dictationResponse.ok) {
-          onFields(dictationData);
-        } else {
-          reportWarning(dictationData.error ?? t.transcribeError);
-        }
+      if (transcript.length > ENTRY_DICTATION_MAX_CHARS) {
+        // Too long to reorganize with AI in one go: keep every word in «Qué ocurrió».
+        onAppendTranscript?.(transcript);
+        reportWarning(t.tooLongToOrganize);
+        return;
       }
-
-      if (saveVoiceRecordings) {
-        await saveVoiceNote(blob, contentType, fileBase64, transcript, fileName);
+      setStage(null);
+      setOrganizing(true);
+      const dictationResponse = await fetch("/api/ai/entry-dictation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transcript, locale }),
+      });
+      const dictationData = await dictationResponse.json().catch(() => ({})) as EntryDictationOutput & { error?: string };
+      if (dictationResponse.ok) {
+        onFields(dictationData);
+      } else {
+        onAppendTranscript?.(transcript);
+        reportWarning(dictationData.error ?? t.transcribeError);
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "";
@@ -213,15 +159,18 @@ export function ExperienceDictationCard({
     } finally {
       setProcessing(false);
       setProcessingSource(null);
-      setSeconds(0);
+      setOrganizing(false);
+      setStage(null);
       busyRef.current = false;
     }
   }
 
-  async function handleRecordingStop(blob: Blob, mimeType: string) {
-    const mode = dictationModeRef.current;
-    await processCapturedAudio(blob, mimeType, mode, "record");
-  }
+  const recorder = useLongRecorder({
+    scope: entryId ?? "new",
+    fieldKey: "full",
+    onFinished: ({ blob, mimeType, backupId }) => void processCapturedAudio(blob, mimeType, dictationModeRef.current, "record", undefined, backupId),
+  });
+  const recording = recorder.recording;
 
   function reportError(message: string) {
     setNotice({ tone: "error", message });
@@ -249,25 +198,7 @@ export function ExperienceDictationCard({
     dictationModeRef.current = mode;
     setActiveMode(mode);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
-      const mimeType = pickRecordingMimeType();
-      const recorder = new MediaRecorder(stream, { mimeType });
-      chunksRef.current = [];
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) chunksRef.current.push(event.data);
-      };
-      recorder.onstop = () => {
-        stream.getTracks().forEach((track) => track.stop());
-        streamRef.current = null;
-        const blob = new Blob(chunksRef.current, { type: mimeType });
-        void handleRecordingStop(blob, mimeType);
-      };
-      recorder.start();
-      mediaRecorderRef.current = recorder;
-      setRecording(true);
-      setSeconds(0);
-      timerRef.current = setInterval(() => setSeconds((value) => value + 1), 1000);
+      await recorder.start();
     } catch {
       busyRef.current = false;
       reportError(t.micError);
@@ -316,13 +247,13 @@ export function ExperienceDictationCard({
   }
 
   function stopRecording() {
-    if (timerRef.current) clearInterval(timerRef.current);
-    mediaRecorderRef.current?.stop();
-    mediaRecorderRef.current = null;
-    setRecording(false);
+    recorder.stop();
   }
 
-  const processingLabel = activeMode === "append" ? t.processingAppend : t.processing;
+  const processingLabel = organizing
+    ? t.processing
+    : voiceStageLabel(stage, locale) ?? (activeMode === "append" ? t.processingAppend : t.processing);
+  const buttonProcessingLabel = organizing ? t.processing : stage?.kind === "saving" ? t.saving : t.processingAppend;
 
   return (
     <div className="rounded-2xl border border-[var(--line)] bg-gradient-to-br from-[var(--surface-wash)] to-[var(--surface-inset)] p-4 sm:p-5">
@@ -341,11 +272,11 @@ export function ExperienceDictationCard({
               onClick={() => void handleRecordClick()}
             >
               {processing && processingSource !== "upload" ? <LoaderCircle className="animate-spin" size={16} /> : recording ? <Square size={16} /> : <Mic size={16} />}
-              {processing && processingSource !== "upload" ? processingLabel : recording ? `${t.stop} (${seconds}s)` : t.record}
+              {processing && processingSource !== "upload" ? buttonProcessingLabel : recording ? `${t.stop} (${formatRecordingTime(recorder.seconds)})` : t.record}
             </button>
             <label className={`btn btn-secondary cursor-pointer ${disabled || processing || recording || awaitingChoice ? "pointer-events-none opacity-60" : ""}`}>
               {processing && processingSource === "upload" ? <LoaderCircle className="animate-spin" size={16} /> : <Upload size={16} />}
-              {processing && processingSource === "upload" ? processingLabel : t.upload}
+              {processing && processingSource === "upload" ? buttonProcessingLabel : t.upload}
               <input
                 ref={fileInputRef}
                 className="sr-only"

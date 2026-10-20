@@ -2,8 +2,8 @@
 
 import { Monitor, Moon, Sun } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { useEffect, useId, useRef, useState } from "react";
-import { applyThemePreference, readThemePreference, type ThemePreference } from "./theme";
+import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
+import { applyThemePreference, getServerThemePreference, readThemePreference, subscribeThemePreference, type ThemePreference } from "./theme";
 
 const OPTIONS: { id: ThemePreference; icon: typeof Sun }[] = [
   { id: "light", icon: Sun },
@@ -26,14 +26,10 @@ function useUiLocale(locale?: "es" | "en") {
 
 export function ThemeToggle({ locale, variant = "menu" }: { locale?: "es" | "en"; variant?: "menu" | "inline" }) {
   const ui = copy(useUiLocale(locale));
-  const [preference, setPreference] = useState<ThemePreference>("system");
+  const preference = useSyncExternalStore(subscribeThemePreference, readThemePreference, getServerThemePreference);
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
-
-  useEffect(() => {
-    setPreference(readThemePreference());
-  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -52,7 +48,6 @@ export function ThemeToggle({ locale, variant = "menu" }: { locale?: "es" | "en"
   }, [open]);
 
   function choose(next: ThemePreference) {
-    setPreference(next);
     applyThemePreference(next);
     if (variant === "menu") setOpen(false);
   }
@@ -69,7 +64,8 @@ export function ThemeToggle({ locale, variant = "menu" }: { locale?: "es" | "en"
               type="button"
               role="radio"
               aria-checked={selected}
-              className={`theme-inline-option ${selected ? "is-selected" : ""}`}
+              data-theme-option={option.id}
+              className="theme-inline-option"
               onClick={() => choose(option.id)}
             >
               <Icon size={15} aria-hidden />
@@ -111,7 +107,8 @@ export function ThemeToggle({ locale, variant = "menu" }: { locale?: "es" | "en"
                 type="button"
                 role="menuitemradio"
                 aria-checked={selected}
-                className={`theme-menu-item ${selected ? "is-selected" : ""}`}
+                data-theme-option={option.id}
+                className="theme-menu-item"
                 onClick={() => choose(option.id)}
               >
                 <Icon size={15} aria-hidden />
