@@ -137,6 +137,12 @@ export function localDateKey(now = new Date()) {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
 
+/** Start date shown on a new experience. Keeps a real date the user already chose; otherwise today. */
+export function defaultNewEntryStartDate(existing?: string | null, today = localDateKey()) {
+  const value = existing?.trim() ?? "";
+  return isUsableIsoDate(value) ? value : today;
+}
+
 export function resolveDictationDates(
   fields: Pick<EntryDictationOutput, "startDate" | "endDate" | "datePrecision">,
   today = localDateKey(),

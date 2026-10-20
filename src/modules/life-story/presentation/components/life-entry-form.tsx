@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { LoaderCircle, Paperclip, Sparkles } from "lucide-react";
 import {
   CHANGE_DIRECTIONS,
@@ -30,8 +30,8 @@ import {
   updateLifeEntryAction,
   uploadAttachmentAction,
 } from "@/modules/life-story/application/life-entry-actions";
-import { resolveDictationDates, type EntryDictationOutput } from "@/modules/life-story/domain/entry-dictation-prompt";
-import type { EntryReflectionOutput } from "@/modules/life-story/domain/entry-reflection-prompt";
+import { defaultNewEntryStartDate, localDateKey, resolveDictationDates, type EntryDictationOutput } from "@/modules/life-story/domain/entry-dictation-prompt";
+import { reflectionTitleToApply, type EntryReflectionOutput } from "@/modules/life-story/domain/entry-reflection-prompt";
 import { AUDIO_CONTENT_TYPES, type PendingVoiceNote, type VoiceFieldKey } from "@/modules/life-story/domain/voice-note";
 import { resolveAttachmentContentType } from "@/modules/life-story/domain/attachment-content-type";
 import type { AttachmentRecord } from "@/shared/lib/mongodb/attachments";
@@ -214,6 +214,8 @@ export function LifeEntryForm({
   const [voiceMessage, setVoiceMessage] = useState<string>();
   const initialSnapshot = entry ? buildLifeEntryFormSnapshot(entry, link) : null;
   const [title, setTitle] = useState(initialSnapshot?.title ?? "");
+  const titleRef = useRef(title);
+  titleRef.current = title;
   const [narrative, setNarrative] = useState(initialSnapshot?.narrative ?? "");
   const [difficulty, setDifficulty] = useState(initialSnapshot?.difficulty ?? "");
   const [learning, setLearning] = useState(initialSnapshot?.learning ?? "");
@@ -234,6 +236,7 @@ export function LifeEntryForm({
   const [fullDictationPrompt, setFullDictationPrompt] = useState<{ resolve: (value: FullDictationMode | null) => void } | null>(null);
   const [generateAiPrompt, setGenerateAiPrompt] = useState<{ resolve: (value: boolean) => void } | null>(null);
   const [discardPrompt, setDiscardPrompt] = useState(false);
+  const [defaultStartDate, setDefaultStartDate] = useState("");
   const draftKey = getLifeEntryDraftKey(entry?.id);
   const [draftReady, setDraftReady] = useState(false);
   const isEdit = Boolean(entry);
@@ -283,8 +286,8 @@ export function LifeEntryForm({
     ],
   );
   const baselineSnapshot = useMemo(
-    () => (isEdit ? savedSnapshot : emptyLifeEntryFormSnapshot()),
-    [isEdit, savedSnapshot],
+    () => (isEdit ? savedSnapshot : { ...emptyLifeEntryFormSnapshot(), startDate: defaultStartDate }),
+    [isEdit, savedSnapshot, defaultStartDate],
   );
   const isDirty = useMemo(() => {
     if (!baselineSnapshot) return false;
@@ -324,7 +327,7 @@ export function LifeEntryForm({
         uploadedMany: (count: number) => `${count} archivos guardados.`,
         save: isEdit ? "Guardar cambios" : "Guardar experiencia",
         generateAi: "Generar con IA",
-        generateAiHelp: "La IA completará los campos de abajo a partir de lo que hayas escrito en «Qué ocurrió».",
+        generateAiHelp: "La IA completará los campos de abajo a partir de lo que hayas escrito en «Qué ocurrió». Si el título está vacío, también propondrá uno.",
         generateAiLoading: "Generando…",
         generateError: "No se pudo generar la reflexión.",
         consentRequired: "Activa el consentimiento de IA en Reflexionar o Ajustes para usar esta función.",
@@ -376,7 +379,7 @@ export function LifeEntryForm({
         uploadedMany: (count: number) => `${count} files saved.`,
         save: isEdit ? "Save changes" : "Save experience",
         generateAi: "Generate with AI",
-        generateAiHelp: "AI will complete the fields below based on what you wrote in «What happened».",
+        generateAiHelp: "AI will complete the fields below based on what you wrote in «What happened». If the title is empty, it will suggest one as well.",
         generateAiLoading: "Generating…",
         generateError: "Could not generate the reflection.",
         consentRequired: "Enable AI consent in Reflect or Settings to use this feature.",
@@ -426,7 +429,17 @@ export function LifeEntryForm({
     const draft = loadLifeEntryDraft(draftKey);
 
     if (!entry) {
-      if (draft) applySnapshot(snapshotFromDraft(draft), draft.pendingVoiceNotes ?? []);
+      const today = localDateKey();
+      setDefaultStartDate(today);
+      if (draft) {
+        const snapshot = snapshotFromDraft(draft);
+        applySnapshot(
+          { ...snapshot, startDate: defaultNewEntryStartDate(snapshot.startDate, today) },
+          draft.pendingVoiceNotes ?? [],
+        );
+      } else {
+        setStartDate((current) => defaultNewEntryStartDate(current, today));
+      }
       setDraftReady(true);
       return;
     }
@@ -643,6 +656,8 @@ export function LifeEntryForm({
   }
 
   function applyReflection(fields: EntryReflectionOutput) {
+    const suggestedTitle = reflectionTitleToApply(titleRef.current, fields.title);
+    if (suggestedTitle) setTitle(suggestedTitle);
     if (fields.difficulty) setDifficulty(fields.difficulty);
     if (fields.learning) setLearning(fields.learning);
     if (fields.transformation) setTransformation(fields.transformation);
@@ -652,19 +667,22 @@ export function LifeEntryForm({
     setTags(fields.tags.join(", "));
     setAiClassified(true);
     const replaced = {
+      title: suggestedTitle ? nextProvenanceAfterAiReplace(suggestedTitle) : null,
       difficulty: fields.difficulty ? nextProvenanceAfterAiReplace(fields.difficulty) : null,
       learning: fields.learning ? nextProvenanceAfterAiReplace(fields.learning) : null,
       transformation: fields.transformation ? nextProvenanceAfterAiReplace(fields.transformation) : null,
     };
-    if (!replaced.difficulty && !replaced.learning && !replaced.transformation) return;
+    if (!replaced.title && !replaced.difficulty && !replaced.learning && !replaced.transformation) return;
     setTextOrigins((current) => ({
       ...current,
+      title: replaced.title?.origin ?? current.title,
       difficulty: replaced.difficulty?.origin ?? current.difficulty,
       learning: replaced.learning?.origin ?? current.learning,
       transformation: replaced.transformation?.origin ?? current.transformation,
     }));
     setTextContainsAi((current) => ({
       ...current,
+      title: replaced.title?.containsAi ?? current.title,
       difficulty: replaced.difficulty?.containsAi ?? current.difficulty,
       learning: replaced.learning?.containsAi ?? current.learning,
       transformation: replaced.transformation?.containsAi ?? current.transformation,
@@ -837,8 +855,6 @@ export function LifeEntryForm({
           onAppendTranscript={appendDictationTranscript}
           onPendingVoiceNote={queueVoiceNote}
           onVoiceSaved={handleVoiceSaved}
-          onError={setError}
-          onWarning={setVoiceMessage}
           saveVoiceRecordings={saveVoiceRecordings}
         />
       </div>

@@ -1,4 +1,9 @@
-import { AUDIO_CONTENT_TYPES, type AudioContentType } from "./voice-note";
+import {
+  AUDIO_CONTENT_TYPES,
+  MAX_DICTATION_AUDIO_BYTES,
+  mimeTypeToExtension,
+  type AudioContentType,
+} from "./voice-note";
 
 export const IMAGE_CONTENT_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
 export const DOCUMENT_CONTENT_TYPES = ["application/pdf"] as const;
@@ -28,7 +33,49 @@ const MIME_ALIASES: Record<string, AttachmentContentType> = {
   "image/jpg": "image/jpeg",
   "audio/x-m4a": "audio/x-m4a",
   "audio/mp4": "audio/mp4",
+  "audio/m4a": "audio/x-m4a",
+  "audio/mp3": "audio/mpeg",
+  "audio/mpeg3": "audio/mpeg",
+  "audio/x-mpeg": "audio/mpeg",
+  "audio/x-mp3": "audio/mpeg",
+  "audio/x-wav": "audio/wav",
+  "audio/wave": "audio/wav",
+  "audio/x-pn-wav": "audio/wav",
+  "audio/vnd.wave": "audio/wav",
+  "audio/oga": "audio/ogg",
+  "audio/vorbis": "audio/ogg",
+  "audio/x-ogg": "audio/ogg",
 };
+
+const DICTATION_AUDIO_EXTENSIONS = new Set(["mp3", "m4a", "wav", "webm", "ogg"]);
+
+export type DictationAudioRejection = "empty" | "type" | "size";
+
+export function inspectDictationAudioFile(file: { name: string; type: string; size: number }):
+  | { ok: true; contentType: AudioContentType; fileName: string }
+  | { ok: false; reason: DictationAudioRejection } {
+  if (!Number.isFinite(file.size) || file.size <= 0) return { ok: false, reason: "empty" };
+  if (file.size > MAX_DICTATION_AUDIO_BYTES) return { ok: false, reason: "size" };
+
+  const name = file.name.trim();
+  const extension = name.split(".").pop()?.toLowerCase() ?? "";
+  const hasExtension = name.includes(".");
+  if (hasExtension && !DICTATION_AUDIO_EXTENSIONS.has(extension)) return { ok: false, reason: "type" };
+
+  const contentType = resolveAttachmentContentType(name, file.type);
+  if (!contentType || !isAudioContentType(contentType)) return { ok: false, reason: "type" };
+
+  const cleaned = name.replace(/[/\\?%*:|"<>]/g, "_");
+  const withExtension = /\.(mp3|m4a|wav|webm|ogg)$/i.test(cleaned)
+    ? cleaned
+    : `${cleaned || "audio"}.${mimeTypeToExtension(contentType)}`;
+
+  return {
+    ok: true,
+    contentType,
+    fileName: withExtension.slice(0, 160),
+  };
+}
 
 export function resolveAttachmentContentType(fileName: string, reportedType = ""): AttachmentContentType | null {
   const normalized = reportedType.split(";")[0]?.trim().toLowerCase() ?? "";

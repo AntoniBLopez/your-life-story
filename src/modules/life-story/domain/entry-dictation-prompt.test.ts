@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseEntryDictationResponse, resolveDictationDates } from "./entry-dictation-prompt";
+import { defaultNewEntryStartDate, parseEntryDictationResponse, resolveDictationDates } from "./entry-dictation-prompt";
 
 describe("parseEntryDictationResponse", () => {
   it("parses structured fields from JSON", () => {
@@ -92,6 +92,13 @@ describe("resolveDictationDates", () => {
       endDate: "2020-08-15",
       datePrecision: "day",
     });
+  });
+
+  it("uses today for a new entry until the user chooses a date", () => {
+    expect(defaultNewEntryStartDate("", "2026-10-20")).toBe("2026-10-20");
+    expect(defaultNewEntryStartDate(null, "2026-10-20")).toBe("2026-10-20");
+    expect(defaultNewEntryStartDate("ayer", "2026-10-20")).toBe("2026-10-20");
+    expect(defaultNewEntryStartDate(" 2019-03-01 ", "2026-10-20")).toBe("2019-03-01");
   });
 
   it("drops an invalid or earlier end date", () => {
