@@ -5,6 +5,8 @@ import { useState, useTransition } from "react";
 import { ArrowRight, LoaderCircle } from "lucide-react";
 import { signInAction, signUpAction, requestPasswordResetAction } from "@/modules/identity/application/auth-actions";
 import { ThemeToggle } from "@/shared/presentation/theme/theme-toggle";
+import { LastSignInCaption } from "./last-sign-in-caption";
+import { useLastSignInMethod } from "../use-last-sign-in-method";
 
 function GoogleIcon({ size = 16 }: { size?: number }) {
   return (
@@ -23,6 +25,11 @@ export function AuthForm({ mode, locale }: { mode: Mode; locale: "es" | "en" }) 
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string>();
   const [error, setError] = useState<string>();
+  const [resettingPassword, setResettingPassword] = useState(false);
+  const { method: lastSignInMethod, remember } = useLastSignInMethod();
+  const showLastSignIn = mode === "login" && !resettingPassword;
+  const emailWasLast = showLastSignIn && lastSignInMethod === "email";
+  const googleWasLast = showLastSignIn && lastSignInMethod === "google";
   const isRegister = mode === "register";
   const copy = locale === "es"
     ? {
@@ -37,6 +44,7 @@ export function AuthForm({ mode, locale }: { mode: Mode; locale: "es" | "en" }) 
       };
 
   function submit(formData: FormData) {
+    setResettingPassword(false);
     setError(undefined); setMessage(undefined);
     formData.set("locale", locale);
     startTransition(async () => {
@@ -47,6 +55,7 @@ export function AuthForm({ mode, locale }: { mode: Mode; locale: "es" | "en" }) 
       } else {
         const result = await signInAction(formData);
         if (!result.ok) { setError(result.error); return; }
+        remember("email");
         window.location.assign(result.data.redirectTo);
       }
     });
@@ -56,9 +65,13 @@ export function AuthForm({ mode, locale }: { mode: Mode; locale: "es" | "en" }) 
     const email = (document.getElementById("auth-email") as HTMLInputElement | null)?.value ?? "";
     const formData = new FormData(); formData.set("email", email); formData.set("locale", locale);
     setError(undefined); setMessage(undefined);
+    setResettingPassword(true);
     startTransition(async () => {
       const result = await requestPasswordResetAction(formData);
-      if (!result.ok) setError(result.error); else setMessage(copy.resetSent);
+      if (!result.ok) {
+        setResettingPassword(false);
+        setError(result.error);
+      } else setMessage(copy.resetSent);
     });
   }
 
@@ -79,7 +92,10 @@ export function AuthForm({ mode, locale }: { mode: Mode; locale: "es" | "en" }) 
           <p className="mt-3 text-sm leading-6 text-[var(--muted)]">{copy.subtitle}</p>
           <form action={submit} className="mt-7 space-y-4">
             {isRegister && <label><span className="field-label">{copy.name}</span><input className="input" name="displayName" required maxLength={80} /></label>}
-            <label><span className="field-label">{copy.email}</span><input id="auth-email" className="input" type="email" name="email" required autoComplete="email" /></label>
+            <div>
+              <label><span className="field-label">{copy.email}</span><input id="auth-email" className={emailWasLast ? "input last-sign-in-mark" : "input"} type="email" name="email" required autoComplete="email" /></label>
+              {emailWasLast && lastSignInMethod && <LastSignInCaption method={lastSignInMethod} locale={locale} />}
+            </div>
             <label><span className="field-label">{copy.password}</span><input className="input" type="password" name="password" required minLength={8} autoComplete={isRegister ? "new-password" : "current-password"} /></label>
             {isRegister && <label className="flex items-start gap-2 text-xs leading-5 text-[var(--muted)]"><input name="acceptedAdultTerms" type="checkbox" value="true" required className="mt-1" />{copy.adult}</label>}
             {error && <p role="alert" className="field-error">{error}</p>}
@@ -88,7 +104,8 @@ export function AuthForm({ mode, locale }: { mode: Mode; locale: "es" | "en" }) 
           </form>
           {!isRegister && <button type="button" onClick={resetPassword} disabled={pending} className="mt-4 text-xs font-bold text-[var(--moss)]">{copy.forgot}</button>}
           <div className="my-6 flex items-center gap-3 text-xs text-[var(--muted)]"><span className="h-px flex-1 bg-[var(--line)]" />{locale === "es" ? "o" : "or"}<span className="h-px flex-1 bg-[var(--line)]" /></div>
-          <a href={`/api/auth/google?locale=${locale}`} className="btn btn-secondary w-full flex items-center justify-center gap-2"><GoogleIcon />{copy.google}</a>
+          <a href={`/api/auth/google?locale=${locale}`} className={googleWasLast ? "btn btn-secondary last-sign-in-mark w-full flex items-center justify-center gap-2" : "btn btn-secondary w-full flex items-center justify-center gap-2"}><GoogleIcon />{copy.google}</a>
+          {googleWasLast && lastSignInMethod && <LastSignInCaption method={lastSignInMethod} locale={locale} />}
           <p className="mt-6 text-center text-xs text-[var(--muted)]">{copy.switch} <Link className="font-bold text-[var(--moss)]" href={`/${locale}/${isRegister ? "login" : "register"}`}>{copy.switchAction}</Link></p>
         </div>
       </section>

@@ -7,6 +7,7 @@ import { getCurrentUser } from "@/shared/lib/auth";
 import { touchLastSeen } from "@/modules/identity/infrastructure/mongo-profile-repository";
 import { MongoGoogleCalendarAccountRepository } from "@/modules/family-tree/infrastructure/mongo-google-calendar-account-repository";
 import { syncAllBirthdayRemindersForUser } from "@/modules/family-tree/application/birthday-reminder-service";
+import { PENDING_SIGN_IN_COOKIE } from "@/modules/identity/presentation/last-sign-in-method";
 
 type OAuthState = {
   locale?: string;
@@ -71,7 +72,15 @@ export async function GET(request: NextRequest) {
     const user = await findOrCreateGoogleUser({ ...profile, locale });
     await createSession(user.id);
     await touchLastSeen(user.id, { force: true });
-    return NextResponse.redirect(new URL(next, request.url));
+    const response = NextResponse.redirect(new URL(next, request.url));
+    response.cookies.set(PENDING_SIGN_IN_COOKIE, "google", {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 365,
+    });
+    return response;
   } catch (error) {
     console.error("Google OAuth callback failed:", error);
     return NextResponse.redirect(new URL(intent === "calendar" ? `/${locale}/app/family?calendar=error` : `/${locale}/login?error=oauth`, request.url));
